@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Stack</title>
+<meta name="description" content="Free unreleased music, guest list drawings and first access to every drop. Members only.">
+<meta property="og:title" content="The Stack">
+<meta property="og:description" content="Hear it before the internet does.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<!--CONFIG-->
+</head>
+<body>
+<div class="scan" aria-hidden="true"></div>
+<main>
+  <div class="brand" id="brand"></div>
+  <h1 id="h1"></h1>
+  <p class="lead" id="sub"></p>
+
+  <form id="f" novalidate method="post" action="/in">
+    <label for="email" class="sr">Email address</label>
+    <input type="email" id="email" name="email" placeholder="your email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+    <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
+    <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div id="ts"></div>
+    <button type="submit" class="btn" id="btn"></button>
+    <p class="micro" id="micro"></p>
+  </form>
+  <div id="msg" class="msg" role="status"></div>
+  <div class="proof" id="proof" hidden></div>
+
+  <section class="perks" id="perks" aria-label="What members get"></section>
+
+  <form class="perks" style="margin-top:44px" id="f2" novalidate>
+    <label for="email2" class="sr">Email address</label>
+    <input type="email" id="email2" placeholder="your email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
+    <button type="submit" class="btn" id="btn2"></button>
+  </form>
+
+  <footer>
+    <a href="/privacy">Privacy</a>
+    <a href="/rules">Giveaway rules</a>
+    <a id="contact" href="#">Contact</a>
+  </footer>
+</main>
+<script src="/app.js"></script>
+<script>
+(function () {
+  var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); };
+  var v = S.variant();
+  var labelName = C.labelName || "";
+  $("brand").textContent = (labelName ? labelName + " · " : "") + (C.membershipName || "The Stack");
+  function glitch(t) { return t.split(" ").map(function (w) { return '<span class="g" data-text="' + S.esc(w) + '">' + S.esc(w) + "</span>"; }).join(" "); }
+  $("h1").innerHTML = glitch((C.headlines || {})[v] || "Hear it before the internet does.");
+  $("sub").textContent = C.subhead || "";
+  $("btn").textContent = $("btn2").textContent = C.cta || "LET ME IN";
+  $("micro").textContent = C.microcopy || "";
+  $("contact").href = "mailto:" + (C.contactEmail || "");
+  $("perks").innerHTML = (C.perks || []).map(function (p) { return '<div class="perk"><b>' + S.esc(p.icon) + "</b><div><h3>" + S.esc(p.title) + "</h3><p>" + S.esc(p.body) + "</p></div></div>"; }).join("");
+
+  // Event mode + real member count (shown only past the threshold, never faked).
+  S.get("meta", { e: S.attr.e || null }).then(function (m) {
+    if (m.event) {
+      $("h1").innerHTML = glitch(S.fill(C.eventHeadline, { EVENT_NAME: m.event.name }));
+      $("sub").textContent = S.fill(C.eventSubhead, { PRIZE: m.event.prize || "the giveaway", EVENT_NAME: m.event.name });
+    }
+    if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " already inside"; $("proof").hidden = false; }
+  }).catch(function () {});
+  S.pageview("/");
+
+  // Typo fixer: "Did you mean gmail.com?"
+  var FIX = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com", "hotmial.com": "hotmail.com", "hotmal.com": "hotmail.com", "yaho.com": "yahoo.com", "yahooo.com": "yahoo.com", "outlok.com": "outlook.com", "iclod.com": "icloud.com", "icoud.com": "icloud.com" };
+  function suggest(email) {
+    var at = email.lastIndexOf("@"); if (at < 0) return null;
+    var dom = email.slice(at + 1).toLowerCase(), fixed = FIX[dom];
+    if (!fixed && /\.(con|cmo|ocm|vom|cm)$/.test(dom)) fixed = dom.replace(/\.(con|cmo|ocm|vom|cm)$/, ".com");
+    return fixed && fixed !== dom ? email.slice(0, at + 1) + fixed : null;
+  }
+  var pendingSuggest = null;
+  $("hintBtn").addEventListener("click", function () { $("email").value = pendingSuggest; $("hint").hidden = true; pendingSuggest = null; });
+
+  // Turnstile loads lazily, only once someone touches the form.
+  var tsReady = null, tsToken = null;
+  function loadTurnstile() {
+    if (tsReady || !C.turnstileSiteKey) return;
+    tsReady = new Promise(function (res) {
+      window.__tsOnload = function () {
+        turnstile.render("#ts", { sitekey: C.turnstileSiteKey, size: "invisible", callback: function (tok) { tsToken = tok; }, "error-callback": function () { tsToken = null; } });
+        res();
+      };
+      var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
+    });
+  }
+  $("email").addEventListener("focus", loadTurnstile, { once: true });
+  $("email2").addEventListener("focus", loadTurnstile, { once: true });
+
+  function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
+  function go(res) { location.href = "/in?t=" + encodeURIComponent(res.access_token) + (res.already_member ? "&back=1" : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""); }
+
+  function submit(emailEl, btnEl) {
+    var email = emailEl.value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { say("That email doesn't look right."); emailEl.focus(); return; }
+    var sug = suggest(email);
+    if (sug && pendingSuggest !== sug) { pendingSuggest = sug; $("hintBtn").textContent = "Did you mean " + sug + "?"; $("hint").hidden = false; say(""); return; }
+    $("hint").hidden = true;
+    btnEl.disabled = true; say("One sec...");
+    var body = { email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
+      utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null };
+    var ready = tsReady ? Promise.race([tsReady, new Promise(function (r) { setTimeout(r, 4000); })]) : Promise.resolve();
+    ready.then(function () { body.turnstile = tsToken; return S.api("subscribe", body); })
+      .then(go)
+      .catch(function (err) {
+        if (err.status === 429) { say("Slow down a sec and try again."); btnEl.disabled = false; return; }
+        if (err.status && err.status < 500) { say(err.message || "Couldn't sign you up."); btnEl.disabled = false; return; }
+        // Network died (festival wifi). Keep the signup, show success, retry later.
+        S.savePending(body);
+        location.href = "/in?pending=1";
+      });
+  }
+  $("f").addEventListener("submit", function (e) { e.preventDefault(); submit($("email"), $("btn")); });
+  $("f2").addEventListener("submit", function (e) { e.preventDefault(); $("email").value = $("email2").value; submit($("email2"), $("btn2")); });
+  if (navigator.onLine) S.flushPending().catch(function () {});
+})();
+</script>
+</body>
+</html>

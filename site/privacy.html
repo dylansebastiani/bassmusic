@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<!--CONFIG-->
+</head>
+<body>
+<main class="prose">
+  <div class="brand" id="brand" style="text-align:center"></div>
+  <h1>Privacy</h1>
+  <p>This page explains what <span data-k="labelName"></span> collects when you join <span data-k="membershipName"></span>, why, and how to get it deleted.</p>
+  <h2>What we collect</h2>
+  <p>Your email address when you join. Optionally, if you give them: first name, ZIP code, phone number, birthday and Instagram handle. We also record which link brought you here (Instagram, TikTok, a show QR code, a friend's referral link), a hashed version of your IP address for abuse prevention (never the raw address), which tracks you play, which emails you click, and how you vote in member polls.</p>
+  <h2>Why</h2>
+  <p>To send you unreleased music, show announcements, presales, giveaways and member-only drops; to enter you in guest list drawings; to work out which cities to book shows in; and to stop bots and duplicate signups.</p>
+  <h2>Texts</h2>
+  <p>We only text you if you gave a phone number and ticked the consent box. We store the exact wording you agreed to and when. Reply STOP to any text to opt out. Message and data rates may apply.</p>
+  <h2>Who we share it with</h2>
+  <p>Our email provider (to deliver email) and our hosting and database providers (to run this site). We may share hashed versions of member emails and phone numbers with Meta and TikTok so we can show ads to members and to people like them. Hashing means they receive a scrambled version they can only match against accounts they already hold. We never sell your information.</p>
+  <h2>How to opt out or delete</h2>
+  <p>Every email has a one-click unsubscribe. To be removed from ad audiences or to have everything we hold about you deleted, email <a data-mail="contactEmail"></a> from the address you signed up with and we'll do it within 30 days.</p>
+  <h2>Age</h2>
+  <p>You must be 13 or older to join. Giveaway winners must be 18 or older, or 21 or older where the venue requires it.</p>
+  <h2>Contact</h2>
+  <p><span data-k="labelName"></span><br><span data-k="mailingAddress"></span><br><a data-mail="contactEmail"></a></p>
+</main>
+<script src="/app.js"></script>
+<script>
+(function () { var C = window.Stack.C;
+  document.getElementById("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "The Stack");
+  document.querySelectorAll("[data-k]").forEach(function (el) { el.textContent = C[el.getAttribute("data-k")] || ""; });
+  document.querySelectorAll("[data-mail]").forEach(function (el) { var m = C[el.getAttribute("data-mail")] || ""; el.textContent = m; el.href = "mailto:" + m; });
+})();
+</script>
+</body>
+</html>

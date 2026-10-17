@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bonus track</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<!--CONFIG-->
+</head>
+<body>
+<div class="scan" aria-hidden="true"></div>
+<main>
+  <div class="brand" id="brand"></div>
+  <h1><span class="g" data-text="Confirmed.">Confirmed.</span></h1>
+  <p class="lead">Your email's locked in and your referrals count from here. This one's the bonus.</p>
+  <section class="card" aria-label="Bonus track">
+    <h2>Bonus</h2>
+    <img class="art" id="art" alt="" hidden>
+    <button class="play" id="play" aria-label="Play">&#9654;</button>
+    <div class="title" id="title">Loading...</div>
+    <div class="artist" id="artist"></div>
+    <audio id="audio" controls controlsList="nodownload noplaybackrate" preload="none" hidden></audio>
+    <p class="micro" id="pmsg"></p>
+  </section>
+  <a class="btn ghost" id="back" href="/in" style="max-width:420px">Back to your member page</a>
+  <footer><a href="/privacy">Privacy</a></footer>
+</main>
+<script src="/app.js"></script>
+<script>
+(function () {
+  var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); }, t = S.q.get("t");
+  $("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "The Stack");
+  if (!t) { location.replace("/"); return; }
+  $("back").href = "/in?t=" + encodeURIComponent(t);
+  S.pageview("/bonus");
+  var a = $("audio"), url = null, started = false, logged = false;
+  S.get("me", { t: t, kind: "bonus" }).then(function (m) {
+    if (!m.drop) { $("title").textContent = "Bonus drop coming soon"; $("pmsg").textContent = "We'll email it to you."; $("play").hidden = true; return; }
+    $("title").textContent = m.drop.title; $("artist").textContent = m.drop.artist || "";
+    if (m.drop.artwork_url) { $("art").src = m.drop.artwork_url; $("art").hidden = false; }
+    url = m.drop.audio_url;
+  }).catch(function () { $("title").textContent = "Couldn't load the track"; $("pmsg").textContent = "Refresh in a moment."; });
+  $("play").addEventListener("click", function () { if (!url) return; if (!started) { a.src = url; a.hidden = false; started = true; } $("play").hidden = true; a.play().catch(function () {}); });
+  a.addEventListener("play", function () { if (!logged) { logged = true; S.api("engage", { t: t, type: "bonus_play" }).catch(function () {}); } });
+})();
+</script>
+</body>
+</html>

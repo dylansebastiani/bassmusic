@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>You're in</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<!--CONFIG-->
+</head>
+<body>
+<div class="scan" aria-hidden="true"></div>
+<main>
+  <div class="brand" id="brand"></div>
+  <h1 id="h1"><span class="g" data-text="You're in.">You're in.</span></h1>
+  <p class="lead" id="sub">Here's the track nobody else has heard yet.</p>
+
+  <section class="card" id="player" aria-label="Unreleased track">
+    <h2>Unreleased</h2>
+    <img class="art" id="art" alt="" hidden>
+    <button class="play" id="play" aria-label="Play">&#9654;</button>
+    <div class="title" id="title">Loading...</div>
+    <div class="artist" id="artist"></div>
+    <audio id="audio" controls controlsList="nodownload noplaybackrate" preload="none" hidden></audio>
+    <p class="micro" id="pmsg"></p>
+  </section>
+
+  <section class="card" id="entered" hidden>
+    <h2>Giveaway</h2>
+    <p style="font-size:14px;line-height:1.7">You're entered. Winner announced before the set ends.</p>
+  </section>
+
+  <form class="card" id="step2" novalidate>
+    <h2>Want first dibs on shows near you?</h2>
+    <div style="display:grid;gap:8px">
+      <label for="first_name">First name</label>
+      <input type="text" id="first_name" autocomplete="given-name" placeholder="first name">
+      <div class="row2">
+        <div><label for="zip">ZIP</label><input type="text" id="zip" inputmode="numeric" autocomplete="postal-code" placeholder="zip"></div>
+        <div><label for="phone">Phone</label><input type="tel" id="phone" autocomplete="tel" placeholder="phone"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="sms"><span id="smsText"></span></label>
+      <label class="check"><input type="checkbox" id="age"><span id="ageText"></span></label>
+      <div class="row2">
+        <button type="button" class="btn ghost" id="skip">Skip</button>
+        <button type="submit" class="btn" id="save">Save</button>
+      </div>
+      <div class="msg" id="s2msg" role="status"></div>
+    </div>
+  </form>
+
+  <section class="card" id="ref" hidden>
+    <h2>Bring your people</h2>
+    <p style="font-size:13px;color:var(--mute);line-height:1.7;margin-bottom:12px" id="refProgress"></p>
+    <div class="link" id="refLink"></div>
+    <div class="row2">
+      <button type="button" class="btn ghost" id="copy">Copy link</button>
+      <button type="button" class="btn" id="share" hidden>Share</button>
+    </div>
+  </section>
+
+  <section class="card" id="next">
+    <h2>Next</h2>
+    <p style="font-size:14px;line-height:1.8" id="nextBody">Check your inbox for a bonus track. Tap the link in that email to unlock it.</p>
+    <a class="btn ghost" id="ig" href="#" hidden target="_blank" rel="noopener">Follow on Instagram</a>
+  </section>
+
+  <footer><a href="/privacy">Privacy</a><a href="/rules">Giveaway rules</a></footer>
+</main>
+<script src="/app.js"></script>
+<script>
+(function () {
+  var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); };
+  var t = S.q.get("t");
+  $("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "The Stack");
+  $("smsText").textContent = S.fill(C.smsConsentText, { LABEL_NAME: C.labelName });
+  $("ageText").textContent = C.ageText || "I'm 13 or older.";
+  if (C.social && C.social.instagram) { $("ig").href = "https://instagram.com/" + C.social.instagram.replace(/^@/, ""); $("ig").hidden = false; }
+  if (S.q.get("back")) { $("h1").innerHTML = '<span class="g" data-text="You\'re already in.">You\'re already in.</span>'; $("sub").textContent = "Good to see you again. Here's where it's at."; }
+  S.pageview("/in");
+
+  var audioUrl = null, started = false;
+  function load(tok) {
+    S.get("me", { t: tok }).then(function (m) {
+      if (m.event_entered) $("entered").hidden = false;
+      if (m.first_name) { $("first_name").value = m.first_name; }
+      if (m.profile_done) $("step2").hidden = true;
+      if (m.referral_code) {
+        var link = (C.siteUrl || location.origin) + "/?r=" + m.referral_code;
+        $("refLink").textContent = link; $("ref").hidden = false;
+        var n = m.confirmed_referrals || 0, tiers = C.referralTiers || [], nxt = tiers.filter(function (x) { return x.referrals > n; })[0];
+        $("refProgress").textContent = nxt ? (n + " in so far. Get " + nxt.referrals + " friend" + (nxt.referrals > 1 ? "s" : "") + " in → " + nxt.label.toLowerCase() + ".") : (n + " friends in. You've unlocked everything.");
+        $("copy").addEventListener("click", function () {
+          var done = function () { $("copy").textContent = "Copied"; S.api("engage", { t: tok, type: "share_click" }).catch(function () {}); };
+          if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, function () { window.getSelection().selectAllChildren($("refLink")); });
+          else { window.getSelection().selectAllChildren($("refLink")); done(); }
+        });
+        if (navigator.share) { $("share").hidden = false; $("share").addEventListener("click", function () { navigator.share({ title: C.membershipName, text: "Unreleased music, free. Get in:", url: link }).then(function () { S.api("engage", { t: tok, type: "share_click" }).catch(function () {}); }).catch(function () {}); }); }
+      }
+      if (m.confirmed) $("nextBody").textContent = "Your bonus track is unlocked. Watch your inbox for the next drop.";
+      if (m.drop) {
+        $("title").textContent = m.drop.title; $("artist").textContent = m.drop.artist || "";
+        if (m.drop.artwork_url) { $("art").src = m.drop.artwork_url; $("art").hidden = false; }
+        audioUrl = m.drop.audio_url;
+      } else { $("title").textContent = "First drop lands soon"; $("pmsg").textContent = "You'll get it by email the second it's ready."; $("play").hidden = true; }
+    }).catch(function () { $("title").textContent = "Couldn't load the track"; $("pmsg").textContent = "Refresh in a moment."; });
+  }
+
+  // Player: big play button, then native controls. Log start / 30s / complete once each.
+  var a = $("audio"), logged = {};
+  function log(type) { if (logged[type] || !t) return; logged[type] = 1; S.api("engage", { t: t, type: type }).catch(function () {}); }
+  $("play").addEventListener("click", function () {
+    if (!audioUrl) return;
+    if (!started) { a.src = audioUrl; a.hidden = false; started = true; }
+    $("play").hidden = true; a.play().catch(function () {});
+  });
+  a.addEventListener("play", function () { log("track_start"); });
+  a.addEventListener("timeupdate", function () { if (a.currentTime >= 30) log("track_30s"); if (a.duration && a.currentTime / a.duration >= 0.9) log("track_complete"); });
+  a.addEventListener("error", function () { if (started) { $("pmsg").textContent = "Link expired. Refresh to keep listening."; } });
+
+  // Step 2: optional profile
+  $("skip").addEventListener("click", function () { $("step2").hidden = true; });
+  $("step2").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var phone = $("phone").value.trim(), zip = $("zip").value.trim(), m = $("s2msg");
+    if (phone && phone.replace(/\D/g, "").length < 10) { m.textContent = "That phone number doesn't look right."; return; }
+    if (zip && !/^\d{5}(-?\d{4})?$/.test(zip)) { m.textContent = "That ZIP doesn't look right."; return; }
+    if (phone && !$("sms").checked) { m.textContent = "Tick the text-me box if you want texts, or clear the phone field."; return; }
+    $("save").disabled = true; m.textContent = "Saving...";
+    S.api("profile", { t: t, first_name: $("first_name").value.trim(), zip: zip, phone: phone, sms_consent: $("sms").checked, age_confirmed: $("age").checked })
+      .then(function () { m.className = "msg ok"; m.textContent = "Saved. We'll hit you up when something's near you."; setTimeout(function () { $("step2").hidden = true; }, 1200); })
+      .catch(function (err) { $("save").disabled = false; m.textContent = err.message || "Couldn't save. Try again."; });
+  });
+
+  if (t) load(t);
+  else if (S.q.get("pending")) {
+    $("sub").textContent = "Your signup is saved. We'll unlock the track the second you're back online.";
+    $("title").textContent = "Waiting for signal..."; $("play").hidden = true; $("step2").hidden = true;
+    var tries = 0, iv = setInterval(function () {
+      if (!navigator.onLine && tries++ < 200) return;
+      S.flushPending().then(function (res) { if (res && res.access_token) { clearInterval(iv); location.replace("/in?t=" + encodeURIComponent(res.access_token)); } }).catch(function () {});
+    }, 5000);
+    window.addEventListener("online", function () { S.flushPending().then(function (res) { if (res && res.access_token) location.replace("/in?t=" + encodeURIComponent(res.access_token)); }).catch(function () {}); });
+  } else location.replace("/");
+})();
+</script>
+</body>
+</html>
