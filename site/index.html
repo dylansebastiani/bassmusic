@@ -55,8 +55,11 @@ img{display:block}
   .grain,.cut,.mbg{display:none}
   .rgb .r,.rgb .b{display:none}
   .rgb .g{filter:none;mix-blend-mode:normal;transform:none!important}
-  .wp[data-wp="0"] .ch{object-fit:contain;object-position:50% 10%;height:62%;top:0}
-  .wscrim{background:linear-gradient(to bottom,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.96) 72%,#000 100%)}
+  /* First screen: the machine fills the top three quarters edge to edge, bleeds into black under the headline. */
+  .wp[data-wp="0"] .ch{object-fit:cover;object-position:50% 0%;height:80%;top:0;transform-origin:50% 30%}
+  .wp[data-wp="0"] .rgb{animation:breathe 9s ease-in-out infinite alternate;will-change:transform}
+  @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.07) translate3d(0,-1.2%,0)}}
+  .wscrim{background:linear-gradient(to bottom,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 14%,rgba(0,0,0,0) 46%,rgba(0,0,0,.6) 64%,rgba(0,0,0,.95) 78%,#000 90%)}
   .flyer{justify-content:flex-end}
   .flyer::after{display:none}
   .flyer .top{position:absolute;left:18px;right:18px;top:max(18px,env(safe-area-inset-top,0px))}
@@ -68,7 +71,7 @@ img{display:block}
   .flyer .bottom>*{animation:up .9s cubic-bezier(.2,.7,.2,1) both}
   .flyer .bottom>:nth-child(1){animation-delay:.35s}.flyer .bottom>:nth-child(2){animation-delay:.5s}.flyer .bottom>:nth-child(3){animation-delay:.65s}
   @keyframes up{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
-  @media (prefers-reduced-motion:reduce){.pbar,.flyer .top,.flyer .bottom>*{animation:none;opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.pbar,.flyer .top,.flyer .bottom>*,.wp[data-wp="0"] .rgb{animation:none;opacity:1;transform:none}}
 }}
 }}
 }
