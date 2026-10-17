@@ -1,8 +1,8 @@
 {
-  "labelName": "LABEL NAME",
-  "membershipName": "The Stack",
+  "labelName": "",
+  "membershipName": "Archive",
   "siteUrl": "https://bassmusic.pages.dev",
-  "fromName": "Dylan @ LABEL NAME",
+  "fromName": "Dylan",
   "fromEmail": "dylan@mail.example.com",
   "replyTo": "",
   "contactEmail": "hello@example.com",
@@ -13,39 +13,34 @@
     "facebook": ""
   },
   "headlines": {
-    "A": "Hear it first.",
-    "B": "Unreleased music. Before anyone."
+    "A": "Access the archive.",
+    "B": "Clearance required."
   },
-  "subhead": "Unreleased tracks, guest list spots and presales, straight to your inbox. Free. Members only.",
-  "cta": "LET ME IN",
-  "microcopy": "Takes 5 seconds. No spam. Leave anytime.",
-  "eventHeadline": "You're at {{EVENT_NAME}} tonight.",
-  "eventSubhead": "Join The Stack to hear the unreleased track we just played and get entered to win {{PRIZE}}.",
+  "subhead": "Unreleased files, early tickets and votes on what gets released. Members are cleared. Everyone else waits.",
+  "cta": "REQUEST ACCESS",
+  "microcopy": "Transmissions are rare. Revoke access at any time.",
+  "eventHeadline": "Location confirmed: {{EVENT_NAME}}.",
+  "eventSubhead": "The file you just heard is in the archive. Clearance enters you for {{PRIZE}}.",
   "perks": [
     {
       "icon": "01",
-      "title": "Unreleased music first",
-      "body": "Hear tracks before they're public."
+      "title": "Unreleased files",
+      "body": "Decrypted for members before release."
     },
     {
       "icon": "02",
-      "title": "Guest list drawings",
-      "body": "You're entered automatically for every show."
+      "title": "Early tickets",
+      "body": "Presale codes issued to members first."
     },
     {
       "icon": "03",
-      "title": "First access to tickets",
-      "body": "Presales hit your inbox before anyone else's."
+      "title": "Classified drops",
+      "body": "Merch, pop-ups, afterparty coordinates."
     },
     {
       "icon": "04",
-      "title": "Secret drops",
-      "body": "Limited merch, pop-ups, afterparty locations. Members only."
-    },
-    {
-      "icon": "05",
-      "title": "You pick what drops next",
-      "body": "Members vote on the next release."
+      "title": "Release votes",
+      "body": "Members decide what the archive opens next."
     }
   ],
   "smsConsentText": "Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.",
@@ -59,13 +54,14 @@
     },
     {
       "referrals": 3,
-      "tier": "guestlist_plus1",
-      "label": "Guaranteed guest list +1 at the next local show"
+      "tier": "early_file",
+      "label": "An unreleased file, 48 hours before members"
     },
     {
       "referrals": 10,
       "tier": "merch",
-      "label": "Free merch item"
+      "label": "Merch on us"
     }
-  ]
+  ],
+  "logoUrl": "assets/logo.png"
 }

@@ -15,7 +15,7 @@ async function unsub(u: string) {
 const page = (title: string, body: string) => new Response(
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#eee;font:16px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;text-align:center;padding:24px}a{color:#fff}</style></head>
-<body><div><h1 style="font-size:22px;letter-spacing:.1em;text-transform:uppercase">${title}</h1><p>${body}</p><p><a href="${SITE_URL}/">${CONFIG.labelName}</a></p></div></body></html>`,
+<body><div><h1 style="font-size:22px;letter-spacing:.1em;text-transform:uppercase">${title}</h1><p>${body}</p><p><a href="${SITE_URL}/">${CONFIG.labelName || CONFIG.membershipName}</a></p></div></body></html>`,
   { headers: { "Content-Type": "text/html; charset=utf-8" } });
 
 Deno.serve(async (req) => {

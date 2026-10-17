@@ -7,7 +7,7 @@ export interface Member {
 }
 export interface Rendered { subject: string; html: string; text: string; }
 
-const L = CONFIG.labelName, M = CONFIG.membershipName;
+const M = CONFIG.membershipName, L = CONFIG.labelName || M;
 const hi = (m: Member) => (m.first_name ? `hey ${m.first_name}` : "hey");
 const confirmUrl = (m: Member) => `${SITE_URL}/c/${m.access_token}`;
 const refUrl = (m: Member) => `${SITE_URL}/?r=${m.referral_code}`;

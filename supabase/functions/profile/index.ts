@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   if (phone && consent) {
     // Store exactly what they agreed to and when. TCPA wants the receipt.
     patch.sms_consent = true;
-    patch.sms_consent_text = fill(CONFIG.smsConsentText, { LABEL_NAME: CONFIG.labelName });
+    patch.sms_consent_text = fill(CONFIG.smsConsentText, { LABEL_NAME: CONFIG.labelName || CONFIG.membershipName });
     patch.sms_consent_at = new Date().toISOString();
   } else if (!phone) {
     patch.sms_consent = false;

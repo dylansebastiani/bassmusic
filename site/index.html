@@ -2,74 +2,350 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Stack</title>
-<meta name="description" content="Free unreleased music, guest list drawings and first access to every drop. Members only.">
-<meta property="og:title" content="The Stack">
-<meta property="og:description" content="Hear it before the internet does.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Restricted</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:title" content="Restricted">
+<meta property="og:description" content="Restricted archive. Unreleased files, access, votes. Clearance required.">
+<meta property="og:image" content="assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script>document.documentElement.className="js"</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Members. One world, one flight through it, one email field. Black, white, acid green. Mobile first. */
+:root{--bg:#000;--fg:#f4f1ee;--mute:#9a9490;--line:#2a2627;--hot:#b6ff00;
+  --disp:"Anton","Arial Narrow",Impact,sans-serif;--text:"Archivo",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.55;overflow-x:hidden;-webkit-text-size-adjust:100%}
+img{display:block}
+.grain{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:.09;mix-blend-mode:screen;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.sec{position:relative;min-height:100svh;display:flex;flex-direction:column;
+  padding:max(18px,env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) max(22px,env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+.disp{font-family:var(--disp);font-weight:400;text-transform:uppercase;line-height:.92;letter-spacing:.005em}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.label{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#cfc9c5}
+.laser{height:1px;background:linear-gradient(90deg,transparent,var(--hot) 20%,var(--hot) 80%,transparent);opacity:.9}
+
+/* ===== the world: fixed, behind everything ===== */
+.world{position:fixed;inset:0;z-index:0;overflow:hidden;background:#000}
+.wp{position:absolute;inset:0;will-change:transform,opacity;transform-origin:50% 50%;opacity:0;visibility:hidden}
+.wp[data-wp="0"] .ch{object-position:50% 45%}
+.wp[data-wp="1"] .ch{object-position:60% 50%}
+.wp[data-wp="3"] .ch{object-fit:contain;object-position:50% 50%}
+.wscrim{position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse 90% 70% at 50% 50%,rgba(0,0,0,0) 40%,rgba(0,0,0,.6) 100%)}
+.sec{z-index:2}
+.flyer .art,.offer .bg,.get .bg{display:none}
+.offer::before,.get::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(to right,rgba(0,0,0,.82) 0,rgba(0,0,0,.45) 60%,rgba(0,0,0,.1) 100%)}
+.get::before{background:linear-gradient(to bottom,rgba(0,0,0,.2) 0,rgba(0,0,0,.75) 55%,rgba(0,0,0,.92) 100%)}
+.foot{background:#000}
+/* ===== camera plates ===== */
+.rgb{position:absolute;inset:0;isolation:isolate}
+.rgb .ch{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;will-change:transform}
+.rgb .r{filter:url(#fr)}.rgb .g{filter:url(#fg)}.rgb .b{filter:url(#fb)}
+.cut{position:fixed;left:0;right:0;top:50%;height:2px;background:var(--hot);z-index:25;pointer-events:none;opacity:0;transform:scaleX(0)}
+@media (prefers-reduced-motion:reduce){.plate{transform:none!important;opacity:1!important}.rgb .ch{transform:none!important}.cut{display:none}}
+/* ===== 1. The flyer ===== */
+.flyer{justify-content:space-between;overflow:visible;min-height:100svh}
+.offer,.get{min-height:92svh}
+.flyer>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:flex-start}
+.mark{display:block;width:var(--mw,64px);height:auto;fill:#fff}
+img.mark{object-fit:contain}
+.brandrow{display:flex;align-items:center;gap:14px}
+.wordmark{font-family:var(--disp);text-transform:uppercase;line-height:.86;letter-spacing:-.01em;font-size:clamp(42px,13.5vw,92px);color:#fff;transform:scaleY(1.18);transform-origin:0 0}
+.wordmark small{display:block;font-family:var(--text);font-weight:600;font-size:13px;letter-spacing:.18em;color:#cfc9c5;margin-top:.35em;transform:scaleY(.85)}
+.wordmark:empty{display:none}
+.flyer .cat{text-align:right}
+.flyer .bottom{display:flex;flex-direction:column;gap:14px}
+.promise{font-size:clamp(44px,12.2vw,96px);max-width:11ch;text-shadow:0 2px 24px rgba(0,0,0,.9)}
+.promise em{font-style:normal;color:var(--hot)}
+.sub{font-size:16px;line-height:1.55;color:#e2dcd8;max-width:34ch}
+.ev .sub{display:block}
+.cue{display:flex;align-items:center;gap:12px;margin-top:6px;font-size:12px;letter-spacing:.14em;transition:opacity .4s}
+.cue.off{opacity:0}
+.cue b{display:block;width:1px;height:28px;background:rgba(255,255,255,.3);position:relative;overflow:hidden}
+.cue b::after{content:"";position:absolute;left:0;top:-12px;width:1px;height:12px;background:#fff;animation:drip 1.5s ease-in infinite}
+@keyframes drip{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(42px);opacity:0}}
+
+/* ===== 2. The offer ===== */
+.bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+.offer>*{position:relative;z-index:1}
+.offer .bg{position:absolute;z-index:0}
+
+.offer{justify-content:center;gap:18px}
+.offer h2{font-size:clamp(46px,12.5vw,100px);max-width:10ch}
+.offer h2 em{font-style:normal;color:var(--hot)}
+form{width:100%;max-width:460px;display:flex;flex-direction:column;gap:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.unit{display:flex;flex-direction:column;border:1px solid #6c6567;background:#000}
+.unit:focus-within{border-color:#fff}
+input[type=email]{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:17px 16px;outline:none}
+input::placeholder{color:#8a8486}
+.btn{display:block;width:100%;background:var(--hot);color:#000;border:0;border-top:1px solid #6c6567;border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:14px 22px 12px;cursor:pointer;transition:background .15s,color .15s}
+.btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
+.btn:disabled{opacity:.5;cursor:default}
+@media (min-width:480px){.unit{flex-direction:row}.unit input{flex:1}.btn{width:auto;border-top:0;border-left:1px solid #6c6567;padding-inline:26px;white-space:nowrap}}
+.hp{position:absolute;left:-9999px}
+.fine{font-size:13px;line-height:1.6;color:var(--mute);max-width:42ch}
+.msg{font-size:14px;min-height:20px;color:var(--mute)}
+.msg.ok{color:#fff}
+.hint{font-size:14px;color:var(--hot);cursor:pointer;text-decoration:underline;background:none;border:0;font-family:inherit;padding:4px 0}
+.proof{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#cfc9c5}
+
+.strip{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 0}
+.strip-in{display:flex;gap:28px;width:max-content;animation:slide 40s linear infinite}
+.strip-in .logo{--mw:16px;opacity:.5;flex:none}
+@keyframes slide{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.strip-in{animation:none}}
+/* ===== 3. What you get ===== */
+.get>*{position:relative;z-index:1}
+.get{justify-content:center;gap:14px}
+.get ol{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+.get li{display:grid;grid-template-columns:5ch 1fr;gap:12px;align-items:baseline;border-bottom:1px solid var(--line);padding:11px 0}
+.get li i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
+.get li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(26px,7.6vw,52px);line-height:.95}
+.get li p{grid-column:2;font-size:14px;line-height:1.5;color:#b5afab;margin-top:5px;max-width:40ch}
+.get .again{align-self:flex-start;justify-self:start;display:inline-block;margin-top:8px;background:#fff;color:#000;text-decoration:none;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:12px 22px 10px}
+.get .again:hover{background:var(--hot)}
+
+/* ===== 4. Footer, with the one hidden thing ===== */
+.foot{min-height:0;padding-top:20px;padding-bottom:max(56px,calc(env(safe-area-inset-bottom,0px) + 40px));gap:14px;align-items:center;text-align:center}
+.foot>div{display:flex;flex-direction:column;align-items:center;gap:10px}
+.foot nav{justify-content:center}
+.glyph{align-self:center}
+.vault{text-align:left}
+.foot nav{display:flex;gap:22px;flex-wrap:wrap}
+.foot a{color:var(--mute);text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.foot a:hover{color:#fff}
+.glyph{background:none;border:0;color:#2f2a2c;font-family:var(--mono);font-size:12px;cursor:pointer;padding:6px;align-self:flex-start;transition:color .2s}
+.glyph:hover,.glyph:focus-visible{color:var(--hot);outline:none}
+.vault{display:none;border:1px solid var(--hot);padding:18px;max-width:460px;font-size:14px;line-height:1.6;color:#d6d0cc}
+.vault.open{display:block;animation:flick .5s steps(2,end) 2}
+.vault .vimg{width:100%;height:auto;margin:-18px -18px 14px;width:calc(100% + 36px);max-width:none;display:block}
+.vault b{display:block;font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:28px;line-height:1;color:#fff;margin:4px 0 8px}
+.vault code{font-family:var(--mono);font-size:12px;color:var(--hot)}
+.vault a{color:#fff}
+@keyframes flick{0%{opacity:.2}50%{opacity:1}100%{opacity:.6}}
+
+/* ===== Motion: hard cuts, scroll-driven reveals, nothing else ===== */
+.rv{opacity:0;transform:translateY(14px)}
+@supports (animation-timeline:view()){
+  .rv{animation:rise linear both;animation-timeline:view();animation-range:entry 10% entry 45%}
+  @keyframes rise{to{opacity:1;transform:none}}
+}
+@supports not (animation-timeline:view()){
+  .rv{transition:opacity .6s ease,transform .6s ease}
+  .rv.in{opacity:1;transform:none}
+}
+html:not(.js) .rv{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.rv{animation:none;transition:none;opacity:1;transform:none}.cue b::after{animation:none}.vault.open{animation:none}}
+
+@media (min-width:900px){
+  .sec{padding-inline:max(40px,5vw)}
+  .flyer{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;column-gap:4vw}
+    .flyer .top{grid-column:1;align-self:start}
+  .flyer .bottom{grid-column:1;align-self:end}
+  .wordmark{font-size:clamp(80px,8.5vw,140px)}
+  .promise{font-size:clamp(84px,8vw,150px)}
+  .offer{display:grid;grid-template-columns:1.1fr 1fr;column-gap:5vw;align-items:center}
+  .offer h2{font-size:clamp(90px,9vw,170px)}
+  .offer .box{display:flex;flex-direction:column;gap:14px}
+  .get{display:grid;grid-template-columns:1fr 1.2fr;column-gap:5vw;align-items:center}
+  .get li h3{font-size:clamp(40px,3.8vw,64px)}
+  .foot{display:flex;flex-direction:column;align-items:center;justify-content:center}
+}
+</style>
 <!--CONFIG-->
 </head>
 <body>
-<canvas id="bg" aria-hidden="true"></canvas>
-<div class="veil" aria-hidden="true"></div>
-<main class="hero">
-  <div class="brand" id="brand"></div>
-  <h1 id="h1"></h1>
-  <p class="lead" id="sub"></p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="fr"><feColorMatrix values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter><filter id="fg"><feColorMatrix values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter><filter id="fb"><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"/></filter></svg>
+<div class="grain" aria-hidden="true"></div>
+<div class="cut" id="cut" aria-hidden="true"></div>
+<div class="world" id="world" aria-hidden="true">
+  <div class="wp" data-wp="0"><div class="rgb"><img class="ch r" src="assets/flyer.webp" alt=""><img class="ch g" src="assets/flyer.webp" alt=""><img class="ch b" src="assets/flyer.webp" alt=""></div></div>
+  <div class="wp" data-wp="1"><div class="rgb"><img class="ch r" src="assets/offer.webp" alt=""><img class="ch g" src="assets/offer.webp" alt=""><img class="ch b" src="assets/offer.webp" alt=""></div></div>
+  <div class="wp" data-wp="2"><div class="rgb"><img class="ch r" src="assets/inside.webp" alt=""><img class="ch g" src="assets/inside.webp" alt=""><img class="ch b" src="assets/inside.webp" alt=""></div></div>
+  <div class="wp" data-wp="3"><div class="rgb"><img class="ch r" src="assets/vault.webp" alt=""><img class="ch g" src="assets/vault.webp" alt=""><img class="ch b" src="assets/vault.webp" alt=""></div></div>
+  <div class="wscrim"></div>
+</div>
 
-  <form id="f" novalidate method="post" action="/in">
-    <label for="email" class="sr">Email address</label>
-    <div class="unit">
-      <input type="email" id="email" name="email" placeholder="your email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
-      <button type="submit" class="btn" id="btn"></button>
+<!-- 1. The flyer. Wordmark, art, one promise. -->
+<header class="sec flyer" id="flyer">
+    <div class="top">
+    <div class="brandrow"><span class="logo" style="--mw:44px"></span><div class="wordmark" id="wordmark"></div></div>
+    <div class="label cat" id="cat"></div>
+  </div>
+  <div class="bottom">
+    <h1 class="disp promise" id="h1"></h1>
+    <p class="sub" id="sub" hidden></p>
+    <div class="cue mono" id="cue" aria-hidden="true"><b></b><span>Descend</span></div>
+  </div>
+</header>
+
+<!-- 2. The offer. The headline is the reward. Email first. -->
+<section class="sec offer" id="offer" aria-label="Join">
+  <div><span class="logo rv" style="--mw:30px"></span><h2 class="disp rv" id="offerH" style="margin-top:18px"></h2></div>
+  <div class="box">
+    <form id="f" novalidate method="post" action="/in" class="rv">
+      <label for="email" class="sr">Email address</label>
+      <div class="unit">
+        <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+        <button type="submit" class="btn" id="btn"></button>
+      </div>
+      <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
+      <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div id="ts"></div>
+      <p class="fine" id="fine"></p>
+    </form>
+    <div id="msg" class="msg" role="status"></div>
+    <div class="proof" id="proof" hidden></div>
+  </div>
+</section>
+
+<div class="strip" aria-hidden="true"><div class="strip-in" id="strip"></div></div>
+
+<!-- 3. What you get. Catalogue style. -->
+<section class="sec get" id="get" aria-label="What members get">
+  <div>
+    <span class="logo rv" style="--mw:30px"></span>
+    <div class="label rv" style="margin-top:18px">Clearance includes</div>
+    <div class="laser rv" style="margin:14px 0 6px;max-width:160px"></div>
+  </div>
+  <ol id="plist"></ol>
+  <a class="again rv" href="#offer" id="again"></a>
+</section>
+
+<!-- 4. Footer. Links, and one thing with no label. -->
+<footer class="sec foot" id="foot">
+  <div>
+    <nav><a class="contact" href="#">Contact</a></nav>
+    <button type="button" class="glyph" id="glyph" aria-label="Locked file">&#9646;&#9646;&#9646;</button>
+    <div class="vault" id="vault" aria-live="polite">
+      <span class="mono">File 001 &middot; Restricted</span>
+      <b id="vaultT"></b>
+      <code>ACCESS DENIED. CLEARANCE REQUIRED.</code><br>
+      <a href="#offer" id="vaultGo">Request access</a>. The file is in your first transmission.
     </div>
-    <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
-    <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <div id="ts"></div>
-    <p class="micro" id="micro"></p>
-  </form>
-  <div id="msg" class="msg" role="status"></div>
-  <div class="proof" id="proof" hidden></div>
+  </div>
+  <div class="brandrow"><span class="logo" style="--mw:26px"></span><div class="mono" id="foot-cat"></div></div>
+</footer>
 
-  <p class="perkline" id="perks"></p>
-  <footer>
-    <a href="/privacy">Privacy</a>
-    <a href="/rules">Rules</a>
-    <a id="contact" href="#">Contact</a>
-  </footer>
-</main>
-<script src="/app.js"></script>
+<script>/* Shared helpers for every page. No framework. */
+window.Stack = (function () {
+  var C = window.STACK || {};
+  var FN = (C.supabaseUrl || "") + "/functions/v1";
+  var q = new URLSearchParams(location.search);
+
+  // Attribution travels with the visitor across pages and survives a reload.
+  var KEYS = ["src", "e", "r", "utm_source", "utm_medium", "utm_campaign"];
+  var attr = {};
+  try { attr = JSON.parse(sessionStorage.getItem("stack_attr") || "{}"); } catch (e) {}
+  KEYS.forEach(function (k) { if (q.get(k)) attr[k] = q.get(k).slice(0, 80); });
+  try { sessionStorage.setItem("stack_attr", JSON.stringify(attr)); } catch (e) {}
+
+  // A/B headline variant, fixed per browser.
+  function variant() {
+    var m = document.cookie.match(/(?:^|; )stack_v=([AB])/);
+    if (m) return m[1];
+    var v = Math.random() < 0.5 ? "A" : "B";
+    document.cookie = "stack_v=" + v + "; max-age=31536000; path=/; SameSite=Lax";
+    return v;
+  }
+
+  function api(name, body, method) {
+    return fetch(FN + "/" + name, {
+      method: method || "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+      keepalive: true
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw Object.assign(new Error(j.error || "request failed"), { status: r.status, body: j }); return j; }); });
+  }
+  function get(name, params) {
+    var u = new URL(FN + "/" + name); Object.keys(params || {}).forEach(function (k) { if (params[k] != null) u.searchParams.set(k, params[k]); });
+    return fetch(u).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw Object.assign(new Error(j.error || "request failed"), { status: r.status, body: j }); return j; }); });
+  }
+
+  function pageview(path) {
+    try {
+      var b = JSON.stringify({ path: path, source: attr.src || null, event_slug: attr.e || null, variant: variant() });
+      if (navigator.sendBeacon) navigator.sendBeacon(FN + "/pageview", new Blob([b], { type: "application/json" }));
+      else api("pageview", JSON.parse(b)).catch(function () {});
+    } catch (e) {}
+  }
+
+  // Signups that failed to send (bad festival signal) wait here and retry.
+  var PENDING = "stack_pending";
+  function pendingList() { try { return JSON.parse(localStorage.getItem(PENDING) || "[]"); } catch (e) { return []; } }
+  function savePending(p) { var l = pendingList(); l.push(p); try { localStorage.setItem(PENDING, JSON.stringify(l.slice(-20))); } catch (e) {} }
+  function flushPending() {
+    var l = pendingList(); if (!l.length) return Promise.resolve(null);
+    var done = [];
+    return l.reduce(function (p, item) {
+      return p.then(function () { return api("subscribe", item).then(function (r) { done.push({ item: item, res: r }); }).catch(function (e) { if (e.status && e.status < 500 && e.status !== 429) done.push({ item: item, res: null }); }); });
+    }, Promise.resolve()).then(function () {
+      var rest = l.filter(function (i) { return !done.some(function (d) { return d.item === i; }); });
+      try { localStorage.setItem(PENDING, JSON.stringify(rest)); } catch (e) {}
+      var ok = done.filter(function (d) { return d.res; }).pop();
+      return ok ? ok.res : null;
+    });
+  }
+
+  function fill(s, map) { return String(s || "").replace(/\{\{(\w+)\}\}/g, function (_, k) { return map[k] != null ? map[k] : ""; }); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  window.__go = function (url) { location.href = url; };
+  return { C: C, FN: FN, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, savePending: savePending, flushPending: flushPending, pendingList: pendingList, fill: fill, esc: esc };
+})();
+
+</script>
 <script>
 (function () {
-  var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); };
+  var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); }, root = document.documentElement;
+  var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   var v = S.variant();
-  var labelName = C.labelName || "";
-  $("brand").textContent = (labelName ? labelName + " · " : "") + (C.membershipName || "The Stack");
-  function glitch(t) { return t.split(" ").map(function (w) { return '<span class="g" data-text="' + S.esc(w) + '">' + S.esc(w) + "</span>"; }).join(" "); }
-  // When event mode swaps the headline after load, decode it again.
-  var _h1set = function (html) { $("h1").innerHTML = html; if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { decode($("h1")); }); };
-  $("h1").innerHTML = glitch((C.headlines || {})[v] || "Hear it before the internet does.");
-  $("sub").textContent = C.subhead || "";
-  $("btn").textContent = C.cta || "LET ME IN";
-  $("micro").textContent = C.microcopy || "";
-  $("contact").href = "mailto:" + (C.contactEmail || "");
-  $("perks").innerHTML = (C.perks || []).map(function (p) { return "<span>" + S.esc(p.title) + "</span>"; }).join('<i aria-hidden="true">&middot;</i>');
+  function all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function esc(s) { return S.esc(s); }
 
-  // Event mode + real member count (shown only past the threshold, never faked).
+  // ---------- Logo: one mark, everywhere. C.logoUrl (svg/png) wins; otherwise the placeholder monogram ----------
+  var MARK = '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg>';
+  function markHTML() { return C.logoUrl ? '<img class="mark" src="' + esc(C.logoUrl) + '" alt="' + esc(C.labelName || "") + '">' : MARK; }
+  all(".logo").forEach(function (el) { el.innerHTML = markHTML(); });
+  (function () { var h = ""; for (var i = 0; i < 40; i++) h += '<span class="logo">' + markHTML() + "</span>"; $("strip").innerHTML = h; })();
+
+  // ---------- Copy from config ----------
+  var label = C.labelName || "", name = C.membershipName || "Archive";
+  var named = !!label && !/^label name$/i.test(label);
+  $("wordmark").innerHTML = named ? esc(label) + "<small>" + esc(name) + "</small>" : "<small>" + esc(name) + "</small>";
+  if (!named) $("wordmark").style.transform = "none";
+  $("cat").innerHTML = "Restricted";
+  $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + (named ? " " + esc(label) : "") + " &middot; " + esc(name);
+  // the promise: the A/B headline with the hot word picked out
+  function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
+  $("h1").innerHTML = hot((C.headlines || {})[v] || "Access the archive.");
+  $("offerH").innerHTML = "Request <em>access</em>.";
+  $("btn").textContent = C.cta || "REQUEST ACCESS";
+  $("again").textContent = C.cta || "REQUEST ACCESS";
+  $("fine").textContent = C.microcopy || "";
+  all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
+  $("plist").innerHTML = (C.perks || []).map(function (p, i) { return '<li class="rv"><i>' + String(i + 1).padStart(3, "0") + "</i><h3>" + esc(p.title) + "</h3><p>" + esc(p.body) + "</p></li>"; }).join("");
+  $("vaultT").textContent = "UNTITLED";
+
   S.get("meta", { e: S.attr.e || null }).then(function (m) {
     if (m.event) {
-      _h1set(glitch(S.fill(C.eventHeadline, { EVENT_NAME: m.event.name })));
-      $("sub").textContent = S.fill(C.eventSubhead, { PRIZE: m.event.prize || "the giveaway", EVENT_NAME: m.event.name });
+      root.classList.add("ev");
+      $("h1").innerHTML = hot(S.fill(C.eventHeadline, { EVENT_NAME: m.event.name }));
+      $("sub").textContent = S.fill(C.eventSubhead, { PRIZE: m.event.prize || "the giveaway", EVENT_NAME: m.event.name }); $("sub").hidden = false;
     }
-    if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " already inside"; $("proof").hidden = false; }
+    if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " cleared"; $("proof").hidden = false; }
   }).catch(function () {});
   S.pageview("/");
 
-  // Typo fixer: "Did you mean gmail.com?"
+  // ---------- Signup ----------
   var FIX = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com", "hotmial.com": "hotmail.com", "hotmal.com": "hotmail.com", "yaho.com": "yahoo.com", "yahooo.com": "yahoo.com", "outlok.com": "outlook.com", "iclod.com": "icloud.com", "icoud.com": "icloud.com" };
   function suggest(email) {
     var at = email.lastIndexOf("@"); if (at < 0) return null;
@@ -77,10 +353,6 @@
     if (!fixed && /\.(con|cmo|ocm|vom|cm)$/.test(dom)) fixed = dom.replace(/\.(con|cmo|ocm|vom|cm)$/, ".com");
     return fixed && fixed !== dom ? email.slice(0, at + 1) + fixed : null;
   }
-  var pendingSuggest = null;
-  $("hintBtn").addEventListener("click", function () { $("email").value = pendingSuggest; $("hint").hidden = true; pendingSuggest = null; });
-
-  // Turnstile loads lazily, only once someone touches the form.
   var tsReady = null, tsToken = null;
   function loadTurnstile() {
     if (tsReady || !C.turnstileSiteKey) return;
@@ -92,118 +364,88 @@
       var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
     });
   }
-  $("email").addEventListener("focus", loadTurnstile, { once: true });
-
+  function go(res) { window.__go("/in?t=" + encodeURIComponent(res.access_token) + (res.already_member ? "&back=1" : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : "")); }
+  var EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/, pendingSuggest = null;
   function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
-  function go(res) { location.href = "/in?t=" + encodeURIComponent(res.access_token) + (res.already_member ? "&back=1" : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""); }
-
-  function submit(emailEl, btnEl) {
-    var email = emailEl.value.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { say("That email doesn't look right."); emailEl.focus(); return; }
+  $("hintBtn").addEventListener("click", function () { $("email").value = pendingSuggest; $("hint").hidden = true; pendingSuggest = null; });
+  $("email").addEventListener("focus", loadTurnstile, { once: true });
+  $("f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = $("email").value.trim();
+    if (!EMAIL_OK.test(email)) { say("That email doesn't look right."); $("email").focus(); return; }
     var sug = suggest(email);
     if (sug && pendingSuggest !== sug) { pendingSuggest = sug; $("hintBtn").textContent = "Did you mean " + sug + "?"; $("hint").hidden = false; say(""); return; }
     $("hint").hidden = true;
-    btnEl.disabled = true; say("One sec...");
+    $("btn").disabled = true; say("One sec...");
     var body = { email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
       utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null };
     var ready = tsReady ? Promise.race([tsReady, new Promise(function (r) { setTimeout(r, 4000); })]) : Promise.resolve();
     ready.then(function () { body.turnstile = tsToken; return S.api("subscribe", body); })
       .then(go)
       .catch(function (err) {
-        if (err.status === 429) { say("Slow down a sec and try again."); btnEl.disabled = false; return; }
-        if (err.status && err.status < 500) { say(err.message || "Couldn't sign you up."); btnEl.disabled = false; return; }
+        if (err.status === 429) { say("Slow down a sec and try again."); $("btn").disabled = false; return; }
+        if (err.status && err.status < 500) { say(err.message || "Couldn't sign you up."); $("btn").disabled = false; return; }
         // Network died (festival wifi). Keep the signup, show success, retry later.
         S.savePending(body);
-        location.href = "/in?pending=1";
+        window.__go("/in?pending=1");
       });
-  }
-  $("f").addEventListener("submit", function (e) { e.preventDefault(); submit($("email"), $("btn")); });
+  });
   if (navigator.onLine) S.flushPending().catch(function () {});
 
-  // ---------- Background: WebGL signal. Smoke, tearing scanlines, RGB split that bends toward the pointer. ----------
-  var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function startBg() {
-    var cv = $("bg"), gl = cv.getContext("webgl", { antialias: false, alpha: false, powerPreference: "low-power" });
-    if (!gl) { cv.style.background = "radial-gradient(ellipse at 50% 40%, #141414, #000 70%)"; return; }
-    var VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
-    var FS = [
-      "precision mediump float;uniform vec2 R;uniform float T;uniform vec2 M;uniform float I;",
-      "float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}",
-      "float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}",
-      "float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}",
-      "float smoke(vec2 uv,float t){vec2 q=vec2(fbm(uv*1.6+t*.05),fbm(uv*1.6-t*.04+3.1));return fbm(uv*2.2+q*1.8+t*.03);}",
-      "void main(){",
-      " vec2 uv=gl_FragCoord.xy/R; vec2 asp=vec2(R.x/R.y,1.);",
-      " float t=T*.001;",
-      " // tearing rows: a few random bands per second shove the image sideways",
-      " float row=floor(uv.y*R.y/3.);float seed=floor(t*9.);",
-      " float tear=step(.985,h(vec2(row*.013,seed)))*(h(vec2(seed,row))-.5)*.25;",
-      " float big=step(.93,h(vec2(seed*.37,floor(uv.y*7.))))*step(.6,h(vec2(seed)))*(h(vec2(seed*1.3,floor(uv.y*7.)))-.5)*.12;",
-      " uv.x+=(tear+big)*I;",
-      " // pointer lens: bend space toward the finger",
-      " vec2 d=(uv-M)*asp;float r=length(d);float lens=smoothstep(.45,0.,r)*.08;uv-=normalize(d+1e-4)*lens*(1.-r);",
-      " // rgb split grows with tear strength and near the pointer",
-      " float sp=(.0025+abs(tear)*.6+lens*.9)*I;",
-      " float sr=smoke((uv+vec2(sp,0.))*asp,t),sg=smoke(uv*asp,t),sb=smoke((uv-vec2(sp,0.))*asp,t);",
-      " vec3 c=vec3(sr,sg,sb);",
-      " c=pow(c,vec3(2.6))*1.15; // crush to black with bright veins",
-      " // a slow vertical beam sweeping like a stage light through haze",
-      " float bx=fract(t*.045)*1.4-.2;float beam=exp(-pow((uv.x-bx)*9.,2.))*.09;c+=beam*vec3(1.,.96,.9)*(.5+sg);",
-      " // horizon line that glitches",
-      " float ln=exp(-abs(uv.y-.5-tear*2.)*220.)*.25*step(.5,h(vec2(seed*.11)));c+=ln*vec3(1.,.3,.5);",
-      " // scanlines + grain + vignette",
-      " c*=.86+.14*sin(gl_FragCoord.y*3.1416);",
-      " c+=(h(gl_FragCoord.xy+t)-.5)*.06;",
-      " float vg=smoothstep(1.25,.25,length((uv-.5)*vec2(1.1,1.4)));c*=vg;",
-      " gl_FragColor=vec4(c,1.);}"
-    ].join("\n");
-    function sh(type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; }
-    var prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { cv.style.background = "radial-gradient(ellipse at 50% 40%, #141414, #000 70%)"; return; }
-    gl.useProgram(prog);
-    var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    var loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    var uR = gl.getUniformLocation(prog, "R"), uT = gl.getUniformLocation(prog, "T"), uM = gl.getUniformLocation(prog, "M"), uI = gl.getUniformLocation(prog, "I");
-    var mx = 0.5, my = 0.5, tx = 0.5, ty = 0.5, run = true, scale = 0.5;
-    function size() { cv.width = Math.floor(innerWidth * scale); cv.height = Math.floor(innerHeight * scale); gl.viewport(0, 0, cv.width, cv.height); }
-    function onMove(x, y) { tx = x / innerWidth; ty = 1 - y / innerHeight; }
-    addEventListener("mousemove", function (e) { onMove(e.clientX, e.clientY); }, { passive: true });
-    addEventListener("touchmove", function (e) { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-    addEventListener("touchstart", function (e) { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-    size(); addEventListener("resize", size);
-    document.addEventListener("visibilitychange", function () { run = !document.hidden; });
-    var t0 = performance.now();
+  addEventListener("scroll", function () { $("cue").classList.toggle("off", scrollY > 40); }, { passive: true });
+
+  // ---------- The hidden thing ----------
+  $("glyph").addEventListener("click", function () { $("vault").classList.add("open"); $("glyph").style.color = "var(--hot)"; try { S.api("engage", { type: "secret_open" }).catch(function () {}); } catch (e) {} });
+  function toOffer(e) { e.preventDefault(); $("offer").scrollIntoView({ behavior: still ? "auto" : "smooth" }); setTimeout(function () { $("email").focus({ preventScroll: true }); }, still ? 0 : 500); }
+  $("again").addEventListener("click", toOffer); $("vaultGo").addEventListener("click", toOffer);
+
+  // ---------- The flight. One camera, four places. Scroll position picks where you are; the plates crossfade and zoom so it never cuts. ----------
+  (function () {
+    if (still) { var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
+    var wps = all(".wp").map(function (el) { return { el: el, r: el.querySelector(".r"), b: el.querySelector(".b") }; });
+    var secs = [$("flyer"), $("offer"), $("get"), $("foot")];
+    var cut = $("cut"), vel = 0, lastY = scrollY, lastT = performance.now(), px = 0, py = 0, tx = 0, ty = 0, cutT = 0, smooth = scrollY;
+    addEventListener("mousemove", function (e) { tx = (e.clientX / innerWidth - .5) * 2; ty = (e.clientY / innerHeight - .5) * 2; }, { passive: true });
+    function cl(x) { return Math.min(1, Math.max(0, x)); }
+    function ss(a, b, x) { var t = cl((x - a) / (b - a)); return t * t * (3 - 2 * t); }
+    // leg i runs from the top of section i to the top of section i+1. Inside a leg: zoom from 1 to ZEND into the current place, the next place fades up behind at the end.
+    var ZEND = [2.2, 1.9, 1.6, 1.25];
     function frame(now) {
-      if (run) {
-        mx += (tx - mx) * 0.08; my += (ty - my) * 0.08;
-        gl.uniform2f(uR, cv.width, cv.height); gl.uniform1f(uT, now); gl.uniform2f(uM, mx, my);
-        gl.uniform1f(uI, still ? 0.0 : Math.min(1, (now - t0) / 1200)); // tears fade in after the page has settled
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      }
-      if (!still) requestAnimationFrame(frame);
+      var dt = Math.max(1, now - lastT), y = scrollY; vel += ((y - lastY) / dt * 16 - vel) * 0.2; lastY = y; lastT = now;
+      smooth += (y - smooth) * 0.12; if (Math.abs(y - smooth) < .4) smooth = y;
+      px += (tx - px) * .05; py += (ty - py) * .05;
+      var vh = innerHeight, v = Math.max(-1, Math.min(1, vel / 36)), av = Math.abs(v);
+      var tops = secs.map(function (el) { return el.offsetTop; });
+      var leg = 0; for (var i = 0; i < tops.length - 1; i++) if (smooth >= tops[i]) leg = i;
+      var span = Math.max(1, (tops[leg + 1] || tops[leg] + vh) - tops[leg]), t = cl((smooth - tops[leg]) / span);  // 0..1 through this leg
+      wps.forEach(function (w, i) {
+        var o, z, dy;
+        if (i === leg) { z = 1 + (ZEND[i] - 1) * Math.pow(t, 1.4); o = 1 - ss(.72, 1, t); dy = -t * vh * .08; }
+        else if (i === leg + 1) { z = .82 + .18 * ss(.55, 1, t); o = ss(.6, 1, t); dy = (1 - t) * vh * .05; }
+        else { z = 1; o = 0; dy = 0; }
+        var mx = px * (i === leg ? 9 : 4), my = py * (i === leg ? 5 : 2);
+        w.el.style.transform = "translate3d(" + mx.toFixed(1) + "px," + (dy + my).toFixed(1) + "px,0) scale(" + z.toFixed(3) + ")";
+        w.el.style.opacity = o.toFixed(3); w.el.style.visibility = o > .005 ? "visible" : "hidden";
+        var sp = av * 5 + (i === leg ? t * (1 - t) * 8 : 0);
+        w.r.style.transform = "translate3d(" + (-sp).toFixed(1) + "px," + (v * 2).toFixed(1) + "px,0)";
+        w.b.style.transform = "translate3d(" + sp.toFixed(1) + "px," + (-v * 2).toFixed(1) + "px,0)";
+      });
+      // laser cut when a leg hands off
+      if (t > .97 && av > .1) cutT = now;
+      var age = now - cutT, co = age < 240 ? 1 - age / 240 : 0;
+      cut.style.opacity = co.toFixed(2); cut.style.transform = "scaleX(" + (co > 0 ? (1 - co * .6).toFixed(3) : 0) + ")";
+      requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-  }
-  if (window.requestIdleCallback) requestIdleCallback(startBg, { timeout: 800 }); else setTimeout(startBg, 200);
+  })();
 
-  // ---------- Headline decodes in: glyphs cycle, then lock, left to right ----------
-  function decode(el) {
-    if (still) return;
-    var spans = el.querySelectorAll(".g"), GL = "▓▒░#%&@/\\<>01";
-    spans.forEach(function (sp, wi) {
-      var final = sp.getAttribute("data-text"), len = final.length, start = null, dur = 520 + wi * 140;
-      sp.style.minWidth = sp.getBoundingClientRect().width + "px";
-      function tick(ts) {
-        if (!start) start = ts; var p = Math.min(1, (ts - start) / dur), done = Math.floor(p * len), out = "";
-        for (var i = 0; i < len; i++) out += i < done || final[i] === " " ? final[i] : GL[Math.floor(Math.random() * GL.length)];
-        sp.firstChild.nodeValue = out;
-        if (p < 1) requestAnimationFrame(tick); else { sp.firstChild.nodeValue = final; sp.style.minWidth = ""; }
-      }
-      setTimeout(function () { requestAnimationFrame(tick); }, 120 + wi * 90);
-    });
+  // ---------- Reveal fallback for browsers without scroll-driven animations ----------
+  if (!CSS.supports("animation-timeline: view()") && "IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); }, { threshold: 0.15 });
+    all(".rv").forEach(function (el) { io.observe(el); });
   }
-  document.fonts && document.fonts.ready ? document.fonts.ready.then(function () { decode($("h1")); }) : decode($("h1"));
 })();
 </script>
+
 </body>
 </html>
