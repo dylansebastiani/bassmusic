@@ -348,7 +348,7 @@ window.Stack = (function () {
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Hear it first.");
-  $("offerH").innerHTML = "Get <em>access</em>.";
+  $("offerH").innerHTML = "Get <em>early access</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";

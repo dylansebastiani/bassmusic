@@ -13,11 +13,11 @@
     "facebook": ""
   },
   "headlines": {
-    "A": "Hear it first.",
-    "B": "Get it before it drops."
+    "A": "Get early access.",
+    "B": "Hear it first."
   },
   "subhead": "Unreleased tracks, early tickets and a vote on what surfaces next.",
-  "cta": "GET ACCESS",
+  "cta": "GET EARLY ACCESS",
   "microcopy": "Free. No spam. Unsubscribe anytime.",
   "eventHeadline": "Location confirmed: {{EVENT_NAME}}.",
   "eventSubhead": "The track you just heard is already below. Going under enters you for {{PRIZE}}.",
