@@ -51,38 +51,25 @@ img{display:block}
 @media (prefers-reduced-motion:reduce){.plate{transform:none!important;opacity:1!important}.rgb .ch{transform:none!important}.cut{display:none}}
 .mbg,.pbar{display:none}
 @media (max-width:899px){
-  .world,.grain,.cut{display:none}
-  .sec{overflow:hidden;background:#000}
-  .sec>:not(.mbg){position:relative;z-index:2}
-  .sec>img.mbg{display:block;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;z-index:0;transform:translate3d(0,0,0) scale(1.04);will-change:transform,opacity;pointer-events:none}
-  /* First screen: the art is an object on black, the words sit on black. No overlap. */
-  .flyer{justify-content:flex-end;gap:0}
-  .flyer>img.mbg{height:58%;object-fit:contain;object-position:50% 30%;top:4%;
-    -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 72%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0,#000 72%,transparent 100%)}
+  /* Phones run the same camera flight as desktop, drawn once per scene: no RGB layers, no filters, no grain. */
+  .grain,.cut,.mbg{display:none}
+  .rgb .r,.rgb .b{display:none}
+  .rgb .g{filter:none;mix-blend-mode:normal;transform:none!important}
+  .wp[data-wp="0"] .ch{object-fit:contain;object-position:50% 10%;height:62%;top:0}
+  .wscrim{background:linear-gradient(to bottom,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.96) 72%,#000 100%)}
+  .flyer{justify-content:flex-end}
   .flyer::after{display:none}
   .flyer .top{position:absolute;left:18px;right:18px;top:max(18px,env(safe-area-inset-top,0px))}
-  .flyer .bottom{padding-bottom:6px}
   .promise{font-size:clamp(40px,11.5vw,80px);text-shadow:none}
   .sub{font-size:16px;color:#d9d4d0;max-width:30ch}
-  .offer .mbg{object-position:62% 50%}.get .mbg{object-position:50% 50%;opacity:.5}
-  .offer::before,.get::before{z-index:1}
   .offer::before{background:linear-gradient(to bottom,rgba(0,0,0,.45) 0,rgba(0,0,0,.84) 48%,rgba(0,0,0,.94) 100%)}
   .pbar{display:block;position:fixed;left:0;top:0;height:2px;width:100%;background:var(--hot);transform-origin:0 50%;transform:scaleX(0);z-index:40;pointer-events:none}
-  /* Arrival: the art settles in, the words rise. Transform/opacity only. */
-  .flyer>img.mbg{animation:settle 1.6s cubic-bezier(.2,.7,.2,1) both}
-  @keyframes settle{from{transform:translate3d(0,2%,0) scale(1.14);opacity:0}to{transform:translate3d(0,0,0) scale(1);opacity:1}}
   .flyer .top{animation:up .8s .2s cubic-bezier(.2,.7,.2,1) both}
   .flyer .bottom>*{animation:up .9s cubic-bezier(.2,.7,.2,1) both}
   .flyer .bottom>:nth-child(1){animation-delay:.35s}.flyer .bottom>:nth-child(2){animation-delay:.5s}.flyer .bottom>:nth-child(3){animation-delay:.65s}
   @keyframes up{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
-  /* Scroll: later screens drift and zoom with the page. Native where supported; app.js fills in elsewhere. */
-  @supports (animation-timeline:view()){
-    .offer .mbg,.get .mbg{animation:drift linear both;animation-timeline:view();animation-range:cover 0% cover 100%}
-    @keyframes drift{from{transform:translate3d(0,-6%,0) scale(1.16)}to{transform:translate3d(0,6%,0) scale(1.02)}}
-    .pbar{animation:fill linear both;animation-timeline:scroll(root)}
-    @keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-  }
-  @media (prefers-reduced-motion:reduce){.mbg,.pbar,.flyer .top,.flyer .bottom>*{animation:none;opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.pbar,.flyer .top,.flyer .bottom>*{animation:none;opacity:1;transform:none}}
+}}
 }}
 }
 }
@@ -216,7 +203,6 @@ html:not(.js) .rv{opacity:1;transform:none}
 <!-- 1. The flyer. Wordmark, art, one promise. -->
 <div class="pbar" aria-hidden="true"></div>
 <header class="sec flyer" id="flyer">
-  <img class="mbg" src="assets/flyer.webp" alt="" fetchpriority="high" decoding="async">
     <div class="top">
     <div class="brandrow"><span class="logo" style="--mw:44px"></span><div class="wordmark" id="wordmark"></div></div>
     <div class="label cat" id="cat"></div>
@@ -230,7 +216,6 @@ html:not(.js) .rv{opacity:1;transform:none}
 
 <!-- 2. The offer. The headline is the reward. Email first. -->
 <section class="sec offer" id="offer" aria-label="Join">
-  <img class="mbg" src="assets/offer.webp" alt="" loading="lazy" decoding="async">
   <div><span class="logo rv" style="--mw:30px"></span><h2 class="disp rv" id="offerH" style="margin-top:18px"></h2></div>
   <div class="box">
     <form id="f" novalidate method="post" action="in.html" class="rv">
@@ -253,7 +238,6 @@ html:not(.js) .rv{opacity:1;transform:none}
 
 <!-- 3. What you get. Catalogue style. -->
 <section class="sec get" id="get" aria-label="What members get">
-  <img class="mbg" src="assets/inside.webp" alt="" loading="lazy" decoding="async">
   <div>
     <span class="logo rv" style="--mw:30px"></span>
     <div class="label rv" style="margin-top:18px">Members get</div>
@@ -446,21 +430,7 @@ window.Stack = (function () {
   // ---------- The flight. One camera, four places. Scroll position picks where you are; the plates crossfade and zoom so it never cuts. ----------
   (function () {
     var mobile = innerWidth < 900 || (window.matchMedia && matchMedia("(pointer:coarse)").matches);
-    if (mobile) {
-      if (CSS.supports("animation-timeline: view()") || still) return; // the browser animates on its own
-      var imgs = all(".offer .mbg, .get .mbg"), bar = document.querySelector(".pbar"), ticking = false;
-      function paint() {
-        ticking = false; var vh = innerHeight;
-        imgs.forEach(function (im) {
-          var r = im.parentElement.getBoundingClientRect(), p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height))); // 0 entering, 1 leaving
-          im.style.transform = "translate3d(0," + ((p - .5) * 12).toFixed(2) + "%,0) scale(" + (1.16 - p * .14).toFixed(3) + ")";
-        });
-        if (bar) { var h = document.documentElement.scrollHeight - vh; bar.style.transform = "scaleX(" + (h > 0 ? Math.min(1, scrollY / h) : 0).toFixed(3) + ")"; }
-      }
-      addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(paint); } }, { passive: true });
-      addEventListener("resize", paint); paint();
-      return;
-    }
+    var bar = document.querySelector(".pbar");
     if (still) { var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
     var wps = all(".wp").map(function (el) { return { el: el, r: el.querySelector(".r"), b: el.querySelector(".b") }; });
     var secs = [$("flyer"), $("offer"), $("get"), $("foot")];
@@ -469,7 +439,7 @@ window.Stack = (function () {
     function cl(x) { return Math.min(1, Math.max(0, x)); }
     function ss(a, b, x) { var t = cl((x - a) / (b - a)); return t * t * (3 - 2 * t); }
     // leg i runs from the top of section i to the top of section i+1. Inside a leg: zoom from 1 to ZEND into the current place, the next place fades up behind at the end.
-    var ZEND = innerWidth < 900 ? [1.45, 1.35, 1.25, 1.12] : [2.2, 1.9, 1.6, 1.25];
+    var ZEND = mobile ? [1.6, 1.5, 1.35, 1.15] : [2.2, 1.9, 1.6, 1.25];
     function frame(now) {
       var dt = Math.max(1, now - lastT), y = scrollY; vel += ((y - lastY) / dt * 16 - vel) * 0.2; lastY = y; lastT = now;
       smooth += (y - smooth) * 0.12; if (Math.abs(y - smooth) < .4) smooth = y;
@@ -483,9 +453,10 @@ window.Stack = (function () {
         if (i === leg) { z = 1 + (ZEND[i] - 1) * Math.pow(t, 1.4); o = 1 - ss(.72, 1, t); dy = -t * vh * .08; }
         else if (i === leg + 1) { z = .82 + .18 * ss(.55, 1, t); o = ss(.6, 1, t); dy = (1 - t) * vh * .05; }
         else { z = 1; o = 0; dy = 0; }
-        var mx = px * (i === leg ? 9 : 4), my = py * (i === leg ? 5 : 2);
+        var mx = mobile ? 0 : px * (i === leg ? 9 : 4), my = mobile ? 0 : py * (i === leg ? 5 : 2);
         w.el.style.transform = "translate3d(" + mx.toFixed(1) + "px," + (dy + my).toFixed(1) + "px,0) scale(" + z.toFixed(3) + ")";
         w.el.style.opacity = o.toFixed(3); w.el.style.visibility = o > .005 ? "visible" : "hidden";
+        if (mobile) return;
         var sp = av * 5 + (i === leg ? t * (1 - t) * 8 : 0);
         w.r.style.transform = "translate3d(" + (-sp).toFixed(1) + "px," + (v * 2).toFixed(1) + "px,0)";
         w.b.style.transform = "translate3d(" + sp.toFixed(1) + "px," + (-v * 2).toFixed(1) + "px,0)";
@@ -494,6 +465,7 @@ window.Stack = (function () {
       if (t > .97 && av > .1) cutT = now;
       var age = now - cutT, co = age < 240 ? 1 - age / 240 : 0;
       cut.style.opacity = co.toFixed(2); cut.style.transform = "scaleX(" + (co > 0 ? (1 - co * .6).toFixed(3) : 0) + ")";
+      if (bar) { var hh = document.documentElement.scrollHeight - vh; bar.style.transform = "scaleX(" + (hh > 0 ? Math.min(1, y / hh) : 0).toFixed(3) + ")"; }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
