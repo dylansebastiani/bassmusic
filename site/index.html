@@ -226,7 +226,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 <section class="sec get" id="get" aria-label="What members get">
   <div>
     <span class="logo rv" style="--mw:30px"></span>
-    <div class="label rv" style="margin-top:18px">Clearance includes</div>
+    <div class="label rv" style="margin-top:18px">Members get</div>
     <div class="laser rv" style="margin:14px 0 6px;max-width:160px"></div>
   </div>
   <ol id="plist"></ol>
@@ -242,7 +242,7 @@ html:not(.js) .rv{opacity:1;transform:none}
       <span class="mono">File 001 &middot; Restricted</span>
       <b id="vaultT"></b>
       <code>ACCESS DENIED. CLEARANCE REQUIRED.</code><br>
-      <a href="#offer" id="vaultGo">Request access</a>. The file is in your first transmission.
+      <a href="#offer" id="vaultGo">Go under</a>. The track is in your first transmission.
     </div>
   </div>
   <div class="brandrow"><span class="logo" style="--mw:26px"></span><div class="mono" id="foot-cat"></div></div>
@@ -340,7 +340,7 @@ window.Stack = (function () {
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Pressure builds below.");
-  $("offerH").innerHTML = "Request <em>access</em>.";
+  $("offerH").innerHTML = "Go <em>under</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
