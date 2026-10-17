@@ -277,9 +277,9 @@ window.Stack = (function () {
     $("title").textContent = "Awaiting signal."; $("play").hidden = true; $("step2").hidden = true;
     var tries = 0, iv = setInterval(function () {
       if (!navigator.onLine && tries++ < 200) return;
-      S.flushPending().then(function (res) { if (res && res.access_token) { clearInterval(iv); window.__go("/in?t=" + encodeURIComponent(res.access_token)); } }).catch(function () {});
+      S.flushPending().then(function (res) { if (res && res.access_token) { clearInterval(iv); window.__go("in.html?t=" + encodeURIComponent(res.access_token)); } }).catch(function () {});
     }, 5000);
-    window.addEventListener("online", function () { S.flushPending().then(function (res) { if (res && res.access_token) window.__go("/in?t=" + encodeURIComponent(res.access_token)); }).catch(function () {}); });
+    window.addEventListener("online", function () { S.flushPending().then(function (res) { if (res && res.access_token) window.__go("in.html?t=" + encodeURIComponent(res.access_token)); }).catch(function () {}); });
   } else window.__go("/");
 })();
 </script>

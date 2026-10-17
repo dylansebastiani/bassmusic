@@ -36,5 +36,5 @@ Deno.serve(async (req) => {
       }
     }
   }
-  return Response.redirect(`${SITE_URL}/bonus?t=${t}`, 302);
+  return Response.redirect(`${SITE_URL}/bonus.html?t=${t}`, 302);
 });

@@ -22,7 +22,7 @@ for (const name of ["index.html", "in.html", "bonus.html", "privacy.html", "rule
   let s = readFileSync(join(root, "site", name), "utf8").replace("<!--CONFIG-->", stub)
     .replace(/location\.href = ([^;]*);/g, "window.__go($1);")
     .replace(/location\.replace\(([^;]*)\);/g, "window.__go($1);")
-    .replace(/href="\/(in|bonus|privacy|rules)"/g, 'href="$1.html"')
+    
     .replace(/action="\/in"/g, 'action="in.html"');
   if (name === "index.html") { // artifact page: no document skeleton of its own
     s = s.replace(/^[\s\S]*?<head>/, "").replace(/<meta charset[^>]*>|<meta name="viewport"[^>]*>/g, "").replace("</head>\n<body>", "").replace(/<\/body>\s*<\/html>\s*$/, "");
