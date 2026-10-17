@@ -8,4 +8,4 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - run: curl -fsS "${{ secrets.HEALTH_URL }}" || exit 1
+      - run: curl -fsS "https://hxfuelulxsituzcgsvhg.supabase.co/functions/v1/health"
