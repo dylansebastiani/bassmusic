@@ -394,12 +394,12 @@ window.Stack = (function () {
     if (!fixed && /\.(con|cmo|ocm|vom|cm)$/.test(dom)) fixed = dom.replace(/\.(con|cmo|ocm|vom|cm)$/, ".com");
     return fixed && fixed !== dom ? email.slice(0, at + 1) + fixed : null;
   }
-  var tsReady = null, tsToken = null;
+  var tsReady = null, tsToken = null, tsId = null;
   function loadTurnstile() {
     if (tsReady || !C.turnstileSiteKey) return;
     tsReady = new Promise(function (res) {
       window.__tsOnload = function () {
-        turnstile.render("#ts", { sitekey: C.turnstileSiteKey, size: "invisible", callback: function (tok) { tsToken = tok; }, "error-callback": function () { tsToken = null; } });
+        tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, size: "invisible", action: "signup", callback: function (tok) { tsToken = tok; }, "error-callback": function () { tsToken = null; } });
         res();
       };
       var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
@@ -422,6 +422,7 @@ window.Stack = (function () {
       utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null };
     var ready = tsReady ? Promise.race([tsReady, new Promise(function (r) { setTimeout(r, 4000); })]) : Promise.resolve();
     ready.then(function () { body.turnstile = tsToken; return S.api("subscribe", body); })
+      .then(function (r) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); return r; }, function (e) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); throw e; })
       .then(go)
       .catch(function (err) {
         if (err.status === 429) { say("Slow down a sec and try again."); $("btn").disabled = false; return; }

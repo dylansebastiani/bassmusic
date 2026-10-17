@@ -20,7 +20,7 @@ jobs:
         env:
           SUPABASE_URL: https://hxfuelulxsituzcgsvhg.supabase.co
           SITE_URL: https://dylansebastiani.github.io/bassmusic
-          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SITE_KEY: 0x4AAAAAAFZadT27taMa0fvL
       - run: touch dist/.nojekyll
       - uses: peaceiris/actions-gh-pages@v4
         with:

@@ -1,3 +1,4 @@
+import { CONFIG } from "./config.ts";
 const ORIGIN = Deno.env.get("SITE_URL") || "*";
 export const CORS = {
   "Access-Control-Allow-Origin": ORIGIN,
@@ -45,6 +46,10 @@ export async function verifyTurnstile(token: string | null, ip: string) {
   const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ secret, response: token, remoteip: ip }),
+    signal: AbortSignal.timeout(10_000),
   }).then((x) => x.json()).catch(() => ({ success: false }));
-  return !!r.success;
+  if (!r.success) return false;
+  // Token must come from our signup widget on our own site (not a token minted elsewhere).
+  const hosts = (Deno.env.get("TURNSTILE_HOSTNAMES") || new URL(CONFIG.siteUrl).hostname).split(",").map((h) => h.trim()).filter(Boolean);
+  return r.action === "signup" && hosts.includes(r.hostname);
 }
