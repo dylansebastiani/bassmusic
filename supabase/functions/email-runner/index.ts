@@ -7,7 +7,7 @@ import { SITE_URL } from "../_shared/config.ts";
 // Runs every 10 minutes from pg_cron. Sends what's due, newest priority first,
 // and stops at the daily budget so the free tier never bounces a send.
 Deno.serve(async (req) => {
-  const secret = Deno.env.get("RUNNER_SECRET");
+  const secret = await setting<string>("runner_secret", "");
   if (!secret || req.headers.get("x-runner-secret") !== secret) return err("Unauthorized", 401);
 
   const budget = Number(await setting("email_daily_budget", 280)) || 280;

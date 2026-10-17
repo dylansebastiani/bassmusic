@@ -1,6 +1,5 @@
 -- Schedule the email runner every 10 minutes. pg_cron calls the Edge Function
--- over HTTP with the shared secret. Run this AFTER setting RUNNER_SECRET as an
--- Edge Function secret and storing the same value in settings.runner_secret.
+-- over HTTP with the shared secret.
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 

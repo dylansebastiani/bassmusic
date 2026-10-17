@@ -21,8 +21,8 @@ export async function sha256(s: string) {
 export function clientIp(req: Request) {
   return (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
 }
-// Never store a raw IP: hash it with a server-side salt.
-export const ipHash = async (req: Request) => sha256(clientIp(req) + "|" + (Deno.env.get("IP_SALT") || "set-IP_SALT"));
+// Never store a raw IP: hash it with a server-side salt kept in settings.ip_salt.
+export const ipHash = async (req: Request, salt: string) => sha256(clientIp(req) + "|" + salt);
 
 // 6 chars, no 0/O/1/I so it survives being read off a phone screen.
 const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

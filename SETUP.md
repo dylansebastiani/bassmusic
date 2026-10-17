@@ -7,12 +7,9 @@ Everything below is clicking around in three dashboards. No code. Do them in ord
 1. Run the schema: Claude does this from the chat (`supabase/migrations/0001_phase1.sql`).
 2. Edge Functions → Secrets. Add these. Claude will prompt each one so the value never touches the chat:
    - `SITE_URL`: your site address, e.g. `https://bassmusic.pages.dev` (change when the domain lands)
-   - `IP_SALT`: any long random string. Never change it once live.
    - `TURNSTILE_SECRET`: from Cloudflare, step 3
    - `BREVO_API_KEY`: from Brevo, step 4
    - `FROM_EMAIL` / `FROM_NAME`: the address and name emails come from, e.g. `dylan@mail.yourdomain.com` / `Dylan @ LABEL`
-   - `RUNNER_SECRET`: any long random string (the cron job uses it to call the email runner)
-   - `WEBHOOK_SECRET`: any long random string (Brevo uses it to report bounces)
 3. Claude deploys the functions and turns on the 10-minute email cron.
 
 ## 2. GitHub → Cloudflare Pages

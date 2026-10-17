@@ -157,7 +157,11 @@ create table public.settings (
 );
 insert into public.settings (key, value) values
   ('email_daily_budget', '280'),
-  ('referral_tiers', '[{"referrals":1,"tier":"entries_x2","label":"2 extra giveaway entries"},{"referrals":3,"tier":"guestlist_plus1","label":"Guaranteed guest list +1"},{"referrals":10,"tier":"merch","label":"Free merch item"}]');
+  ('referral_tiers', '[{"referrals":1,"tier":"entries_x2","label":"2 extra giveaway entries"},{"referrals":3,"tier":"guestlist_plus1","label":"Guaranteed guest list +1"},{"referrals":10,"tier":"merch","label":"Free merch item"}]'),
+  ('functions_url', to_jsonb('https://hxfuelulxsituzcgsvhg.supabase.co/functions/v1'::text)),
+  ('runner_secret', to_jsonb(encode(gen_random_bytes(24), 'hex'))),
+  ('webhook_secret', to_jsonb(encode(gen_random_bytes(24), 'hex'))),
+  ('ip_salt', to_jsonb(encode(gen_random_bytes(24), 'hex')));
 
 alter table public.events enable row level security;
 alter table public.subscribers enable row level security;

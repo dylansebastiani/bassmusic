@@ -1,4 +1,4 @@
-import { db } from "../_shared/db.ts";
+import { db, setting } from "../_shared/db.ts";
 import { json, err, preflight, EMAIL_RE, clean, ipHash, clientIp, referralCode, verifyTurnstile } from "../_shared/util.ts";
 
 const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct"]);
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   const email = (clean(b.email, 254) || "").toLowerCase();
   if (!EMAIL_RE.test(email)) return err("That email doesn't look right.");
 
-  const ip = await ipHash(req);
+  const ip = await ipHash(req, await setting("ip_salt", "unset"));
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 10) return err("Too many signups from this connection. Try again in a minute.", 429);
   if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req)))) return err("Bot check failed. Refresh and try again.", 403);

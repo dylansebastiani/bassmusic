@@ -16,6 +16,5 @@ npm run build     # writes dist/ (what Cloudflare Pages serves)
 Cloudflare Pages settings: build command `npm run build`, output directory `dist`,
 environment variables `SUPABASE_URL`, `TURNSTILE_SITE_KEY`, `SITE_URL`.
 
-Edge Function secrets (set in Supabase → Edge Functions → Secrets): `SITE_URL`,
-`IP_SALT`, `TURNSTILE_SECRET`, `BREVO_API_KEY`, `FROM_EMAIL`, `FROM_NAME`,
-`RUNNER_SECRET`, `WEBHOOK_SECRET`. See SETUP.md for the walkthrough.
+Edge Function secrets (set in Supabase → Edge Functions → Secrets): `SITE_URL`, `TURNSTILE_SECRET`, `BREVO_API_KEY`, `FROM_EMAIL`, `FROM_NAME`.
+The runner, webhook and IP salt secrets are generated in the database (`settings` table). See SETUP.md for the walkthrough.
