@@ -50,9 +50,12 @@ img{display:block}
 .cut{position:fixed;left:0;right:0;top:50%;height:2px;background:var(--hot);z-index:25;pointer-events:none;opacity:0;transform:scaleX(0)}
 @media (prefers-reduced-motion:reduce){.plate{transform:none!important;opacity:1!important}.rgb .ch{transform:none!important}.cut{display:none}}
 @media (max-width:899px){
-  .rgb .r,.rgb .b{display:none}
-  .rgb .g{filter:brightness(.68) contrast(1.06);mix-blend-mode:normal;transform:none!important}
-  .grain,.cut{display:none}
+  .world,.grain,.cut{display:none}
+  .flyer,.offer,.get{background-color:#000;background-size:cover;background-repeat:no-repeat}
+  .flyer{background-image:url(assets/flyer.webp);background-position:50% 40%}
+  .offer{background-image:url(assets/offer.webp);background-position:60% 50%}
+  .get{background-image:url(assets/inside.webp);background-position:50% 50%}
+  .offer::before{background:linear-gradient(to bottom,rgba(0,0,0,.55) 0,rgba(0,0,0,.82) 45%,rgba(0,0,0,.9) 100%)}
   .flyer::after{height:78%;background:linear-gradient(to top,rgba(0,0,0,.97) 0%,rgba(0,0,0,.8) 40%,rgba(0,0,0,.35) 75%,rgba(0,0,0,0) 100%)}
   .promise{text-shadow:0 2px 6px rgba(0,0,0,.95),0 6px 40px rgba(0,0,0,.9)}
   .sub{font-size:17px;color:#fff}
@@ -193,19 +196,6 @@ html:not(.js) .rv{opacity:1;transform:none}
   <div class="bottom">
     <h1 class="disp promise" id="h1"></h1>
     <p class="sub" id="sub"></p>
-  <form id="f" novalidate method="post" action="/in">
-  <label for="email" class="sr">Email address</label>
-  <div class="unit">
-    <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
-    <button type="submit" class="btn" id="btn"></button>
-  </div>
-  <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
-  <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-  <div id="ts"></div>
-  <p class="fine" id="fine"></p>
-  </form>
-  <div id="msg" class="msg" role="status"></div>
-  <div class="proof" id="proof" hidden></div>
     <div class="cue mono" id="cue" aria-hidden="true"><b></b><span>Descend</span></div>
   </div>
 </header>
@@ -214,7 +204,19 @@ html:not(.js) .rv{opacity:1;transform:none}
 <section class="sec offer" id="offer" aria-label="Join">
   <div><span class="logo rv" style="--mw:30px"></span><h2 class="disp rv" id="offerH" style="margin-top:18px"></h2></div>
   <div class="box">
-    <a class="btn solid" id="btn2" href="#email">REQUEST ACCESS</a>
+    <form id="f" novalidate method="post" action="/in" class="rv">
+    <label for="email" class="sr">Email address</label>
+    <div class="unit">
+      <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+      <button type="submit" class="btn" id="btn"></button>
+    </div>
+    <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
+    <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div id="ts"></div>
+    <p class="fine" id="fine"></p>
+    </form>
+    <div id="msg" class="msg" role="status"></div>
+    <div class="proof" id="proof" hidden></div>
   </div>
 </section>
 
@@ -340,7 +342,6 @@ window.Stack = (function () {
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Pressure builds below.");
   $("offerH").innerHTML = "Request <em>access</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
-  if ($("btn2")) $("btn2").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
   $("fine").textContent = C.microcopy || "";
@@ -414,6 +415,8 @@ window.Stack = (function () {
 
   // ---------- The flight. One camera, four places. Scroll position picks where you are; the plates crossfade and zoom so it never cuts. ----------
   (function () {
+    var mobile = innerWidth < 900 || (window.matchMedia && matchMedia("(pointer:coarse)").matches);
+    if (mobile) return; // phones get static backgrounds from CSS; no per-frame work at all
     if (still) { var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
     var wps = all(".wp").map(function (el) { return { el: el, r: el.querySelector(".r"), b: el.querySelector(".b") }; });
     var secs = [$("flyer"), $("offer"), $("get"), $("foot")];
