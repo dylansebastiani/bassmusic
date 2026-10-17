@@ -349,7 +349,7 @@ window.Stack = (function () {
   var named = !!label && !/^label name$/i.test(label);
   $("wordmark").innerHTML = named && label.toLowerCase() !== name.toLowerCase() ? esc(label) + "<small>" + esc(name) + "</small>" : "<small>" + esc(label || name) + "</small>";
   if (!named) $("wordmark").style.transform = "none";
-  $("cat").innerHTML = "Below sea level";
+  $("cat").innerHTML = "";
   $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + (named ? " " + esc(label) : "") + " &middot; " + esc(name);
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
