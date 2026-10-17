@@ -136,7 +136,7 @@ input::placeholder{color:#8a8486}
 .get li i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
 .get li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(26px,7.6vw,52px);line-height:.95}
 .get li p{grid-column:2;font-size:14px;line-height:1.5;color:#b5afab;margin-top:5px;max-width:40ch}
-.get .again{align-self:flex-start;justify-self:start;display:inline-block;margin-top:8px;background:#fff;color:#000;text-decoration:none;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:12px 22px 10px}
+.get .again{align-self:center;justify-self:center;text-align:center;display:inline-block;margin-top:8px;background:#fff;color:#000;text-decoration:none;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:12px 22px 10px}
 .get .again:hover{background:var(--hot)}
 
 /* ===== 4. Footer, with the one hidden thing ===== */
@@ -347,7 +347,7 @@ window.Stack = (function () {
     $("fsocial").innerHTML = out.join(""); })();
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
-  $("h1").innerHTML = hot((C.headlines || {})[v] || "Pressure builds below.");
+  $("h1").innerHTML = hot((C.headlines || {})[v] || "Hear it first.");
   $("offerH").innerHTML = "Get <em>access</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
