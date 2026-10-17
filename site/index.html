@@ -64,7 +64,9 @@ img.mark{object-fit:contain}
 .flyer .bottom{display:flex;flex-direction:column;gap:14px}
 .promise{font-size:clamp(44px,12.2vw,96px);max-width:11ch;text-shadow:0 2px 24px rgba(0,0,0,.9)}
 .promise em{font-style:normal;color:var(--hot)}
-.sub{font-size:16px;line-height:1.55;color:#e2dcd8;max-width:34ch}
+.sub{font-size:16px;line-height:1.55;color:#f1ece8;max-width:34ch;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 18px rgba(0,0,0,.9)}
+.flyer .fine,.flyer .msg{text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(0,0,0,.9)}
+.flyer::after{content:"";position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(to top,rgba(0,0,0,.92) 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,0) 100%);pointer-events:none;z-index:0}
 .ev .sub{display:block}
 .cue{display:flex;align-items:center;gap:12px;margin-top:6px;font-size:12px;letter-spacing:.14em;transition:opacity .4s}
 .cue.off{opacity:0}
