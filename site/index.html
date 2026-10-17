@@ -140,22 +140,15 @@ input::placeholder{color:#8a8486}
 .get .again:hover{background:var(--hot)}
 
 /* ===== 4. Footer, with the one hidden thing ===== */
-.foot{min-height:0;padding-top:20px;padding-bottom:max(56px,calc(env(safe-area-inset-bottom,0px) + 40px));gap:14px;align-items:center;text-align:center}
-.foot>div{display:flex;flex-direction:column;align-items:center;gap:10px}
-.foot nav{justify-content:center}
-.glyph{align-self:center}
-.vault{text-align:left}
-.foot nav{display:flex;gap:22px;flex-wrap:wrap}
-.foot a{color:var(--mute);text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
-.foot a:hover{color:#fff}
-.glyph{background:none;border:0;color:#2f2a2c;font-family:var(--mono);font-size:12px;cursor:pointer;padding:6px;align-self:flex-start;transition:color .2s}
-.glyph:hover,.glyph:focus-visible{color:var(--hot);outline:none}
-.vault{display:none;border:1px solid var(--hot);padding:18px;max-width:460px;font-size:14px;line-height:1.6;color:#d6d0cc}
-.vault.open{display:block;animation:flick .5s steps(2,end) 2}
-.vault .vimg{width:100%;height:auto;margin:-18px -18px 14px;width:calc(100% + 36px);max-width:none;display:block}
-.vault b{display:block;font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:28px;line-height:1;color:#fff;margin:4px 0 8px}
-.vault code{font-family:var(--mono);font-size:12px;color:var(--hot)}
-.vault a{color:#fff}
+.foot{min-height:0;padding-top:48px;padding-bottom:max(48px,calc(env(safe-area-inset-bottom,0px) + 32px));gap:22px;align-items:center;text-align:center;border-top:1px solid #1c1c1c}
+.fbrand{display:flex;align-items:center;gap:12px}
+.fname{font-family:var(--disp);text-transform:uppercase;font-size:20px;letter-spacing:.08em;color:#fff}
+.fsocial,.flinks{display:flex;gap:26px;flex-wrap:wrap;justify-content:center}
+.fsocial:empty{display:none}
+.fsocial a{color:#fff;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
+.flinks a{color:var(--mute);font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
+.fsocial a:hover,.flinks a:hover{color:var(--hot)}
+.fcopy{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:#555;text-transform:uppercase}
 @keyframes flick{0%{opacity:.2}50%{opacity:1}100%{opacity:.6}}
 
 /* ===== Motion: hard cuts, scroll-driven reveals, nothing else ===== */
@@ -169,7 +162,7 @@ input::placeholder{color:#8a8486}
   .rv.in{opacity:1;transform:none}
 }
 html:not(.js) .rv{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){.rv{animation:none;transition:none;opacity:1;transform:none}.cue b::after{animation:none}.vault.open{animation:none}}
+@media (prefers-reduced-motion:reduce){.rv{animation:none;transition:none;opacity:1;transform:none}.cue b::after{animation:none}}
 
 @media (min-width:900px){
   .sec{padding-inline:max(40px,5vw)}
@@ -249,17 +242,14 @@ html:not(.js) .rv{opacity:1;transform:none}
 
 <!-- 4. Footer. Links, and one thing with no label. -->
 <footer class="sec foot" id="foot">
-  <div>
-    <nav><a class="contact" href="#">Contact</a></nav>
-    <button type="button" class="glyph" id="glyph" aria-label="Locked file">&#9646;&#9646;&#9646;</button>
-    <div class="vault" id="vault" aria-live="polite">
-      <span class="mono">File 001 &middot; Restricted</span>
-      <b id="vaultT"></b>
-      <code>ACCESS DENIED. CLEARANCE REQUIRED.</code><br>
-      <a href="#offer" id="vaultGo">Get access</a>. The track is in your first email.
-    </div>
-  </div>
-  <div class="brandrow"><span class="logo" style="--mw:26px"></span><div class="mono" id="foot-cat"></div></div>
+  <div class="fbrand"><span class="logo" style="--mw:28px"></span><span class="fname" id="fname"></span></div>
+  <nav class="fsocial" id="fsocial"></nav>
+  <nav class="flinks">
+    <a class="contact" href="#">Contact</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="rules.html">Rules</a>
+  </nav>
+  <p class="fcopy" id="foot-cat"></p>
 </footer>
 
 <script>/* Shared helpers for every page. No framework. */
@@ -350,7 +340,11 @@ window.Stack = (function () {
   $("wordmark").innerHTML = named && label.toLowerCase() !== name.toLowerCase() ? esc(label) + "<small>" + esc(name) + "</small>" : "<small>" + esc(label || name) + "</small>";
   if (!named) $("wordmark").style.transform = "none";
   $("cat").innerHTML = "";
-  $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + (named ? " " + esc(label) : "") + " &middot; " + esc(name);
+  $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + " " + esc(label || name);
+  $("fname").textContent = label || name;
+  (function () { var so = C.social || {}, out = [], map = { instagram: ["Instagram", "https://instagram.com/"], tiktok: ["TikTok", "https://tiktok.com/@"], facebook: ["Facebook", "https://facebook.com/"] };
+    Object.keys(map).forEach(function (k) { var h = (so[k] || "").replace(/^@/, ""); if (h) out.push('<a href="' + esc(map[k][1] + h) + '" target="_blank" rel="noopener">' + map[k][0] + "</a>"); });
+    $("fsocial").innerHTML = out.join(""); })();
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Pressure builds below.");
@@ -361,7 +355,6 @@ window.Stack = (function () {
   $("fine").textContent = C.microcopy || "";
   all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
   $("plist").innerHTML = (C.perks || []).map(function (p, i) { return '<li class="rv"><i>' + String(i + 1).padStart(3, "0") + "</i><h3>" + esc(p.title) + "</h3><p>" + esc(p.body) + "</p></li>"; }).join("");
-  $("vaultT").textContent = "UNTITLED";
 
   S.get("meta", { e: S.attr.e || null }).then(function (m) {
     if (m.event) {
@@ -423,9 +416,8 @@ window.Stack = (function () {
   addEventListener("scroll", function () { $("cue").classList.toggle("off", scrollY > 40); }, { passive: true });
 
   // ---------- The hidden thing ----------
-  $("glyph").addEventListener("click", function () { $("vault").classList.add("open"); $("glyph").style.color = "var(--hot)"; try { S.api("engage", { type: "secret_open" }).catch(function () {}); } catch (e) {} });
   function toOffer(e) { e.preventDefault(); $("offer").scrollIntoView({ behavior: still ? "auto" : "smooth" }); setTimeout(function () { $("email").focus({ preventScroll: true }); }, still ? 0 : 500); }
-  $("again").addEventListener("click", toOffer); $("vaultGo").addEventListener("click", toOffer);
+  $("again").addEventListener("click", toOffer);
 
   // ---------- The flight. One camera, four places. Scroll position picks where you are; the plates crossfade and zoom so it never cuts. ----------
   (function () {
