@@ -49,6 +49,14 @@ img{display:block}
 .rgb .r{filter:url(#fr)}.rgb .g{filter:url(#fg)}.rgb .b{filter:url(#fb)}
 .cut{position:fixed;left:0;right:0;top:50%;height:2px;background:var(--hot);z-index:25;pointer-events:none;opacity:0;transform:scaleX(0)}
 @media (prefers-reduced-motion:reduce){.plate{transform:none!important;opacity:1!important}.rgb .ch{transform:none!important}.cut{display:none}}
+@media (max-width:899px){
+  .rgb .r,.rgb .b{display:none}
+  .rgb .g{filter:brightness(.68) contrast(1.06);mix-blend-mode:normal;transform:none!important}
+  .grain,.cut{display:none}
+  .flyer::after{height:78%;background:linear-gradient(to top,rgba(0,0,0,.97) 0%,rgba(0,0,0,.8) 40%,rgba(0,0,0,.35) 75%,rgba(0,0,0,0) 100%)}
+  .promise{text-shadow:0 2px 6px rgba(0,0,0,.95),0 6px 40px rgba(0,0,0,.9)}
+  .sub{font-size:17px;color:#fff}
+}
 /* ===== 1. The flyer ===== */
 .flyer{justify-content:space-between;overflow:visible;min-height:100svh}
 .offer,.get{min-height:92svh}
@@ -414,7 +422,7 @@ window.Stack = (function () {
     function cl(x) { return Math.min(1, Math.max(0, x)); }
     function ss(a, b, x) { var t = cl((x - a) / (b - a)); return t * t * (3 - 2 * t); }
     // leg i runs from the top of section i to the top of section i+1. Inside a leg: zoom from 1 to ZEND into the current place, the next place fades up behind at the end.
-    var ZEND = [2.2, 1.9, 1.6, 1.25];
+    var ZEND = innerWidth < 900 ? [1.45, 1.35, 1.25, 1.12] : [2.2, 1.9, 1.6, 1.25];
     function frame(now) {
       var dt = Math.max(1, now - lastT), y = scrollY; vel += ((y - lastY) / dt * 16 - vel) * 0.2; lastY = y; lastT = now;
       smooth += (y - smooth) * 0.12; if (Math.abs(y - smooth) < .4) smooth = y;
