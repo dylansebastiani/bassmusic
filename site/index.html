@@ -216,7 +216,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 
 <!-- 2. The offer. The headline is the reward. Email first. -->
 <section class="sec offer" id="offer" aria-label="Join">
-  <div><span class="logo rv" style="--mw:30px"></span><h2 class="disp rv" id="offerH" style="margin-top:18px"></h2></div>
+  <div><h2 class="disp rv" id="offerH"></h2></div>
   <div class="box">
     <form id="f" novalidate method="post" action="in.html" class="rv">
     <label for="email" class="sr">Email address</label>
@@ -234,7 +234,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   </div>
 </section>
 
-<div class="strip" aria-hidden="true"><div class="strip-in" id="strip"></div></div>
+
 
 <!-- 3. What you get. Catalogue style. -->
 <section class="sec get" id="get" aria-label="What members get">
@@ -256,7 +256,7 @@ html:not(.js) .rv{opacity:1;transform:none}
       <span class="mono">File 001 &middot; Restricted</span>
       <b id="vaultT"></b>
       <code>ACCESS DENIED. CLEARANCE REQUIRED.</code><br>
-      <a href="#offer" id="vaultGo">Go under</a>. The track is in your first transmission.
+      <a href="#offer" id="vaultGo">Get access</a>. The track is in your first email.
     </div>
   </div>
   <div class="brandrow"><span class="logo" style="--mw:26px"></span><div class="mono" id="foot-cat"></div></div>
@@ -342,7 +342,7 @@ window.Stack = (function () {
   var MARK = '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg>';
   function markHTML() { return C.logoUrl ? '<img class="mark" src="' + esc(C.logoUrl) + '" alt="' + esc(C.labelName || "") + '">' : MARK; }
   all(".logo").forEach(function (el) { el.innerHTML = markHTML(); });
-  (function () { var h = ""; for (var i = 0; i < 40; i++) h += '<span class="logo">' + markHTML() + "</span>"; $("strip").innerHTML = h; })();
+  // (logo strip removed)
 
   // ---------- Copy from config ----------
   var label = C.labelName || "", name = C.membershipName || "Subduction";
@@ -354,7 +354,7 @@ window.Stack = (function () {
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Pressure builds below.");
-  $("offerH").innerHTML = "Go <em>under</em>.";
+  $("offerH").innerHTML = "Get <em>access</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
