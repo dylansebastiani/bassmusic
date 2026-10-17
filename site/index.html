@@ -182,7 +182,20 @@ html:not(.js) .rv{opacity:1;transform:none}
   </div>
   <div class="bottom">
     <h1 class="disp promise" id="h1"></h1>
-    <p class="sub" id="sub" hidden></p>
+    <p class="sub" id="sub"></p>
+  <form id="f" novalidate method="post" action="/in">
+  <label for="email" class="sr">Email address</label>
+  <div class="unit">
+    <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+    <button type="submit" class="btn" id="btn"></button>
+  </div>
+  <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
+  <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <div id="ts"></div>
+  <p class="fine" id="fine"></p>
+  </form>
+  <div id="msg" class="msg" role="status"></div>
+  <div class="proof" id="proof" hidden></div>
     <div class="cue mono" id="cue" aria-hidden="true"><b></b><span>Descend</span></div>
   </div>
 </header>
@@ -191,19 +204,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 <section class="sec offer" id="offer" aria-label="Join">
   <div><span class="logo rv" style="--mw:30px"></span><h2 class="disp rv" id="offerH" style="margin-top:18px"></h2></div>
   <div class="box">
-    <form id="f" novalidate method="post" action="/in" class="rv">
-      <label for="email" class="sr">Email address</label>
-      <div class="unit">
-        <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
-        <button type="submit" class="btn" id="btn"></button>
-      </div>
-      <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
-      <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <div id="ts"></div>
-      <p class="fine" id="fine"></p>
-    </form>
-    <div id="msg" class="msg" role="status"></div>
-    <div class="proof" id="proof" hidden></div>
+    <a class="btn solid" id="btn2" href="#email">REQUEST ACCESS</a>
   </div>
 </section>
 
@@ -329,6 +330,8 @@ window.Stack = (function () {
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Access the archive.");
   $("offerH").innerHTML = "Request <em>access</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
+  if ($("btn2")) $("btn2").textContent = C.cta || "REQUEST ACCESS";
+  $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
   $("fine").textContent = C.microcopy || "";
   all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
