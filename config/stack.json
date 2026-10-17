@@ -7,29 +7,65 @@
   "replyTo": "",
   "contactEmail": "hello@example.com",
   "mailingAddress": "PO Box TBD, Bloomington, IL 61701",
-  "social": { "instagram": "", "tiktok": "", "facebook": "" },
-  "headlines": {
-    "A": "Hear it before the internet does.",
-    "B": "Unreleased music. Free. Members only."
+  "social": {
+    "instagram": "",
+    "tiktok": "",
+    "facebook": ""
   },
-  "subhead": "Join The Stack. Free unreleased tracks, guest list drawings, and first access to every drop.",
+  "headlines": {
+    "A": "Hear it first.",
+    "B": "Unreleased music. Before anyone."
+  },
+  "subhead": "Unreleased tracks, guest list spots and presales, straight to your inbox. Free. Members only.",
   "cta": "LET ME IN",
-  "microcopy": "Free. No spam. Unsubscribe anytime.",
+  "microcopy": "Takes 5 seconds. No spam. Leave anytime.",
   "eventHeadline": "You're at {{EVENT_NAME}} tonight.",
   "eventSubhead": "Join The Stack to hear the unreleased track we just played and get entered to win {{PRIZE}}.",
   "perks": [
-    { "icon": "01", "title": "Unreleased music first", "body": "Hear tracks before they're public." },
-    { "icon": "02", "title": "Guest list drawings", "body": "You're entered automatically for every show." },
-    { "icon": "03", "title": "First access to tickets", "body": "Presales hit your inbox before anyone else's." },
-    { "icon": "04", "title": "Secret drops", "body": "Limited merch, pop-ups, afterparty locations. Members only." },
-    { "icon": "05", "title": "You pick what drops next", "body": "Members vote on the next release." }
+    {
+      "icon": "01",
+      "title": "Unreleased music first",
+      "body": "Hear tracks before they're public."
+    },
+    {
+      "icon": "02",
+      "title": "Guest list drawings",
+      "body": "You're entered automatically for every show."
+    },
+    {
+      "icon": "03",
+      "title": "First access to tickets",
+      "body": "Presales hit your inbox before anyone else's."
+    },
+    {
+      "icon": "04",
+      "title": "Secret drops",
+      "body": "Limited merch, pop-ups, afterparty locations. Members only."
+    },
+    {
+      "icon": "05",
+      "title": "You pick what drops next",
+      "body": "Members vote on the next release."
+    }
   ],
   "smsConsentText": "Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.",
   "ageText": "I'm 13 or older.",
   "socialProofMin": 100,
   "referralTiers": [
-    { "referrals": 1, "tier": "entries_x2", "label": "2 extra giveaway entries at the next event" },
-    { "referrals": 3, "tier": "guestlist_plus1", "label": "Guaranteed guest list +1 at the next local show" },
-    { "referrals": 10, "tier": "merch", "label": "Free merch item" }
+    {
+      "referrals": 1,
+      "tier": "entries_x2",
+      "label": "2 extra giveaway entries at the next event"
+    },
+    {
+      "referrals": 3,
+      "tier": "guestlist_plus1",
+      "label": "Guaranteed guest list +1 at the next local show"
+    },
+    {
+      "referrals": 10,
+      "tier": "merch",
+      "label": "Free merch item"
+    }
   ]
 }
