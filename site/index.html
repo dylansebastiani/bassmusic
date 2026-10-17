@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Restricted</title>
+<title>Subduction</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch.png">
-<meta property="og:title" content="Restricted">
-<meta property="og:description" content="Restricted archive. Unreleased files, access, votes. Clearance required.">
+<meta property="og:title" content="Subduction">
+<meta property="og:description" content="Unreleased tracks, early tickets and a vote on what surfaces next. Members are under.">
 <meta property="og:image" content="assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <script>document.documentElement.className="js"</script>
@@ -321,15 +321,15 @@ window.Stack = (function () {
   (function () { var h = ""; for (var i = 0; i < 40; i++) h += '<span class="logo">' + markHTML() + "</span>"; $("strip").innerHTML = h; })();
 
   // ---------- Copy from config ----------
-  var label = C.labelName || "", name = C.membershipName || "Archive";
+  var label = C.labelName || "", name = C.membershipName || "Subduction";
   var named = !!label && !/^label name$/i.test(label);
-  $("wordmark").innerHTML = named ? esc(label) + "<small>" + esc(name) + "</small>" : "<small>" + esc(name) + "</small>";
+  $("wordmark").innerHTML = named && label.toLowerCase() !== name.toLowerCase() ? esc(label) + "<small>" + esc(name) + "</small>" : "<small>" + esc(label || name) + "</small>";
   if (!named) $("wordmark").style.transform = "none";
-  $("cat").innerHTML = "Restricted";
+  $("cat").innerHTML = "Below sea level";
   $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + (named ? " " + esc(label) : "") + " &middot; " + esc(name);
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
-  $("h1").innerHTML = hot((C.headlines || {})[v] || "Access the archive.");
+  $("h1").innerHTML = hot((C.headlines || {})[v] || "Pressure builds below.");
   $("offerH").innerHTML = "Request <em>access</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   if ($("btn2")) $("btn2").textContent = C.cta || "REQUEST ACCESS";

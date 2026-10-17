@@ -1,8 +1,8 @@
 {
-  "labelName": "",
-  "membershipName": "Archive",
+  "labelName": "Subduction",
+  "membershipName": "Subduction",
   "siteUrl": "https://bassmusic.pages.dev",
-  "fromName": "Dylan",
+  "fromName": "Dylan @ Subduction",
   "fromEmail": "dylan@mail.example.com",
   "replyTo": "",
   "contactEmail": "hello@example.com",
@@ -13,34 +13,34 @@
     "facebook": ""
   },
   "headlines": {
-    "A": "Access the archive.",
-    "B": "Clearance required."
+    "A": "Pressure builds below.",
+    "B": "Go under."
   },
-  "subhead": "Unreleased files, early tickets and votes on what gets released. Members are cleared. Everyone else waits.",
-  "cta": "REQUEST ACCESS",
-  "microcopy": "Transmissions are rare. Revoke access at any time.",
+  "subhead": "Unreleased tracks, early tickets and a vote on what surfaces next. Members are under. Everyone else waits.",
+  "cta": "GO UNDER",
+  "microcopy": "Transmissions are rare. Surface any time.",
   "eventHeadline": "Location confirmed: {{EVENT_NAME}}.",
-  "eventSubhead": "The file you just heard is in the archive. Clearance enters you for {{PRIZE}}.",
+  "eventSubhead": "The track you just heard is already below. Going under enters you for {{PRIZE}}.",
   "perks": [
     {
       "icon": "01",
-      "title": "Unreleased files",
-      "body": "Decrypted for members before release."
+      "title": "Unreleased tracks",
+      "body": "Surface for members before anyone else."
     },
     {
       "icon": "02",
       "title": "Early tickets",
-      "body": "Presale codes issued to members first."
+      "body": "Presale codes go below first."
     },
     {
       "icon": "03",
-      "title": "Classified drops",
+      "title": "Deep drops",
       "body": "Merch, pop-ups, afterparty coordinates."
     },
     {
       "icon": "04",
       "title": "Release votes",
-      "body": "Members decide what the archive opens next."
+      "body": "Members decide what surfaces next."
     }
   ],
   "smsConsentText": "Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.",
@@ -55,7 +55,7 @@
     {
       "referrals": 3,
       "tier": "early_file",
-      "label": "An unreleased file, 48 hours before members"
+      "label": "An unreleased track, 48 hours before members"
     },
     {
       "referrals": 10,

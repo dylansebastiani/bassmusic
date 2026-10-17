@@ -234,7 +234,7 @@ window.Stack = (function () {
           if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, function () { window.getSelection().selectAllChildren($("refLink")); });
           else { window.getSelection().selectAllChildren($("refLink")); done(); }
         });
-        if (navigator.share) { $("share").hidden = false; $("share").addEventListener("click", function () { navigator.share({ title: C.membershipName, text: "Restricted archive. Request access:", url: link }).then(function () { S.api("engage", { t: tok, type: "share_click" }).catch(function () {}); }).catch(function () {}); }); }
+        if (navigator.share) { $("share").hidden = false; $("share").addEventListener("click", function () { navigator.share({ title: C.membershipName, text: "Unreleased bass, free. Go under:", url: link }).then(function () { S.api("engage", { t: tok, type: "share_click" }).catch(function () {}); }).catch(function () {}); }); }
       }
       if (m.confirmed) $("nextBody").textContent = "Bonus file decrypted. The next transmission will follow.";
       if (m.drop) {

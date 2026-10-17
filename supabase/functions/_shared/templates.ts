@@ -34,14 +34,14 @@ export const TEMPLATES: Record<string, Tpl> = {
   // 1. Immediate
   welcome: (m) => {
     const html = `<p>${hi(m)},</p>
-<p>you're in ${M}. Unreleased stuff first, guest list drawings at every show, and the drops nobody else gets.</p>
+<p>you're under. ${M} gets unreleased tracks first, guest list drawings at every show, and the drops nobody else gets.</p>
 <p>First thing: there's a bonus track waiting for you. Tap below and it's yours.</p>
 ${btn(confirmUrl(m), "Unlock the bonus track")}
 <p>Your member page (the track you heard when you joined is there): <a href="${meUrl(m)}" style="color:#fff">${meUrl(m)}</a></p>
 ${m.referral_code ? `<p style="color:#bbb">Know people who'd want this? Send them your link and you move up the list for guest spots:<br><a href="${refUrl(m)}" style="color:#fff">${refUrl(m)}</a></p>` : ""}
 <p>— Dylan</p>`;
-    const text = `${hi(m)},\n\nyou're in ${M}. Unreleased stuff first, guest list drawings at every show, and the drops nobody else gets.\n\nFirst thing: there's a bonus track waiting for you:\n${confirmUrl(m)}\n\nYour member page: ${meUrl(m)}\n${m.referral_code ? `\nYour referral link: ${refUrl(m)}\n` : ""}\n— Dylan`;
-    return { subject: "you're in (bonus track inside)", ...wrap(m, html, text) };
+    const text = `${hi(m)},\n\nyou're under. ${M} gets unreleased tracks first, guest list drawings at every show, and the drops nobody else gets.\n\nFirst thing: there's a bonus track waiting for you:\n${confirmUrl(m)}\n\nYour member page: ${meUrl(m)}\n${m.referral_code ? `\nYour referral link: ${refUrl(m)}\n` : ""}\n— Dylan`;
+    return { subject: "you're under (bonus track inside)", ...wrap(m, html, text) };
   },
   // 2. +2 days
   story: (m) => {
