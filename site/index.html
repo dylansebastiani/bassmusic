@@ -14,35 +14,31 @@
 <!--CONFIG-->
 </head>
 <body>
-<div class="scan" aria-hidden="true"></div>
-<main>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<main class="hero">
   <div class="brand" id="brand"></div>
   <h1 id="h1"></h1>
   <p class="lead" id="sub"></p>
 
   <form id="f" novalidate method="post" action="/in">
     <label for="email" class="sr">Email address</label>
-    <input type="email" id="email" name="email" placeholder="your email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+    <div class="unit">
+      <input type="email" id="email" name="email" placeholder="your email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+      <button type="submit" class="btn" id="btn"></button>
+    </div>
     <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
     <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
     <div id="ts"></div>
-    <button type="submit" class="btn" id="btn"></button>
     <p class="micro" id="micro"></p>
   </form>
   <div id="msg" class="msg" role="status"></div>
   <div class="proof" id="proof" hidden></div>
 
-  <section class="perks" id="perks" aria-label="What members get"></section>
-
-  <form class="perks" style="margin-top:44px" id="f2" novalidate>
-    <label for="email2" class="sr">Email address</label>
-    <input type="email" id="email2" placeholder="your email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
-    <button type="submit" class="btn" id="btn2"></button>
-  </form>
-
+  <p class="perkline" id="perks"></p>
   <footer>
     <a href="/privacy">Privacy</a>
-    <a href="/rules">Giveaway rules</a>
+    <a href="/rules">Rules</a>
     <a id="contact" href="#">Contact</a>
   </footer>
 </main>
@@ -56,10 +52,10 @@
   function glitch(t) { return t.split(" ").map(function (w) { return '<span class="g" data-text="' + S.esc(w) + '">' + S.esc(w) + "</span>"; }).join(" "); }
   $("h1").innerHTML = glitch((C.headlines || {})[v] || "Hear it before the internet does.");
   $("sub").textContent = C.subhead || "";
-  $("btn").textContent = $("btn2").textContent = C.cta || "LET ME IN";
+  $("btn").textContent = C.cta || "LET ME IN";
   $("micro").textContent = C.microcopy || "";
   $("contact").href = "mailto:" + (C.contactEmail || "");
-  $("perks").innerHTML = (C.perks || []).map(function (p) { return '<div class="perk"><b>' + S.esc(p.icon) + "</b><div><h3>" + S.esc(p.title) + "</h3><p>" + S.esc(p.body) + "</p></div></div>"; }).join("");
+  $("perks").innerHTML = (C.perks || []).map(function (p) { return "<span>" + S.esc(p.title) + "</span>"; }).join('<i aria-hidden="true">&middot;</i>');
 
   // Event mode + real member count (shown only past the threshold, never faked).
   S.get("meta", { e: S.attr.e || null }).then(function (m) {
@@ -95,7 +91,6 @@
     });
   }
   $("email").addEventListener("focus", loadTurnstile, { once: true });
-  $("email2").addEventListener("focus", loadTurnstile, { once: true });
 
   function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
   function go(res) { location.href = "/in?t=" + encodeURIComponent(res.access_token) + (res.already_member ? "&back=1" : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""); }
@@ -121,8 +116,35 @@
       });
   }
   $("f").addEventListener("submit", function (e) { e.preventDefault(); submit($("email"), $("btn")); });
-  $("f2").addEventListener("submit", function (e) { e.preventDefault(); $("email").value = $("email2").value; submit($("email2"), $("btn2")); });
   if (navigator.onLine) S.flushPending().catch(function () {});
+
+  // Background: faint colour static with a slow roll and the odd RGB tear. Starts
+  // once the page is idle so it never delays the form, and stops in the background.
+  var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function startBg() {
+    var cv = $("bg"), cx = cv.getContext("2d"), W, H, nz = document.createElement("canvas"), nzc = nz.getContext("2d"), img, run = true;
+    var P = { grain: 0.035, glo: 0.42, roll: 0.06, rollA: 0.06, tear: 0.06, tearN: 2, tearH: 8, shift: 50, lines: 3 };
+    function size() { W = innerWidth; H = innerHeight; cv.width = W; cv.height = H; nz.width = Math.ceil(W / 3); nz.height = Math.ceil(H / 3); img = nzc.createImageData(nz.width, nz.height); }
+    function draw(t) {
+      var d = img.data, i, v, n = d.length;
+      for (i = 0; i < n; i += 4) { if (Math.random() < P.grain) { v = 60 + Math.random() * 120; d[i] = v * (0.6 + Math.random() * 0.8); d[i + 1] = v * (0.6 + Math.random() * 0.8); d[i + 2] = v * (0.6 + Math.random() * 0.8); } else { d[i] = d[i + 1] = d[i + 2] = 0; } d[i + 3] = 255; }
+      nzc.putImageData(img, 0, 0);
+      cx.globalCompositeOperation = "source-over"; cx.globalAlpha = 1; cx.fillStyle = "#000"; cx.fillRect(0, 0, W, H);
+      cx.imageSmoothingEnabled = false; cx.globalAlpha = P.glo; cx.drawImage(nz, 0, 0, W, H); cx.globalAlpha = 1;
+      var y = ((t * P.roll) % (H + 200)) - 100, g = cx.createLinearGradient(0, y - 90, 0, y + 90);
+      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255," + P.rollA + ")"); g.addColorStop(1, "rgba(255,255,255,0)");
+      cx.fillStyle = g; cx.fillRect(0, y - 90, W, 180);
+      cx.globalCompositeOperation = "screen";
+      for (var L = 0; L < P.lines; L++) { var ly = ((t * (0.03 + (L * 0.017) % 0.09) + L * 173) % (H + 40)) - 20; cx.fillStyle = "rgba(255,40,90,0.35)"; cx.fillRect(0, ly - 1, W, 1); cx.fillStyle = "rgba(25,232,255,0.35)"; cx.fillRect(0, ly + 1, W, 1); cx.fillStyle = "rgba(255,255,255,0.22)"; cx.fillRect(0, ly, W, 1); }
+      if (Math.random() < P.tear) { var cnt = 1 + (Math.random() * P.tearN | 0); for (var k = 0; k < cnt; k++) { var by = Math.random() * H, bh = 2 + Math.random() * P.tearH, sh = (Math.random() - 0.5) * P.shift; cx.fillStyle = "rgba(255,40,90,0.55)"; cx.fillRect(sh, by, W, bh); cx.fillStyle = "rgba(25,232,255,0.55)"; cx.fillRect(-sh, by, W, bh); } }
+      cx.globalCompositeOperation = "source-over";
+    }
+    function loop(t) { if (run) draw(t); requestAnimationFrame(loop); }
+    size(); addEventListener("resize", size);
+    document.addEventListener("visibilitychange", function () { run = !document.hidden; });
+    if (still) draw(3000); else requestAnimationFrame(loop);
+  }
+  if (window.requestIdleCallback) requestIdleCallback(startBg, { timeout: 1500 }); else setTimeout(startBg, 400);
 })();
 </script>
 </body>
