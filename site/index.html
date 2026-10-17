@@ -52,23 +52,38 @@ img{display:block}
 .mbg,.pbar{display:none}
 @media (max-width:899px){
   .world,.grain,.cut{display:none}
-  .sec{overflow:hidden}
+  .sec{overflow:hidden;background:#000}
   .sec>:not(.mbg){position:relative;z-index:2}
-  .sec>img.mbg{display:block;position:absolute;left:0;top:-8%;width:100%;height:116%;object-fit:cover;z-index:0;transform:translate3d(0,0,0) scale(1.06);will-change:transform;pointer-events:none}
-  .flyer .mbg{object-position:50% 38%}.offer .mbg{object-position:62% 50%}.get .mbg{object-position:50% 50%;opacity:.55}
-  .offer::before,.get::before,.flyer::after{z-index:1}
-  .offer::before{background:linear-gradient(to bottom,rgba(0,0,0,.5) 0,rgba(0,0,0,.82) 45%,rgba(0,0,0,.92) 100%)}
-  .flyer::after{height:80%;background:linear-gradient(to top,rgba(0,0,0,.97) 0%,rgba(0,0,0,.82) 40%,rgba(0,0,0,.35) 75%,rgba(0,0,0,0) 100%)}
-  .promise{text-shadow:0 2px 6px rgba(0,0,0,.95),0 6px 40px rgba(0,0,0,.9)}
-  .sub{font-size:17px;color:#fff}
+  .sec>img.mbg{display:block;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;z-index:0;transform:translate3d(0,0,0) scale(1.04);will-change:transform,opacity;pointer-events:none}
+  /* First screen: the art is an object on black, the words sit on black. No overlap. */
+  .flyer{justify-content:flex-end;gap:0}
+  .flyer>img.mbg{height:58%;object-fit:contain;object-position:50% 30%;top:4%;
+    -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 72%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0,#000 72%,transparent 100%)}
+  .flyer::after{display:none}
+  .flyer .top{position:absolute;left:18px;right:18px;top:max(18px,env(safe-area-inset-top,0px))}
+  .flyer .bottom{padding-bottom:6px}
+  .promise{font-size:clamp(40px,11.5vw,80px);text-shadow:none}
+  .sub{font-size:16px;color:#d9d4d0;max-width:30ch}
+  .offer .mbg{object-position:62% 50%}.get .mbg{object-position:50% 50%;opacity:.5}
+  .offer::before,.get::before{z-index:1}
+  .offer::before{background:linear-gradient(to bottom,rgba(0,0,0,.45) 0,rgba(0,0,0,.84) 48%,rgba(0,0,0,.94) 100%)}
   .pbar{display:block;position:fixed;left:0;top:0;height:2px;width:100%;background:var(--hot);transform-origin:0 50%;transform:scaleX(0);z-index:40;pointer-events:none}
+  /* Arrival: the art settles in, the words rise. Transform/opacity only. */
+  .flyer>img.mbg{animation:settle 1.6s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes settle{from{transform:translate3d(0,2%,0) scale(1.14);opacity:0}to{transform:translate3d(0,0,0) scale(1);opacity:1}}
+  .flyer .top{animation:up .8s .2s cubic-bezier(.2,.7,.2,1) both}
+  .flyer .bottom>*{animation:up .9s cubic-bezier(.2,.7,.2,1) both}
+  .flyer .bottom>:nth-child(1){animation-delay:.35s}.flyer .bottom>:nth-child(2){animation-delay:.5s}.flyer .bottom>:nth-child(3){animation-delay:.65s}
+  @keyframes up{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
+  /* Scroll: later screens drift and zoom with the page. Native where supported; app.js fills in elsewhere. */
   @supports (animation-timeline:view()){
-    .mbg{animation:drift linear both;animation-timeline:view();animation-range:cover 0% cover 100%}
-    @keyframes drift{from{transform:translate3d(0,-5%,0) scale(1.14)}to{transform:translate3d(0,5%,0) scale(1.02)}}
+    .offer .mbg,.get .mbg{animation:drift linear both;animation-timeline:view();animation-range:cover 0% cover 100%}
+    @keyframes drift{from{transform:translate3d(0,-6%,0) scale(1.16)}to{transform:translate3d(0,6%,0) scale(1.02)}}
     .pbar{animation:fill linear both;animation-timeline:scroll(root)}
     @keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   }
-  @media (prefers-reduced-motion:reduce){.mbg,.pbar{animation:none}}
+  @media (prefers-reduced-motion:reduce){.mbg,.pbar,.flyer .top,.flyer .bottom>*{animation:none;opacity:1;transform:none}}
+}}
 }
 }
 /* ===== 1. The flyer ===== */
@@ -431,7 +446,21 @@ window.Stack = (function () {
   // ---------- The flight. One camera, four places. Scroll position picks where you are; the plates crossfade and zoom so it never cuts. ----------
   (function () {
     var mobile = innerWidth < 900 || (window.matchMedia && matchMedia("(pointer:coarse)").matches);
-    if (mobile) return; // phones get static backgrounds from CSS; no per-frame work at all
+    if (mobile) {
+      if (CSS.supports("animation-timeline: view()") || still) return; // the browser animates on its own
+      var imgs = all(".offer .mbg, .get .mbg"), bar = document.querySelector(".pbar"), ticking = false;
+      function paint() {
+        ticking = false; var vh = innerHeight;
+        imgs.forEach(function (im) {
+          var r = im.parentElement.getBoundingClientRect(), p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height))); // 0 entering, 1 leaving
+          im.style.transform = "translate3d(0," + ((p - .5) * 12).toFixed(2) + "%,0) scale(" + (1.16 - p * .14).toFixed(3) + ")";
+        });
+        if (bar) { var h = document.documentElement.scrollHeight - vh; bar.style.transform = "scaleX(" + (h > 0 ? Math.min(1, scrollY / h) : 0).toFixed(3) + ")"; }
+      }
+      addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(paint); } }, { passive: true });
+      addEventListener("resize", paint); paint();
+      return;
+    }
     if (still) { var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
     var wps = all(".wp").map(function (el) { return { el: el, r: el.querySelector(".r"), b: el.querySelector(".b") }; });
     var secs = [$("flyer"), $("offer"), $("get"), $("foot")];

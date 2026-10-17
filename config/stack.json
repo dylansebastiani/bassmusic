@@ -14,9 +14,9 @@
   },
   "headlines": {
     "A": "Pressure builds below.",
-    "B": "Nothing surfaces until you're under."
+    "B": "Everyone else waits."
   },
-  "subhead": "Unreleased tracks, early tickets and a vote on what surfaces next. Members are under. Everyone else waits.",
+  "subhead": "Unreleased tracks, early tickets and a vote on what surfaces next.",
   "cta": "GO UNDER",
   "microcopy": "Transmissions are rare. Surface any time.",
   "eventHeadline": "Location confirmed: {{EVENT_NAME}}.",
