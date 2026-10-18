@@ -105,6 +105,17 @@ Deno.serve(async (req) => {
     await log("track", { slug, title });
     return ok({ slug, qr_code: qr, qr_url: `${SITE_URL}/t?c=${qr}` });
   }
+  // Remove a stray file from a track's folder. Never one a track still points at.
+  if (a === "delete-file") {
+    const path = clean(b.path, 200) || "";
+    if (!/^[a-z0-9-]{1,80}\/[A-Za-z0-9._-]{1,120}$/.test(path)) return no("Bad request");
+    const { data: used } = await db.from("drops").select("slug").or(`audio_path.eq.${path},artwork_path.eq.${path},download_path.eq.${path}`).limit(1);
+    if (used?.length) return no("A track still uses that file.");
+    const { error } = await db.storage.from("drops").remove([path]);
+    if (error) return no("Couldn't delete: " + error.message, 500);
+    await log("delete_file", { path });
+    return ok({ deleted: path });
+  }
   if (a === "qr.svg") {
     const code = (u.searchParams.get("c") || "").toUpperCase(), e = u.searchParams.get("e") || "";
     if (!/^[A-Z0-9]{6,12}$/.test(code)) return no("Bad request");
