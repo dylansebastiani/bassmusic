@@ -13,11 +13,11 @@
     "facebook": ""
   },
   "headlines": {
-    "A": "Get early access.",
+    "A": "Get in early.",
     "B": "Hear it first."
   },
-  "subhead": "Unreleased tracks, early tickets and a vote on what surfaces next.",
-  "cta": "GET EARLY ACCESS",
+  "subhead": "Subduction is a new bass music label, and the community around it. Members get unreleased tracks for free, before anyone else, and first word on shows. Look for us at shows.",
+  "cta": "GET IN",
   "microcopy": "Free. No spam. Unsubscribe anytime.",
   "eventHeadline": "Location confirmed: {{EVENT_NAME}}.",
   "eventSubhead": "The track you just heard is already below. Going under puts it in your collection.",
@@ -25,22 +25,22 @@
     {
       "icon": "01",
       "title": "Unreleased tracks",
-      "body": "Surface for members before anyone else."
+      "body": "Free, and only for members. Every track lands on your page the moment you unlock it."
     },
     {
       "icon": "02",
-      "title": "Early tickets",
-      "body": "Presale codes go below first."
+      "title": "Your collection",
+      "body": "One page with every track you've unlocked. Play it there or download the WAV."
     },
     {
       "icon": "03",
-      "title": "Deep drops",
-      "body": "Merch, pop-ups, afterparty coordinates."
+      "title": "Shows first",
+      "body": "Members hear where and when before it's posted anywhere."
     },
     {
       "icon": "04",
-      "title": "Release votes",
-      "body": "Members decide what surfaces next."
+      "title": "Out in the wild",
+      "body": "We leave something behind at every show. Find it, scan it, and the track is yours."
     }
   ],
   "smsConsentText": "Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.",
