@@ -20,7 +20,7 @@
   "cta": "GET EARLY ACCESS",
   "microcopy": "Free. No spam. Unsubscribe anytime.",
   "eventHeadline": "Location confirmed: {{EVENT_NAME}}.",
-  "eventSubhead": "The track you just heard is already below. Going under enters you for {{PRIZE}}.",
+  "eventSubhead": "The track you just heard is already below. Going under puts it in your collection.",
   "perks": [
     {
       "icon": "01",
@@ -50,7 +50,7 @@
     {
       "referrals": 1,
       "tier": "entries_x2",
-      "label": "2 extra giveaway entries at the next event"
+      "label": "First look at the next drop"
     },
     {
       "referrals": 3,

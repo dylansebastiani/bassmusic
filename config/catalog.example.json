@@ -23,8 +23,7 @@
       "startsAt": "2026-12-05T21:00:00-06:00",
       "endsAt": "2026-12-06T02:00:00-06:00",
       "description": "Optional details.",
-      "ticketUrl": "https://example.com/tickets",
-      "prize": "a guest list +1"
+      "ticketUrl": "https://example.com/tickets"
     }
   ],
   "coupons": [

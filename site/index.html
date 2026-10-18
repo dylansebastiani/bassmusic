@@ -278,7 +278,6 @@ html:not(.js) .rv{opacity:1;transform:none}
   <nav class="flinks">
     <a class="contact" href="#">Contact</a>
     <a href="privacy.html">Privacy</a>
-    <a href="rules.html">Rules</a>
   </nav>
   <p class="fcopy" id="foot-cat"></p>
 </footer>
@@ -391,7 +390,7 @@ window.Stack = (function () {
     if (m.event) {
       root.classList.add("ev");
       $("h1").innerHTML = hot(S.fill(C.eventHeadline, { EVENT_NAME: m.event.name }));
-      $("sub").textContent = S.fill(C.eventSubhead, { PRIZE: m.event.prize || "the giveaway", EVENT_NAME: m.event.name }); $("sub").hidden = false;
+      $("sub").textContent = S.fill(C.eventSubhead, { EVENT_NAME: m.event.name }); $("sub").hidden = false;
     }
     if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " cleared"; $("proof").hidden = false; }
   }).catch(function () {});
@@ -453,7 +452,7 @@ window.Stack = (function () {
   function askCode(res) {
     codeEvent = res.event;
     $("f").hidden = true; $("cf").hidden = false; $("code").value = ""; $("cbtn").disabled = false;
-    say((res.event ? "You're entered for " + (res.event.prize || "the giveaway") + ". " : "") + "You're already in. We emailed a 6-digit code to " + lastBody.email + ".", true);
+    say("You're already in. We emailed a 6-digit code to " + lastBody.email + ".", true);
     setTimeout(function () { $("code").focus(); }, 50);
   }
   $("code").addEventListener("input", function () {

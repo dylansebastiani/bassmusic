@@ -150,7 +150,7 @@
     var v = function (id) { return $(id).value.trim() || null; };
     var local = function (id) { var x = $(id).value; return x ? new Date(x).toISOString() : null; };
     call("event", { name: v("e_name"), kind: $("e_kind").value, venue: v("e_venue"), city: v("e_city"), address: v("e_address"), starts_at: local("e_start"), ends_at: local("e_end"),
-      ticket_url: v("e_ticket"), prize: v("e_prize"), description: v("e_desc") })
+      ticket_url: v("e_ticket"), description: v("e_desc") })
       .then(function (r) { say("emsg", "Saved. Show link: " + r.show_url); $("ef").reset(); return call("overview").then(paint); })
       .catch(function (err) { say("emsg", err.message); });
   });
