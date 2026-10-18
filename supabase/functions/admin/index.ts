@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       db.from("subscribers").select("id", { count: "exact", head: true }).eq("status", "active").not("first_name", "is", null).not("phone", "is", null).not("zip", "is", null),
       db.from("drops").select("id,slug,title,artist,artist_slug,qr_code,qr_active,is_current,created_at").order("created_at", { ascending: false }),
       db.from("track_scans").select("drop_id,event_id,outcome").limit(20000),
-      db.from("events").select("id,slug,name,kind,city,starts_at,is_active").order("starts_at", { ascending: false, nullsFirst: false }).limit(50),
+      db.from("events").select("id,slug,name,kind,venue,city,address,starts_at,ends_at,ticket_url,description,is_active,is_public,stickers").order("starts_at", { ascending: false, nullsFirst: false }).limit(50),
     ]);
     // Per show: sticker views and unlocks, plus people who joined at that show.
     const { data: joined } = await db.from("subscribers").select("event_id").not("event_id", "is", null).neq("status", "deleted").limit(20000);
@@ -111,6 +111,21 @@ Deno.serve(async (req) => {
     await log("track", { slug, title });
     return ok({ slug, qr_code: qr, qr_url: `${SITE_URL}/t?c=${qr}` });
   }
+  // Edit what's on a track card, or switch its QR off (a misprinted sticker batch dies here).
+  if (a === "track-update") {
+    const slug = clean(b.slug, 80) || ""; if (!SLUG.test(slug)) return no("Bad request");
+    const patch: Record<string, unknown> = {};
+    if (typeof b.title === "string" && clean(b.title, 120)) patch.title = clean(b.title, 120);
+    if (typeof b.artist === "string") { patch.artist = clean(b.artist, 120); patch.artist_slug = patch.artist ? slugify(patch.artist as string) : null; }
+    if (typeof b.description === "string") patch.description = clean(b.description, 500);
+    if (typeof b.qr_active === "boolean") patch.qr_active = b.qr_active;
+    if (b.is_current === true) { await db.from("drops").update({ is_current: false }).eq("is_current", true); patch.is_current = true; }
+    if (!Object.keys(patch).length) return no("Nothing to change.");
+    const { error } = await db.from("drops").update(patch).eq("slug", slug);
+    if (error) return no("Couldn't save: " + error.message, 500);
+    await log("track_update", { slug, ...patch });
+    return ok({ slug });
+  }
   // Remove a stray file from a track's folder. Never one a track still points at.
   if (a === "delete-file") {
     const path = clean(b.path, 200) || "";
@@ -137,12 +152,21 @@ Deno.serve(async (req) => {
     const kind = ["show", "popup", "drop", "other"].includes(String(b.kind)) ? String(b.kind) : "show";
     const when = (v: unknown) => { const s = clean(v, 40); return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : null; };
     const row = { slug, name, kind, venue: clean(b.venue, 120), city: clean(b.city, 80), address: clean(b.address, 200), starts_at: when(b.starts_at), ends_at: when(b.ends_at),
-      description: clean(b.description, 600), ticket_url: /^https?:\/\//.test(clean(b.ticket_url, 300) || "") ? clean(b.ticket_url, 300) : null, prize: clean(b.prize, 120),
+      description: clean(b.description, 600), ticket_url: /^https?:\/\//.test(clean(b.ticket_url, 300) || "") ? clean(b.ticket_url, 300) : null,
+      stickers: Math.max(0, Math.min(100000, Number(b.stickers) || 0)),
       is_active: b.is_active !== false, is_public: b.is_public !== false };
     const { error } = await db.from("events").upsert(row, { onConflict: "slug" });
     if (error) return no("Couldn't save: " + error.message, 500);
     await log("event", { slug, name });
     return ok({ slug, show_url: `${SITE_URL}/?e=${slug}` });
+  }
+
+  if (a === "event-toggle") {
+    const slug = clean(b.slug, 80) || ""; if (!SLUG.test(slug)) return no("Bad request");
+    const { error } = await db.from("events").update({ is_active: b.is_active === true }).eq("slug", slug);
+    if (error) return no("Couldn't save: " + error.message, 500);
+    await log("event_toggle", { slug, is_active: b.is_active === true });
+    return ok({ slug, is_active: b.is_active === true });
   }
 
   // ---- Brevo ----

@@ -95,3 +95,31 @@ footer a:hover{color:var(--hot)}
 .track.big+.wall{margin-top:-14px}
 .track.big{margin-bottom:26px}
 .track.big:has(+.wall){margin-bottom:0}
+
+/* the player: one button, one bar, in the site's own clothes */
+.player{grid-column:1/-1;display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;border:1px solid var(--line);padding:8px 12px 8px 8px}
+.player audio{display:none}
+.play{width:44px;height:44px;border:0;border-radius:0;background:var(--hot);cursor:pointer;position:relative;padding:0}
+.play::before{content:"";position:absolute;left:17px;top:12px;border-left:14px solid #000;border-top:10px solid transparent;border-bottom:10px solid transparent}
+.playing .play::before{border:0;left:15px;top:12px;width:5px;height:20px;background:#000;box-shadow:9px 0 0 #000}
+.play:hover{background:#fff}
+.bar{height:28px;position:relative;cursor:pointer;background:linear-gradient(var(--line),var(--line)) center/100% 2px no-repeat}
+.bar i{position:absolute;left:0;top:13px;height:2px;width:0;background:var(--hot)}
+.bar i::after{content:"";position:absolute;right:-5px;top:-4px;width:10px;height:10px;background:var(--hot)}
+.player .time{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--mute);white-space:nowrap}
+/* consent: one plain line, the legal wording underneath in small type */
+.check small{display:block;font-size:11px;line-height:1.5;color:#7a7470;letter-spacing:0;text-transform:none;margin-top:3px}
+.check{text-transform:none;letter-spacing:0;font-size:13px;color:#cfc9c5}
+/* after the wall: the friend link and your own details */
+.extra{margin-top:22px}
+.friend h3{font-size:22px}
+.info{border:1px solid var(--line);padding:0}
+.info summary{cursor:pointer;list-style:none;padding:14px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.info summary::-webkit-details-marker{display:none}
+.info summary::after{content:"+";float:right;color:var(--hot)}
+.info[open] summary::after{content:"\2212"}
+.info form{display:grid;gap:8px;padding:0 14px 14px}
+.info label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.info input[type=text],.info input[type=tel]{width:100%;min-width:0;background:#000;border:1px solid #6c6567;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:14px;outline:none}
+.info input:focus{border-color:#fff}
+.info .check{text-transform:none;letter-spacing:0}

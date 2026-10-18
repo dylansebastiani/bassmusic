@@ -35,3 +35,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .showqr label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 .showqr select{width:100%;min-width:0;background:#000;color:var(--fg);border:1px solid #6c6567;padding:10px;font-size:15px}
 .showqr .btn{font-size:16px;padding:10px 12px 8px}
+
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.tools .btn{width:auto;font-size:15px;padding:8px 12px 6px}
+.tools details{width:100%}
+.card.off{opacity:.6}
