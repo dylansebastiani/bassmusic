@@ -1,5 +1,7 @@
 import { db, setting } from "../_shared/db.ts";
 import { json, err, preflight, EMAIL_RE, clean, ipHash, clientIp, referralCode, verifyTurnstile } from "../_shared/util.ts";
+import { enterEvent } from "../_shared/events.ts";
+import { sendSignin, MEMBER_COLS, type SigninMember } from "../_shared/signin.ts";
 
 const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct"]);
 
@@ -34,14 +36,12 @@ Deno.serve(async (req) => {
     event = data;
   }
 
-  const { data: existing } = await db.from("subscribers").select("id,access_token,status").eq("email", email).maybeSingle();
-  let sub = existing;
-  let already = false;
+  const { data: existing } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
+  let sub: { id: string; access_token: string } | null = null;
 
-  if (sub) {
-    already = true;
-    // Someone who unsubscribed and signs up again clearly wants back in.
-    if (sub.status === "unsubscribed" || sub.status === "sunset") await db.from("subscribers").update({ status: "active" }).eq("id", sub.id);
+  if (existing) {
+    if (existing.status === "deleted") return err("Couldn't sign you up.", 400);
+    return knownMember(existing as SigninMember, event);
   } else {
     // Referrer: must exist, must not be the same email (checked by uniqueness) or same device within 24h.
     let referredBy: string | null = null;
@@ -62,18 +62,24 @@ Deno.serve(async (req) => {
     }).select("id,access_token,status").single();
     if (ins.error) {
       // Lost a race with a duplicate submit of the same email: treat as existing.
-      const { data: again } = await db.from("subscribers").select("id,access_token,status").eq("email", email).maybeSingle();
+      const { data: again } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
       if (!again) return err("Couldn't save that. Try again.", 500);
-      sub = again; already = true;
+      return knownMember(again as SigninMember, event);
     } else {
       sub = ins.data;
       await db.from("email_queue").insert({ subscriber_id: sub.id, template_key: "welcome", priority: 1 });
     }
   }
 
-  if (event && sub) {
-    await db.from("giveaway_entries").upsert({ event_id: event.id, subscriber_id: sub.id }, { onConflict: "event_id,subscriber_id", ignoreDuplicates: true });
-    await db.from("engagement_events").insert({ subscriber_id: sub.id, type: "event_checkin", ref_id: event.id });
-  }
-  return json({ access_token: sub!.access_token, already_member: already, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
+  if (event && sub) await enterEvent(sub.id, event.id);
+  return json({ access_token: sub!.access_token, already_member: false, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
 });
+
+// A known email never gets the account handed to whoever typed it. They still
+// get the show entry (typing your email at the door counts), and the page link
+// goes to their inbox.
+async function knownMember(m: SigninMember, event: { id: string; slug: string; name: string; prize: string | null } | null) {
+  if (event) await enterEvent(m.id, event.id);
+  await sendSignin(m);
+  return json({ already_member: true, check_email: true, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
+}

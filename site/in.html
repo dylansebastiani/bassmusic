@@ -73,6 +73,10 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
 .row2{display:flex;gap:8px}
 .row2>*{flex:1;min-width:0}
 .link{word-break:break-all;font-size:14px;color:#fff;border:1px dashed var(--line);padding:12px;margin-bottom:10px}
+.list{list-style:none;padding:0;margin:0 0 12px;font-size:14px;line-height:1.6}
+.list li{border-top:1px solid #222;padding:10px 0;display:flex;justify-content:space-between;gap:12px}
+.list li span{color:var(--mute);font-size:12px;white-space:nowrap}
+.sub{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin:6px 0 4px}
 .prose{max-width:620px;text-align:left;line-height:1.75;font-size:15px;color:#ccc}
 .prose h1{font-size:clamp(26px,6vw,40px);margin:8px 0 22px}
 .prose h2{font-family:var(--display);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);margin:30px 0 10px}
@@ -129,6 +133,13 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
       <button type="button" class="btn ghost" id="copy">Copy link</button>
       <button type="button" class="btn" id="share" hidden>Share</button>
     </div>
+  </section>
+
+  <section class="card" id="acct" hidden>
+    <h2>Your account</h2>
+    <div id="acctShows"></div>
+    <div id="acctUnlocks"></div>
+    <p style="font-size:12px;color:var(--mute);line-height:1.7;margin-top:14px">Saved on this phone. Scan a show's code and it lands here automatically. <button type="button" class="hint" id="signout" style="color:var(--mute)">Not you? Sign out</button></p>
   </section>
 
   <section class="card" id="next">
@@ -210,7 +221,16 @@ window.Stack = (function () {
 <script>
 (function () {
   var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); };
-  var t = S.q.get("t");
+  // The member key: from an emailed link the first time, then kept on this phone
+  // so they never type their email again here. It's kept out of the address bar
+  // so a screenshot or a shared link can't hand someone else the account.
+  var MKEY = "stack_member", t = S.q.get("t"), rejoin = S.q.get("rejoin");
+  if (t && /^[0-9a-f-]{36}$/i.test(t)) {
+    var kept = false; try { localStorage.setItem(MKEY, t); kept = localStorage.getItem(MKEY) === t; } catch (e) {}
+    if (kept) try { var cu = new URL(location.href); cu.searchParams.delete("t"); cu.searchParams.delete("rejoin"); history.replaceState(null, "", cu.pathname + cu.search + cu.hash); } catch (e) {}
+  } else { t = null; try { t = localStorage.getItem(MKEY); } catch (e) {} }
+  function forget() { try { localStorage.removeItem(MKEY); } catch (e) {} window.__go("./"); }
+  $("signout").addEventListener("click", forget);
   $("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "Members");
   $("smsText").textContent = S.fill(C.smsConsentText, { LABEL_NAME: C.labelName });
   $("ageText").textContent = C.ageText || "I'm 13 or older.";
@@ -218,10 +238,20 @@ window.Stack = (function () {
   if (S.q.get("back")) { $("h1").innerHTML = '<span class="g" data-text="Already cleared.">Already cleared.</span>'; $("sub").textContent = "Clearance confirmed. Current status below."; }
   S.pageview("/in");
 
-  var audioUrl = null, started = false;
+  var audioUrl = null, started = false, refresher = null;
+  function fmtDate(s) { try { return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; } }
   function load(tok) {
-    S.get("me", { t: tok }).then(function (m) {
-      if (m.event_entered) $("entered").hidden = false;
+    S.get("me", { t: tok, e: S.q.get("e"), rejoin: rejoin }).then(function (m) {
+      if (m.event_entered) {
+        $("entered").hidden = false;
+        if (m.event) $("entered").querySelector("p").textContent = "You're entered for " + (m.event.prize || "the giveaway") + " at " + m.event.name + ". Winner announced before the set ends.";
+      }
+      var shows = m.shows || [], unl = m.unlocks || [];
+      $("acctShows").innerHTML = '<div class="sub">Shows</div>' + (shows.length
+        ? '<ul class="list">' + shows.map(function (s) { return "<li>" + S.esc(s.name) + (s.city ? " · " + S.esc(s.city) : "") + "<span>" + (s.starts_at ? S.esc(fmtDate(s.starts_at)) : "") + "</span></li>"; }).join("") + "</ul>"
+        : '<p style="font-size:13px;color:var(--mute);line-height:1.7;margin-bottom:12px">None yet. Scan the code at a show and it shows up here.</p>');
+      $("acctUnlocks").innerHTML = unl.length ? '<div class="sub">Unlocked</div><ul class="list">' + unl.map(function (u) { return "<li>" + S.esc(u.label || u.tier) + "</li>"; }).join("") + "</ul>" : "";
+      $("acct").hidden = false;
       if (m.first_name) { $("first_name").value = m.first_name; }
       if (m.profile_done) $("step2").hidden = true;
       if (m.referral_code) {
@@ -241,8 +271,13 @@ window.Stack = (function () {
         $("title").textContent = m.drop.title; $("artist").textContent = m.drop.artist || "";
         if (m.drop.artwork_url) { $("art").src = m.drop.artwork_url; $("art").hidden = false; }
         audioUrl = m.drop.audio_url;
+        // Signed links last 10 minutes; refresh quietly until they hit play.
+        if (!refresher) refresher = setInterval(function () { if (started) return clearInterval(refresher); S.get("me", { t: tok }).then(function (n) { if (n.drop && !started) audioUrl = n.drop.audio_url; }).catch(function () {}); }, 8 * 60000);
       } else { $("title").textContent = "First drop lands soon"; $("pmsg").textContent = "It will be transmitted the moment it is ready."; $("play").hidden = true; }
-    }).catch(function () { $("title").textContent = "File failed to load"; $("pmsg").textContent = "Retry shortly."; });
+    }).catch(function (err) {
+      if (err.status === 404) return forget();
+      $("title").textContent = "File failed to load"; $("pmsg").textContent = "Retry shortly.";
+    });
   }
 
   // Player: big play button, then native controls. Log start / 30s / complete once each.
@@ -277,10 +312,15 @@ window.Stack = (function () {
     $("title").textContent = "Awaiting signal."; $("play").hidden = true; $("step2").hidden = true;
     var tries = 0, iv = setInterval(function () {
       if (!navigator.onLine && tries++ < 200) return;
-      S.flushPending().then(function (res) { if (res && res.access_token) { clearInterval(iv); window.__go("in.html?t=" + encodeURIComponent(res.access_token)); } }).catch(function () {});
+      S.flushPending().then(landed).catch(function () {});
     }, 5000);
-    window.addEventListener("online", function () { S.flushPending().then(function (res) { if (res && res.access_token) window.__go("in.html?t=" + encodeURIComponent(res.access_token)); }).catch(function () {}); });
-  } else window.__go("/");
+    function landed(res) {
+      if (!res) return; clearInterval(iv);
+      if (res.access_token) window.__go("in.html?t=" + encodeURIComponent(res.access_token));
+      else if (res.check_email) { $("sub").textContent = "You were already in. We emailed you a link to open your page."; $("title").textContent = "Check your inbox."; }
+    }
+    window.addEventListener("online", function () { S.flushPending().then(landed).catch(function () {}); });
+  } else window.__go("./");
 })();
 </script>
 </body></html>

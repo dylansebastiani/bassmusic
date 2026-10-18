@@ -87,6 +87,14 @@ ${btn(a, "Option A")}${btn(b, "Option B")}<p>One tap counts your vote. Results g
     const text = `${hi(m)},\n\nwe repost members at shows and in drops. Add your Instagram handle here:\n${u}\n\n— Dylan`;
     return { subject: "want to get featured?", ...wrap(m, html, text) };
   },
+  // Sign-in link: someone typed this email on a phone we don't know yet.
+  signin: (m, extra) => {
+    const u = meUrl(m) + (extra?.rejoin ? "&rejoin=1" : "");
+    const html = `<p>${hi(m)},</p><p>tap below to open your ${M} page on this device. Your track, your shows and your unlocks are all there.</p>
+${btn(u, "Open my page")}<p style="color:#bbb">Didn't ask for this? Ignore it and nothing changes.</p><p>— Dylan</p>`;
+    const text = `${hi(m)},\n\nopen your ${M} page on this device:\n${u}\n\nDidn't ask for this? Ignore it and nothing changes.\n\n— Dylan`;
+    return { subject: `your ${M} sign-in link`, ...wrap(m, html, text) };
+  },
   // Referral rewards
   reward: (m, extra) => {
     const label = String(extra?.label || "a reward");

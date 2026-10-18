@@ -372,7 +372,7 @@ window.Stack = (function () {
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
-  $("fine").textContent = C.microcopy || "";
+  $("fine").textContent = (C.microcopy || "") + " Already in? Same box, we'll email your link.";
   all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
   $("plist").innerHTML = (C.perks || []).map(function (p, i) { return '<li class="rv"><i>' + String(i + 1).padStart(3, "0") + "</i><h3>" + esc(p.title) + "</h3><p>" + esc(p.body) + "</p></li>"; }).join("");
 
@@ -386,6 +386,20 @@ window.Stack = (function () {
   }).catch(function () {});
   S.pageview("/");
 
+  // ---------- Returning members: this phone already joined ----------
+  // The member key lives on the phone (see in.html). With it, the landing page
+  // steps aside, and a show's QR code (?e=slug) enters them with no typing.
+  var MKEY = "stack_member";
+  function remember(tok) { try { localStorage.setItem(MKEY, tok); } catch (e) {} }
+  var mine = null; try { mine = localStorage.getItem(MKEY); } catch (e) {}
+  if (mine && /^[0-9a-f-]{36}$/i.test(mine)) {
+    if (S.q.get("e")) {
+      S.api("checkin", { t: mine, e: S.q.get("e") })
+        .then(function (r) { window.__go("in.html?back=1" + (r.event ? "&e=" + encodeURIComponent(r.event.slug) : "")); })
+        .catch(function (err) { if (err.status === 404) { try { localStorage.removeItem(MKEY); } catch (e) {} } });
+    } else if (!S.q.get("r")) window.__go("in.html?back=1");
+  }
+
   // ---------- Signup ----------
   var FIX = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com", "hotmial.com": "hotmail.com", "hotmal.com": "hotmail.com", "yaho.com": "yahoo.com", "yahooo.com": "yahoo.com", "outlok.com": "outlook.com", "iclod.com": "icloud.com", "icoud.com": "icloud.com" };
   function suggest(email) {
@@ -394,18 +408,33 @@ window.Stack = (function () {
     if (!fixed && /\.(con|cmo|ocm|vom|cm)$/.test(dom)) fixed = dom.replace(/\.(con|cmo|ocm|vom|cm)$/, ".com");
     return fixed && fixed !== dom ? email.slice(0, at + 1) + fixed : null;
   }
-  var tsReady = null, tsToken = null, tsId = null;
+  // Bot check. Starts as soon as the page loads so the pass is usually ready
+  // before they finish typing; submit waits for the pass itself, not just the script.
+  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [];
+  function tsGot(tok) { tsToken = tok; var w = tsWaiters; tsWaiters = []; w.forEach(function (f) { f(); }); }
   function loadTurnstile() {
-    if (tsReady || !C.turnstileSiteKey) return;
-    tsReady = new Promise(function (res) {
-      window.__tsOnload = function () {
-        tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, size: "invisible", action: "signup", callback: function (tok) { tsToken = tok; }, "error-callback": function () { tsToken = null; } });
-        res();
-      };
-      var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
-    });
+    if (tsLoaded || !C.turnstileSiteKey) return; tsLoaded = true;
+    window.__tsOnload = function () {
+      tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, size: "invisible", action: "signup", "refresh-expired": "auto",
+        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function () { tsToken = null; return true; } });
+    };
+    var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
   }
-  function go(res) { window.__go("in.html?t=" + encodeURIComponent(res.access_token) + (res.already_member ? "&back=1" : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : "")); }
+  function tsPass(ms) {
+    if (!C.turnstileSiteKey || tsToken) return Promise.resolve();
+    loadTurnstile();
+    return new Promise(function (res) { tsWaiters.push(res); setTimeout(res, ms); });
+  }
+  if (document.readyState === "complete") loadTurnstile(); else addEventListener("load", loadTurnstile);
+  function go(res) {
+    if (res.check_email) {
+      $("f").hidden = true;
+      say((res.event ? "You're entered for " + (res.event.prize || "the giveaway") + ". " : "") + "You're already in. We just emailed you a link to open your page on this phone.", true);
+      return;
+    }
+    remember(res.access_token);
+    window.__go("in.html?t=" + encodeURIComponent(res.access_token) + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""));
+  }
   var EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/, pendingSuggest = null;
   function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
   $("hintBtn").addEventListener("click", function () { $("email").value = pendingSuggest; $("hint").hidden = true; pendingSuggest = null; });
@@ -420,12 +449,13 @@ window.Stack = (function () {
     $("btn").disabled = true; say("One sec...");
     var body = { email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
       utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null };
-    var ready = tsReady ? Promise.race([tsReady, new Promise(function (r) { setTimeout(r, 4000); })]) : Promise.resolve();
-    ready.then(function () { body.turnstile = tsToken; return S.api("subscribe", body); })
+    tsPass(12000).then(function () { body.turnstile = tsToken; return S.api("subscribe", body); })
+      // A pass works once: clear it and fetch a fresh one for any retry.
       .then(function (r) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); return r; }, function (e) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); throw e; })
       .then(go)
       .catch(function (err) {
         if (err.status === 429) { say("Slow down a sec and try again."); $("btn").disabled = false; return; }
+        if (err.status === 403) { say("Couldn't confirm you're human. Give it a second and tap again."); $("btn").disabled = false; return; }
         if (err.status && err.status < 500) { say(err.message || "Couldn't sign you up."); $("btn").disabled = false; return; }
         // Network died (festival wifi). Keep the signup, show success, retry later.
         S.savePending(body);

@@ -170,7 +170,9 @@ window.Stack = (function () {
 (function () {
   var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); }, t = S.q.get("t");
   $("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "Members");
-  if (!t) { window.__go("/"); return; }
+  if (t) { try { localStorage.setItem("stack_member", t); } catch (e) {} }
+  else { try { t = localStorage.getItem("stack_member"); } catch (e) {} }
+  if (!t) { window.__go("./"); return; }
   $("back").href = "in.html?t=" + encodeURIComponent(t);
   S.pageview("/bonus");
   var a = $("audio"), url = null, started = false, logged = false;
