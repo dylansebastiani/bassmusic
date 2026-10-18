@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<!--CONFIG-->
+<title>My collection</title>
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><img src="assets/logo.png" alt=""><button type="button" id="signout" hidden>Sign out</button></div>
+
+  <section id="signin" hidden>
+    <h1 class="disp">Your <em>collection</em></h1>
+    <p class="lead">Enter your email to open it. New here? Same box, you're in.</p>
+    <div id="join"></div>
+  </section>
+
+  <section class="app" id="app" hidden>
+    <div class="banner" id="banner" hidden></div>
+    <div class="panel" id="p-collection" role="tabpanel" aria-labelledby="tab-collection"></div>
+    <div class="panel" id="p-coupons" role="tabpanel" aria-labelledby="tab-coupons" hidden></div>
+    <div class="panel" id="p-events" role="tabpanel" aria-labelledby="tab-events" hidden></div>
+    <div class="panel" id="p-shop" role="tabpanel" aria-labelledby="tab-shop" hidden>
+      <h2 class="disp">Shop</h2>
+      <div class="soon"><span class="chip alt">Coming soon</span><p>Merch and drops, with checkout for anyone. You won't need an account to buy.</p></div>
+    </div>
+    <footer><a href="privacy.html">Privacy</a><a href="rules.html">Rules</a></footer>
+  </section>
+</main>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Sections" hidden>
+  <button type="button" role="tab" id="tab-collection" data-tab="collection" aria-selected="true">Collection <span class="n" id="n-collection"></span></button>
+  <button type="button" role="tab" id="tab-coupons" data-tab="coupons" aria-selected="false">Coupons</button>
+  <button type="button" role="tab" id="tab-events" data-tab="events" aria-selected="false">Events</button>
+  <button type="button" role="tab" id="tab-shop" data-tab="shop" aria-selected="false">Shop</button>
+</nav>
+<script src="assets/stack.js"></script>
+<script src="assets/join.js"></script>
+<script src="assets/collection.js"></script>
+</body>
+</html>

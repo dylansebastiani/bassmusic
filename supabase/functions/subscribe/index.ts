@@ -3,6 +3,7 @@ import { json, err, preflight, EMAIL_RE, clean, ipHash, clientIp, referralCode, 
 import { enterEvent } from "../_shared/events.ts";
 import { sendSignin, MEMBER_COLS, type SigninMember } from "../_shared/signin.ts";
 import { sendNow, welcomeExtra } from "../_shared/sendnow.ts";
+import { dropByQr, unlockTrack, type QrDrop } from "../_shared/collection.ts";
 
 const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct"]);
 
@@ -37,12 +38,15 @@ Deno.serve(async (req) => {
     event = data;
   }
 
+  // A track's QR code (?c=): the track lands in their collection the moment they're in.
+  const track = b.c ? await dropByQr(clean(b.c, 20)) : null;
+
   const { data: existing } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
   let sub: SigninMember | null = null;
 
   if (existing) {
     if (existing.status === "deleted") return err("Couldn't sign you up.", 400);
-    return knownMember(existing as SigninMember, event);
+    return knownMember(existing as SigninMember, event, track, event?.id ?? null);
   } else {
     // Referrer: must exist, must not be the same email (checked by uniqueness) or same device within 24h.
     let referredBy: string | null = null;
@@ -65,7 +69,7 @@ Deno.serve(async (req) => {
       // Lost a race with a duplicate submit of the same email: treat as existing.
       const { data: again } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
       if (!again) return err("Couldn't save that. Try again.", 500);
-      return knownMember(again as SigninMember, event);
+      return knownMember(again as SigninMember, event, track, event?.id ?? null);
     } else {
       sub = ins.data as SigninMember;
       // Welcome goes out now, in the background so signup stays fast. The row waits
@@ -83,14 +87,17 @@ Deno.serve(async (req) => {
   }
 
   if (event && sub) await enterEvent(sub.id, event.id);
-  return json({ access_token: sub!.access_token, already_member: false, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
+  if (track && sub) await unlockTrack(sub.id, track.id, event?.id ?? null);
+  return json({ access_token: sub!.access_token, already_member: false, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null, track: track ? { slug: track.slug, title: track.title } : null });
 });
 
 // A known email never gets the account handed to whoever typed it. They still
 // get the show entry (typing your email at the door counts), and a 6-digit code
 // goes to their inbox; the page swaps to a code box (see verify).
-async function knownMember(m: SigninMember, event: { id: string; slug: string; name: string; prize: string | null } | null) {
+async function knownMember(m: SigninMember, event: { id: string; slug: string; name: string; prize: string | null } | null, track: QrDrop | null, eventId: string | null) {
   if (event) await enterEvent(m.id, event.id);
+  // The track is saved to their account now; the code only proves it's them on this phone.
+  if (track) await unlockTrack(m.id, track.id, eventId);
   await sendSignin(m);
-  return json({ already_member: true, check_email: true, code_sent: true, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
+  return json({ already_member: true, check_email: true, code_sent: true, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null, track: track ? { slug: track.slug, title: track.title } : null });
 }

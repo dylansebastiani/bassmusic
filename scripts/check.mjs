@@ -8,6 +8,7 @@ import vm from "node:vm";
 
 const root = new URL("..", import.meta.url).pathname;
 execSync("node scripts/build.mjs", { cwd: root, stdio: "inherit", env: { ...process.env, SUPABASE_URL: process.env.SUPABASE_URL || "https://example.supabase.co" } });
+execSync("node scripts/catalog.mjs --check", { cwd: root, stdio: "inherit" });
 const dist = join(root, "dist");
 let bad = 0;
 const fail = (m) => { console.error("FAIL", m); bad++; };
