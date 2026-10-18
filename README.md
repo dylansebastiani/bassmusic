@@ -4,7 +4,7 @@ Fan membership funnel for the label. One email field in, instant unreleased trac
 Static site on Cloudflare Pages, data and functions on Supabase, email through Brevo.
 
 - `config/stack.json`: every name, headline, perk and consent sentence. Edit here, nowhere else.
-- `site/`: the pages. `/` landing, `/in` welcome track, `/collection` member app (Collection, Coupons, Events, Shop), `/t?c=CODE` track QR landing, `/bonus`, `/privacy`, `/rules`.
+- `site/`: the pages. `/` landing, `/collection` member app (Collection, Coupons, Events, Shop), `/t?c=CODE` track QR landing, `/privacy`, `/rules`. `/in` and `/bonus` are retired and forward to the collection.
 - `supabase/functions/`: `subscribe`, `track`, `collection`, `me`, `profile`, `engage`, `confirm`, `unsubscribe`, `email-runner`, `email-webhook`, `meta`, `pageview`, `health`.
 - `supabase/migrations/`: schema (`0001`), cron (`0002`), downloads, sign-in codes, and the collection (`0005`).
 - `config/catalog.json`: your tracks, events and coupons. `config/catalog.example.json` shows every field.

@@ -233,7 +233,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 <section class="sec offer" id="offer" aria-label="Join">
   <div><h2 class="disp rv" id="offerH"></h2></div>
   <div class="box">
-    <form id="f" novalidate method="post" action="in.html" class="rv">
+    <form id="f" novalidate method="post" action="collection.html" class="rv">
     <label for="email" class="sr">Email address</label>
     <div class="unit">
       <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
@@ -397,7 +397,7 @@ window.Stack = (function () {
   S.pageview("/");
 
   // ---------- Returning members: this phone already joined ----------
-  // The member key lives on the phone (see in.html). With it, the landing page
+  // The member key lives on the phone (see collection.html). With it, the landing page
   // steps aside, and a show's QR code (?e=slug) enters them with no typing.
   var MKEY = "stack_member";
   function remember(tok) { try { localStorage.setItem(MKEY, tok); } catch (e) {} }
@@ -405,7 +405,7 @@ window.Stack = (function () {
   if (mine && /^[0-9a-f-]{36}$/i.test(mine)) {
     if (S.q.get("e")) {
       S.api("checkin", { t: mine, e: S.q.get("e") })
-        .then(function (r) { window.__go("in.html?back=1" + (r.event ? "&e=" + encodeURIComponent(r.event.slug) : "")); })
+        .then(function (r) { window.__go("collection.html" + (r.event ? "?e=" + encodeURIComponent(r.event.slug) : "")); })
         .catch(function (err) { if (err.status === 404) { try { localStorage.removeItem(MKEY); } catch (e) {} } });
     } else if (!S.q.get("r")) window.__go("collection.html");
   }
@@ -441,8 +441,7 @@ window.Stack = (function () {
   function go(res) {
     if (res.check_email) return askCode(res);
     remember(res.access_token);
-    if (res.event) return window.__go("in.html?t=" + encodeURIComponent(res.access_token) + "&e=" + encodeURIComponent(res.event.slug));
-    window.__go("collection.html?t=" + encodeURIComponent(res.access_token) + (res.track ? "&new=" + encodeURIComponent(res.track.slug) : ""));
+    window.__go("collection.html?t=" + encodeURIComponent(res.access_token) + (res.track ? "&new=" + encodeURIComponent(res.track.slug) : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""));
   }
   var EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/, pendingSuggest = null;
   function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
@@ -467,7 +466,7 @@ window.Stack = (function () {
     $("cbtn").disabled = true; say("Checking...");
     S.api("verify", { email: lastBody.email, code: c }).then(function (r) {
       remember(r.access_token);
-      window.__go(codeEvent ? "in.html?back=1&e=" + encodeURIComponent(codeEvent.slug) : "collection.html");
+      window.__go("collection.html" + (codeEvent ? "?e=" + encodeURIComponent(codeEvent.slug) : ""));
     }).catch(function (err) { $("cbtn").disabled = false; $("code").select(); say(err.message || "That didn't work. Try again."); });
   });
   $("resend").addEventListener("click", function () { if (lastBody) { say("Sending a new code..."); submit(lastBody, true); } });
@@ -497,7 +496,7 @@ window.Stack = (function () {
         // Network died (festival wifi). Keep the signup, show success, retry later.
         if (resend) { say("No signal. Try again in a sec."); return; }
         S.savePending(body);
-        window.__go("in.html?pending=1");
+        window.__go("collection.html?pending=1");
       });
   }
   if (navigator.onLine) S.flushPending().catch(function () {});

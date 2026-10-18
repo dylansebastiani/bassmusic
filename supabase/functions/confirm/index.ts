@@ -1,11 +1,12 @@
 import { db, setting } from "../_shared/db.ts";
 import { UUID_RE } from "../_shared/util.ts";
 import { SITE_URL } from "../_shared/config.ts";
+import { unlockTrack } from "../_shared/collection.ts";
 
 type Tier = { referrals: number; tier: string; label: string };
 
 // /c/<access_token>: confirms the email, credits the referrer once, then sends
-// the member to the bonus track. Always redirects; never shows an error page.
+// the member to their collection. Always redirects; never shows an error page.
 Deno.serve(async (req) => {
   const t = new URL(req.url).searchParams.get("t") || "";
   if (!UUID_RE.test(t)) return Response.redirect(SITE_URL + "/", 302);
@@ -36,7 +37,8 @@ Deno.serve(async (req) => {
       }
     }
   }
-  // The bonus page only when there is a bonus track; otherwise straight to their collection.
-  const { data: bonus } = await db.from("drops").select("id").eq("is_bonus", true).limit(1).maybeSingle();
-  return Response.redirect(`${SITE_URL}/${bonus ? "bonus" : "collection"}.html?t=${t}`, 302);
+  // A bonus track, if there is one, lands in their collection on the way through.
+  const { data: bonus } = await db.from("drops").select("id,slug").eq("is_bonus", true).limit(1).maybeSingle();
+  if (bonus) await unlockTrack(m.id, bonus.id);
+  return Response.redirect(`${SITE_URL}/collection.html?t=${t}${bonus ? "&new=" + bonus.slug : ""}`, 302);
 });
