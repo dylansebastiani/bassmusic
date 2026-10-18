@@ -3,6 +3,7 @@
 // The deploy workflow (.github/workflows/pages.yml) runs `npm run build` with these set.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 
 const root = new URL("..", import.meta.url).pathname;
 const cfg = JSON.parse(readFileSync(join(root, "config/stack.json"), "utf8"));
@@ -80,9 +81,14 @@ async function trackPages() {
     let image = `${pub.siteUrl}/assets/og-track.jpg`, w = 1200, h = 630;
     if (t.artwork_url) {
       try {
-        const buf = Buffer.from(await (await fetch(t.artwork_url, { signal: AbortSignal.timeout(20000) })).arrayBuffer());
-        writeFileSync(join(out, "assets/drops", `share-${t.code}.jpg`), buf);
-        image = `${pub.siteUrl}/assets/drops/share-${t.code}.jpg`; [w, h] = jpegSize(buf) || [0, 0];
+        let buf = Buffer.from(await (await fetch(t.artwork_url, { signal: AbortSignal.timeout(20000) })).arrayBuffer());
+        // Re-encode to a plain 1200px baseline JPEG: every crawler reads that, whatever the upload was.
+        try { const sharp = (await import("sharp")).default; buf = await sharp(buf).rotate().resize(1200, 1200, { fit: "cover" }).jpeg({ quality: 86, progressive: false }).toBuffer(); }
+        catch (e) { console.warn("build: sharp unavailable, using the cover as uploaded:", e.message); }
+        // The file name carries a fingerprint, so a new cover is a new link and never a stale cached one.
+        const tag = createHash("sha1").update(buf).digest("hex").slice(0, 8);
+        writeFileSync(join(out, "assets/drops", `share-${t.code}-${tag}.jpg`), buf);
+        image = `${pub.siteUrl}/assets/drops/share-${t.code}-${tag}.jpg`; [w, h] = jpegSize(buf) || [0, 0];
       } catch (e) { console.warn("build: cover for", t.code, "skipped:", e.message); }
     }
     const title = `${t.title}${t.artist ? " by " + t.artist : ""}`;
