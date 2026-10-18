@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
   if (unlock && !clean(b.first_name, 80)) return err("Add your first name.");
   if (unlock && !clean(b.phone, 30)) return err("Add your phone number.");
   if (unlock && !clean(b.zip, 12)) return err("Add your ZIP.");
+  if (unlock && b.age_confirmed !== true) return err("Tick the box to confirm you're 13 or older.");
   const zip = clean(b.zip, 12);
   if (zip && !/^\d{5}(-?\d{4})?$/.test(zip)) return err("That ZIP doesn't look right.");
   const phone = e164(clean(b.phone, 30));
@@ -34,7 +35,8 @@ Deno.serve(async (req) => {
     patch.sms_consent = true;
     patch.sms_consent_text = fill(CONFIG.smsConsentText, { LABEL_NAME: CONFIG.labelName || CONFIG.membershipName });
     patch.sms_consent_at = new Date().toISOString();
-  } else if (!phone) {
+  } else if (!phone || b.sms_consent === false) {
+    // No number, or the box unticked: no texts. Withdrawing is as easy as giving it.
     patch.sms_consent = false;
   }
   // Partial saves never wipe what's already on file.

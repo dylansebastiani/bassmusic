@@ -2,7 +2,7 @@ import { db } from "../_shared/db.ts";
 import { json, err, preflight, UUID_RE } from "../_shared/util.ts";
 
 // Everything the member app needs in one call: their tracks (10-minute signed links),
-// coupons, and upcoming events. Never returns email or phone.
+// coupons, and upcoming events. Never returns the email; phone and ZIP come back only to the key holder, for the "Your info" box.
 // A track in the collection plays and downloads once first name, phone and ZIP are on
 // file: the same wall as the welcome track. Before that the page gets cover and title only.
 Deno.serve(async (req) => {
@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   const t = u.searchParams.get("t") || "";
   if (!UUID_RE.test(t)) return err("Not found", 404);
   const { data: m } = await db.from("subscribers")
-    .select("id,first_name,zip,phone,email_confirmed_at,referral_code,status").eq("access_token", t).maybeSingle();
+    .select("id,first_name,zip,phone,sms_consent,email_confirmed_at,referral_code,status").eq("access_token", t).maybeSingle();
   if (!m || m.status === "deleted") return err("Not found", 404);
   // Back in only by clicking their own emailed sign-in link.
   if (u.searchParams.get("rejoin") === "1" && (m.status === "unsubscribed" || m.status === "sunset")) {
@@ -36,19 +36,30 @@ Deno.serve(async (req) => {
   const rows = (items ?? []).map((i) => ({ at: i.unlocked_at as string, d: i.drop as unknown as D | null })).filter((r): r is { at: string; d: D } => !!r.d);
 
   // Batch the signing: one call for audio, one for covers, one for downloads.
-  const sign = async (paths: (string | null)[], opts?: { download: boolean }) => {
+  const sign = async (paths: (string | null)[]) => {
     const want = [...new Set(paths.filter((p): p is string => !!p))];
     const out = new Map<string, string>();
     if (!want.length) return out;
-    const { data } = await db.storage.from("drops").createSignedUrls(want, 600, opts);
+    const { data } = await db.storage.from("drops").createSignedUrls(want, 600);
     (data ?? []).forEach((x) => { if (x.path && x.signedUrl) out.set(x.path, x.signedUrl); });
+    return out;
+  };
+  // Downloads are signed one by one so each file lands as "Artist - Title.wav".
+  const signDownloads = async () => {
+    const out = new Map<string, string>();
+    await Promise.all(rows.filter((r) => r.d.download_path).map(async (r) => {
+      const ext = r.d.download_path!.includes(".") ? r.d.download_path!.slice(r.d.download_path!.lastIndexOf(".")) : ".wav";
+      const name = `${r.d.artist ? r.d.artist + " - " : ""}${r.d.title}${ext}`.replace(/[\\/:*?"<>|]/g, "");
+      const { data } = await db.storage.from("drops").createSignedUrl(r.d.download_path!, 600, { download: name });
+      if (data?.signedUrl) out.set(r.d.download_path!, data.signedUrl);
+    }));
     return out;
   };
   const none = Promise.resolve(new Map<string, string>());
   const [audio, art, dl] = await Promise.all([
     profileDone ? sign(rows.map((r) => r.d.audio_path)) : none,
     sign(rows.map((r) => r.d.artwork_path)),
-    profileDone ? sign(rows.map((r) => r.d.download_path), { download: true }) : none,
+    profileDone ? signDownloads() : none,
   ]);
   const tracks = rows.map(({ at, d }) => ({
     slug: d.slug, title: d.title, artist: d.artist, artist_slug: d.artist_slug, description: d.description, unlocked_at: at,
@@ -94,7 +105,8 @@ Deno.serve(async (req) => {
   });
 
   return json({
-    first_name: m.first_name, profile_done: profileDone, confirmed: !!m.email_confirmed_at, referral_code: m.referral_code,
+    first_name: m.first_name, phone: m.phone, zip: m.zip, sms_consent: !!m.sms_consent,
+    profile_done: profileDone, confirmed: !!m.email_confirmed_at, referral_code: m.referral_code,
     tracks, coupons: out, events: upcoming, entered,
   }, 200, { "Cache-Control": "no-store" });
 });

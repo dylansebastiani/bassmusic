@@ -55,6 +55,20 @@ window.Stack = (function () {
   function remember(t) { try { localStorage.setItem(MKEY, t); } catch (e) {} }
   function forget() { try { localStorage.removeItem(MKEY); } catch (e) {} }
 
+  // Signups that failed to send (no signal) wait here and retry. prep() gets a fresh bot pass onto each one.
+  var PENDING = "stack_pending";
+  function pendingList() { try { return JSON.parse(localStorage.getItem(PENDING) || "[]"); } catch (e) { return []; } }
+  function savePending(p) { var l = pendingList(); l.push(p); try { localStorage.setItem(PENDING, JSON.stringify(l.slice(-20))); } catch (e) {} }
+  function flushPending(prep) {
+    var l = pendingList(); if (!l.length) return Promise.resolve(null);
+    var keep = [], ok = null;
+    return l.reduce(function (p, item) {
+      return p.then(function () { return Promise.resolve(prep ? prep(item) : item); })
+        .then(function (body) { return api("subscribe", body).then(function (r) { ok = r; }); })
+        .catch(function (e) { if (!e.status || e.status >= 500 || e.status === 429 || e.status === 403) keep.push(item); });
+    }, Promise.resolve()).then(function () { try { localStorage.setItem(PENDING, JSON.stringify(keep)); } catch (e) {} return ok; });
+  }
+
   function fill(s, map) { return String(s || "").replace(/\{\{(\w+)\}\}/g, function (_, k) { return map[k] != null ? map[k] : ""; }); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   // Only ever link out to web addresses.
@@ -62,5 +76,5 @@ window.Stack = (function () {
   function fmtDate(s, withTime) {
     try { return new Date(s).toLocaleString(undefined, withTime ? { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } : { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; }
   }
-  return { C: C, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, token: token, remember: remember, forget: forget, fill: fill, esc: esc, safeUrl: safeUrl, fmtDate: fmtDate };
+  return { C: C, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, token: token, remember: remember, forget: forget, pendingList: pendingList, savePending: savePending, flushPending: flushPending, fill: fill, esc: esc, safeUrl: safeUrl, fmtDate: fmtDate };
 })();

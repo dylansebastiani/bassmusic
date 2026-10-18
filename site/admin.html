@@ -54,7 +54,7 @@
 
     <div class="panel" id="p-numbers" role="tabpanel" hidden>
       <h2 class="disp">Numbers</h2>
-      <div class="sub mono">Per show</div><div class="tablewrap"><table id="etable"><thead><tr><th>Show</th><th>Sticker views</th><th>Unlocks</th><th>Joined there</th></tr></thead><tbody></tbody></table></div>
+      <div class="sub mono">Per show</div><div class="tablewrap"><table id="etable"><thead><tr><th>Show</th><th>Stickers out</th><th>Views</th><th>Unlocks</th><th>Joined there</th><th>Scan rate</th></tr></thead><tbody></tbody></table></div>
       <div class="sub mono">Per artist</div><div class="tablewrap"><table id="atable"><thead><tr><th>Artist</th><th>Tracks</th><th>QR views</th><th>Unlocks</th></tr></thead><tbody></tbody></table></div>
       <div class="sub mono">Per track</div><div class="tablewrap"><table id="ttable"><thead><tr><th>Track</th><th>Views</th><th>Unlocks</th><th>Re-scans</th></tr></thead><tbody></tbody></table></div>
     </div>
@@ -72,6 +72,7 @@
           <label for="e_start">Starts</label><input type="datetime-local" id="e_start">
           <label for="e_end">Ends</label><input type="datetime-local" id="e_end">
           <label for="e_ticket">Tickets / info link</label><input type="url" id="e_ticket" placeholder="https://">
+          <label for="e_stickers">Stickers printed for this show</label><input type="number" id="e_stickers" inputmode="numeric" min="0" placeholder="0">
           <label for="e_desc">Details</label><input type="text" id="e_desc">
           <button type="submit" class="btn">Save event</button>
           <div class="msg" id="emsg" role="status"></div>

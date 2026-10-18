@@ -61,11 +61,37 @@
         var a = document.createElement("a"); a.href = URL.createObjectURL(bl); a.download = b.getAttribute("data-slug") + "--" + show + "-qr.svg"; document.body.appendChild(a); a.click(); a.remove(); b.disabled = false;
       }).catch(function () { b.disabled = false; });
   });
+  function trackTools(t) {
+    return '<div class="tools">' +
+      (t.is_current ? "" : '<button type="button" class="btn ghost" data-act="track-update" data-slug="' + esc(t.slug) + '" data-set=\'{"is_current":true}\'>Make welcome track</button>') +
+      '<button type="button" class="btn ghost" data-act="track-update" data-slug="' + esc(t.slug) + '" data-set=\'{"qr_active":' + (t.qr_active ? "false" : "true") + '}\'>' + (t.qr_active ? "Switch QR off" : "Switch QR on") + "</button>" +
+      '<details class="add"><summary class="btn ghost">Edit</summary><form class="form" data-edit-track="' + esc(t.slug) + '">' +
+        '<label>Title</label><input type="text" name="title" value="' + esc(t.title) + '">' +
+        '<label>Artist</label><input type="text" name="artist" value="' + esc(t.artist || "") + '">' +
+        '<button type="submit" class="btn">Save</button><div class="msg" role="status"></div></form></details></div>';
+  }
+  function eventTools(e) {
+    var v = function (x) { return esc(x || ""); }, dt = function (s) { return s ? new Date(new Date(s).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""; };
+    return '<div class="tools">' +
+      '<button type="button" class="btn ghost" data-act="event-toggle" data-slug="' + esc(e.slug) + '" data-set=\'{"is_active":' + (e.is_active ? "false" : "true") + '}\'>' + (e.is_active ? "Switch off" : "Switch on") + "</button>" +
+      '<details class="add"><summary class="btn ghost">Edit</summary><form class="form" data-edit-event="' + esc(e.slug) + '">' +
+        '<label>Name</label><input type="text" name="name" value="' + v(e.name) + '">' +
+        '<label>Type</label><select name="kind">' + ["show", "popup", "drop", "other"].map(function (k) { return '<option value="' + k + '"' + (e.kind === k ? " selected" : "") + ">" + k + "</option>"; }).join("") + "</select>" +
+        '<label>Venue</label><input type="text" name="venue" value="' + v(e.venue) + '">' +
+        '<label>City</label><input type="text" name="city" value="' + v(e.city) + '">' +
+        '<label>Address</label><input type="text" name="address" value="' + v(e.address) + '">' +
+        '<label>Starts</label><input type="datetime-local" name="starts_at" value="' + dt(e.starts_at) + '">' +
+        '<label>Ends</label><input type="datetime-local" name="ends_at" value="' + dt(e.ends_at) + '">' +
+        '<label>Tickets / info link</label><input type="url" name="ticket_url" value="' + v(e.ticket_url) + '">' +
+        '<label>Stickers printed</label><input type="number" name="stickers" min="0" value="' + (e.stickers || 0) + '">' +
+        '<label>Details</label><input type="text" name="description" value="' + v(e.description) + '">' +
+        '<button type="submit" class="btn">Save</button><div class="msg" role="status"></div></form></details></div>';
+  }
   function paint(d) {
     data = d;
     $("tracks").innerHTML = d.tracks.length ? d.tracks.map(function (t) {
-      return '<article class="card"><h3>' + esc(t.title) + "</h3>" + (t.artist ? '<div class="by">' + esc(t.artist) + "</div>" : "") +
-        (t.is_current ? '<span class="chip">Welcome track</span>' : "") + qrBlock(t, d.events) + "</article>";
+      return '<article class="card' + (t.qr_active ? "" : " off") + '"><h3>' + esc(t.title) + "</h3>" + (t.artist ? '<div class="by">' + esc(t.artist) + "</div>" : "") +
+        (t.is_current ? '<span class="chip">Welcome track</span>' : "") + (t.qr_active ? "" : '<span class="chip alt">QR off</span>') + qrBlock(t, d.events) + trackTools(t) + "</article>";
     }).join("") : '<div class="empty">No tracks yet. Add one below.</div>';
     // QR images and downloads need the token, so fetch them and swap in a blob.
     Array.prototype.forEach.call($("tracks").querySelectorAll("img[data-svg]"), function (img) {
@@ -75,13 +101,32 @@
     });
     $("mstats").innerHTML = '<div class="stat"><b>' + num(d.members) + "</b><span>Members</span></div><div class=\"stat\"><b>" + num(d.with_info) + "</b><span>With name, phone, ZIP</span></div>";
     $("atable").querySelector("tbody").innerHTML = d.artists.map(function (a) { return "<tr><td>" + esc(a.artist) + '</td><td class="num">' + a.tracks + '</td><td class="num">' + num(a.view) + '</td><td class="num">' + num(a.unlocked) + "</td></tr>"; }).join("");
-    $("etable").querySelector("tbody").innerHTML = d.events.length ? d.events.map(function (e) { return "<tr><td>" + esc(e.name) + '</td><td class="num">' + num(e.scans.view) + '</td><td class="num">' + num(e.scans.unlocked) + '</td><td class="num">' + num(e.scans.joined) + "</td></tr>"; }).join("") : '<tr><td colspan="4">No shows yet.</td></tr>';
+    $("etable").querySelector("tbody").innerHTML = d.events.length ? d.events.map(function (e) {
+      var rate = e.stickers ? Math.round(100 * e.scans.view / e.stickers) + "%" : "";
+      return "<tr><td>" + esc(e.name) + (e.is_active ? "" : ' <span class="chip alt">off</span>') + '</td><td class="num">' + num(e.stickers) + '</td><td class="num">' + num(e.scans.view) + '</td><td class="num">' + num(e.scans.unlocked) + '</td><td class="num">' + num(e.scans.joined) + '</td><td class="num">' + rate + "</td></tr>";
+    }).join("") : '<tr><td colspan="6">No shows yet.</td></tr>';
     $("ttable").querySelector("tbody").innerHTML = d.tracks.map(function (t) { return "<tr><td>" + esc(t.title) + (t.artist ? " · " + esc(t.artist) : "") + '</td><td class="num">' + num(t.scans.view) + '</td><td class="num">' + num(t.scans.unlocked) + '</td><td class="num">' + num(t.scans.already) + "</td></tr>"; }).join("");
     $("events").innerHTML = d.events.length ? d.events.map(function (e) {
       return '<article class="card"><span class="chip' + (e.is_active ? '' : ' alt') + '">' + esc(e.kind) + (e.is_active ? '' : ' · off') + "</span><h3>" + esc(e.name) + "</h3>" + (e.starts_at ? '<div class="when">' + esc(fmt(e.starts_at)) + "</div>" : "") + (e.city ? '<div class="where">' + esc(e.city) + "</div>" : "") +
-        '<div class="mono" style="text-transform:none;letter-spacing:0;word-break:break-all">' + esc((C.siteUrl || "") + "/?e=" + e.slug) + "</div></article>";
+        '<div class="mono" style="text-transform:none;letter-spacing:0;word-break:break-all">' + esc((C.siteUrl || "") + "/?e=" + e.slug) + "</div>" + eventTools(e) + "</article>";
     }).join("") : '<div class="empty">No events yet.</div>';
   }
+  // One-tap switches on tracks and shows, and the inline edit forms.
+  function onAct(e) {
+    var b = e.target.closest("[data-act]"); if (!b) return;
+    var body = JSON.parse(b.getAttribute("data-set")); body.slug = b.getAttribute("data-slug"); b.disabled = true;
+    call(b.getAttribute("data-act"), body).then(function () { return call("overview").then(paint); }).catch(function (err) { b.disabled = false; alert(err.message); });
+  }
+  $("tracks").addEventListener("click", onAct); $("events").addEventListener("click", onAct);
+  function onEdit(e) {
+    var f = e.target.closest("form[data-edit-track],form[data-edit-event]"); if (!f) return;
+    e.preventDefault();
+    var m = f.querySelector(".msg"), body = {}, isTrack = f.hasAttribute("data-edit-track");
+    Array.prototype.forEach.call(f.querySelectorAll("[name]"), function (i) { body[i.name] = i.type === "datetime-local" ? (i.value ? new Date(i.value).toISOString() : null) : i.value.trim(); });
+    body.slug = f.getAttribute(isTrack ? "data-edit-track" : "data-edit-event"); m.textContent = "Saving...";
+    call(isTrack ? "track-update" : "event", body).then(function () { return call("overview").then(paint); }).catch(function (err) { m.textContent = err.message; });
+  }
+  $("tracks").addEventListener("submit", onEdit); $("events").addEventListener("submit", onEdit);
   function loadMembers() {
     call("members").then(function (r) {
       $("mtable").querySelector("tbody").innerHTML = r.members.map(function (m) {
@@ -150,7 +195,7 @@
     var v = function (id) { return $(id).value.trim() || null; };
     var local = function (id) { var x = $(id).value; return x ? new Date(x).toISOString() : null; };
     call("event", { name: v("e_name"), kind: $("e_kind").value, venue: v("e_venue"), city: v("e_city"), address: v("e_address"), starts_at: local("e_start"), ends_at: local("e_end"),
-      ticket_url: v("e_ticket"), description: v("e_desc") })
+      ticket_url: v("e_ticket"), stickers: Number($("e_stickers").value) || 0, description: v("e_desc") })
       .then(function (r) { say("emsg", "Saved. Show link: " + r.show_url); $("ef").reset(); return call("overview").then(paint); })
       .catch(function (err) { say("emsg", err.message); });
   });

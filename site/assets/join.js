@@ -39,6 +39,7 @@ window.Join = (function () {
         '<div class="msg hintrow" hidden><button type="button" class="hint"></button></div>' +
         '<input type="text" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">' +
         '<div class="ts"></div>' +
+        (opts.hint ? '<p class="fine">' + S.esc(opts.hint) + "</p>" : "") +
       "</form>" +
       '<p class="msg" role="status"></p>' +
       '<form class="jc" novalidate hidden>' +
@@ -74,8 +75,17 @@ window.Join = (function () {
           if (err.status === 429) return say("Slow down a sec and try again.");
           if (err.status === 403) return say("Couldn't confirm you're human. Give it a second and tap again.");
           if (err.status && err.status < 500) return say(err.message || "Couldn't sign you up.");
+          // No signal (festival wifi): keep the signup on this phone and finish it next time the page opens with a connection.
+          if (!resend) { S.savePending(body); say("No signal. Saved on this phone: open this page again with a connection and you're in.", true); return; }
           say("No signal. Try again in a sec.");
         });
+    }
+    // Finish any signup saved earlier with no signal. A fresh bot pass first, then the saved details.
+    if (navigator.onLine && S.pendingList().length) {
+      say("Finishing your signup...", true);
+      tsPass(12000).then(function () {
+        return S.flushPending(function (item) { item.turnstile = tsToken; item.ts_err = tsToken ? null : "pending"; tsToken = null; if (tsId !== null) turnstile.reset(tsId); return item; });
+      }).then(function (r) { if (r && r.access_token) done(r.access_token, r.track); else say(""); }).catch(function () { say(""); });
     }
     f.addEventListener("submit", function (e) {
       e.preventDefault();

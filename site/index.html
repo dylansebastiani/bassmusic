@@ -331,17 +331,14 @@ window.Stack = (function () {
   var PENDING = "stack_pending";
   function pendingList() { try { return JSON.parse(localStorage.getItem(PENDING) || "[]"); } catch (e) { return []; } }
   function savePending(p) { var l = pendingList(); l.push(p); try { localStorage.setItem(PENDING, JSON.stringify(l.slice(-20))); } catch (e) {} }
-  function flushPending() {
+  function flushPending(prep) {
     var l = pendingList(); if (!l.length) return Promise.resolve(null);
-    var done = [];
+    var keep = [], ok = null;
     return l.reduce(function (p, item) {
-      return p.then(function () { return api("subscribe", item).then(function (r) { done.push({ item: item, res: r }); }).catch(function (e) { if (e.status && e.status < 500 && e.status !== 429) done.push({ item: item, res: null }); }); });
-    }, Promise.resolve()).then(function () {
-      var rest = l.filter(function (i) { return !done.some(function (d) { return d.item === i; }); });
-      try { localStorage.setItem(PENDING, JSON.stringify(rest)); } catch (e) {}
-      var ok = done.filter(function (d) { return d.res; }).pop();
-      return ok ? ok.res : null;
-    });
+      return p.then(function () { return Promise.resolve(prep ? prep(item) : item); })
+        .then(function (body) { return api("subscribe", body).then(function (r) { ok = r; }); })
+        .catch(function (e) { if (!e.status || e.status >= 500 || e.status === 429 || e.status === 403) keep.push(item); });
+    }, Promise.resolve()).then(function () { try { localStorage.setItem(PENDING, JSON.stringify(keep)); } catch (e) {} return ok; });
   }
 
   function fill(s, map) { return String(s || "").replace(/\{\{(\w+)\}\}/g, function (_, k) { return map[k] != null ? map[k] : ""; }); }
@@ -501,7 +498,12 @@ window.Stack = (function () {
         window.__go("collection.html?pending=1");
       });
   }
-  if (navigator.onLine) S.flushPending().catch(function () {});
+  // A signup saved with no signal: finish it now with a fresh bot pass, then straight to the collection.
+  if (navigator.onLine && S.pendingList().length) {
+    say("Finishing your signup...", true);
+    tsPass(12000).then(function () { return S.flushPending(function (it) { it.turnstile = tsToken; it.ts_err = tsToken ? null : "pending"; tsToken = null; if (tsId !== null) turnstile.reset(tsId); return it; }); })
+      .then(function (r) { if (r && r.access_token) go(r); else say(""); }).catch(function () { say(""); });
+  }
 
   addEventListener("scroll", function () { $("cue").classList.toggle("off", scrollY > 40); }, { passive: true });
 

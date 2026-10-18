@@ -8,7 +8,7 @@
   function showForm(meta) {
     $("status").textContent = "";
     $("join").hidden = false;
-    window.Join.mount($("join"), { track: c, cta: "Unlock this track", onDone: function (r) { toCollection(r.track && r.track.slug || meta && meta.slug); } });
+    window.Join.mount($("join"), { track: c, cta: "Unlock this track", hint: "Free. Already in? Same email, no code needed: it goes straight into your collection.", onDone: function (r) { toCollection(r.track && r.track.slug || meta && meta.slug); } });
   }
   function dead() {
     $("title").textContent = "This code isn't active"; $("sub").innerHTML = 'Check the QR code, or <a href="./" style="color:var(--hot)">start from the homepage</a>.';
