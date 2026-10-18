@@ -108,6 +108,9 @@
     var title = $("t_title").value.trim(), artist = $("t_artist").value.trim(), audio = $("t_audio").files[0], wav = $("t_wav").files[0], cover = $("t_cover").files[0];
     if (!title) return say("tmsg", "Add a title.");
     if (!audio) return say("tmsg", "Pick the audio file.");
+    // The streaming file is what phones play on venue wifi: keep it an mp3/m4a, and keep the cover small.
+    if (/\.(wav|aif|aiff|flac)$/i.test(audio.name) || audio.size > 20 * 1024 * 1024) return say("tmsg", "The streaming file should be an mp3 or m4a under 20 MB. Put the WAV in the lossless download slot instead.");
+    if (cover && cover.size > 3 * 1024 * 1024) return say("tmsg", "That cover is over 3 MB. Export it as a JPG around 1400 px.");
     if (wav && wav.size > 50 * 1024 * 1024) return say("tmsg", "That WAV is over 50 MB. Use a 16-bit version.");
     var slug = (artist + " " + title).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
     $("t_go").disabled = true;
