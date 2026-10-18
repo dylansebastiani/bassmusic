@@ -36,5 +36,7 @@ Deno.serve(async (req) => {
       }
     }
   }
-  return Response.redirect(`${SITE_URL}/bonus.html?t=${t}`, 302);
+  // The bonus page only when there is a bonus track; otherwise straight to their page and the current track.
+  const { data: bonus } = await db.from("drops").select("id").eq("is_bonus", true).limit(1).maybeSingle();
+  return Response.redirect(`${SITE_URL}/${bonus ? "bonus" : "in"}.html?t=${t}`, 302);
 });

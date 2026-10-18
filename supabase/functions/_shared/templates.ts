@@ -15,34 +15,57 @@ const refUrl = (m: Member) => `${SITE_URL}/?r=${m.referral_code}`;
 const meUrl = (m: Member) => `${SITE_URL}/in.html?t=${m.access_token}`;
 export const unsubUrl = (m: Member) => `${FN}/unsubscribe?u=${m.unsubscribe_token}`;
 
-// Plain, personal-looking HTML. No images, one button.
-function wrap(m: Member, bodyHtml: string, bodyText: string): Omit<Rendered, "subject"> {
+// Black, one column, logo on top, one button. Tables + inline styles so Gmail,
+// Apple Mail and Outlook all draw it the same; bgcolor keeps it black in light mode.
+// preheader = the grey line inbox apps show next to the subject.
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+function wrap(m: Member, bodyHtml: string, bodyText: string, preheader = ""): Omit<Rendered, "subject"> {
   const foot = `${L} · ${CONFIG.mailingAddress}`;
   return {
-    html: `<!doctype html><html><body style="margin:0;padding:24px 16px;background:#000;color:#eee;font:16px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif">
-<div style="max-width:520px;margin:0 auto">${bodyHtml}
-<p style="margin-top:36px;font-size:12px;color:#888;line-height:1.6">You're getting this because you joined ${M}.<br>
-<a href="${unsubUrl(m)}" style="color:#aaa">Unsubscribe</a> · ${foot}</p></div></body></html>`,
+    html: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
+<body style="margin:0;padding:0;background:#000" bgcolor="#000000">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#000">${preheader}&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background:#000"><tr><td align="center" style="padding:36px 16px 40px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;color:#e9e9e9;font:16px/1.6 ${FONT}">
+<tr><td align="center" style="padding-bottom:28px"><img src="${SITE_URL}/assets/mail-logo.png" width="40" height="40" alt="${L}" style="display:block;border:0"></td></tr>
+<tr><td>${bodyHtml}</td></tr>
+<tr><td style="padding-top:36px;border-top:1px solid #222;font-size:12px;line-height:1.7;color:#777">You're getting this because you joined ${M}.<br>
+<a href="${unsubUrl(m)}" style="color:#999">Unsubscribe</a> · ${foot}</td></tr>
+</table></td></tr></table></body></html>`,
     text: `${bodyText}\n\n--\nYou're getting this because you joined ${M}.\nUnsubscribe: ${unsubUrl(m)}\n${foot}`,
   };
 }
 const btn = (href: string, label: string) =>
-  `<p style="margin:28px 0"><a href="${href}" style="display:inline-block;background:#fff;color:#000;text-decoration:none;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:16px 26px;font-size:13px">${label}</a></p>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0"><tr><td bgcolor="#ffffff" style="background:#fff">
+<a href="${href}" style="display:inline-block;padding:17px 30px;color:#000;text-decoration:none;font:800 13px/1 ${FONT};letter-spacing:.18em;text-transform:uppercase">${label}</a></td></tr></table>`;
+const big = (t: string) => `<h1 style="margin:0 0 14px;font:900 34px/1.1 ${FONT};letter-spacing:-.01em;color:#fff;text-transform:uppercase">${t}</h1>`;
+const eyebrow = (t: string) => `<div style="font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:#888;margin-bottom:12px">${t}</div>`;
+
+// The current free track, for the welcome email. Cover art is public (site/assets/drops/<slug>.jpg);
+// the audio itself stays private behind the member page.
+export interface DropInfo { slug: string; title: string; artist: string | null; }
 
 type Tpl = (m: Member, extra?: Record<string, unknown>) => Rendered;
 
 export const TEMPLATES: Record<string, Tpl> = {
-  // 1. Immediate
-  welcome: (m) => {
-    const html = `<p>${hi(m)},</p>
-<p>you're under. ${M} gets unreleased tracks first, guest list drawings at every show, and the drops nobody else gets.</p>
-<p>First thing: there's a bonus track waiting for you. Tap below and it's yours.</p>
-${btn(confirmUrl(m), "Unlock the bonus track")}
-<p>Your member page (the track you heard when you joined is there): <a href="${meUrl(m)}" style="color:#fff">${meUrl(m)}</a></p>
-${m.referral_code ? `<p style="color:#bbb">Know people who'd want this? Send them your link and you move up the list for guest spots:<br><a href="${refUrl(m)}" style="color:#fff">${refUrl(m)}</a></p>` : ""}
-<p>— Dylan</p>`;
-    const text = `${hi(m)},\n\nyou're under. ${M} gets unreleased tracks first, guest list drawings at every show, and the drops nobody else gets.\n\nFirst thing: there's a bonus track waiting for you:\n${confirmUrl(m)}\n\nYour member page: ${meUrl(m)}\n${m.referral_code ? `\nYour referral link: ${refUrl(m)}\n` : ""}\n— Dylan`;
-    return { subject: "you're under (bonus track inside)", ...wrap(m, html, text) };
+  // 1. Immediate. The play button goes through /confirm, which confirms the
+  // email (and credits whoever referred them) on the way to the track.
+  welcome: (m, extra) => {
+    const d = extra?.drop as DropInfo | undefined;
+    const play = confirmUrl(m);
+    const track = d ? `${d.title}${d.artist ? " by " + d.artist : ""}` : "";
+    const cover = d ? `<a href="${play}" style="display:block;text-decoration:none"><img src="${SITE_URL}/assets/drops/${d.slug}.jpg" width="480" alt="${track}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222"></a>
+<div style="margin-top:16px;font:900 20px/1.2 ${FONT};letter-spacing:.04em;text-transform:uppercase;color:#fff">${d.title}</div>
+<div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#888;margin-top:4px">${d.artist || ""}</div>` : "";
+    const html = `${eyebrow(M)}${big("You're in.")}
+<p style="margin:0 0 26px;color:#bdbdbd">${d ? "Your first unreleased track is unlocked. Nobody outside this list has it." : "You're on the list. Unreleased tracks, early tickets and show drops land here first."}</p>
+${cover}
+${btn(play, d ? "&#9654;&nbsp; Play it now" : "Open my page")}
+<p style="margin:0 0 8px;color:#bdbdbd">Next up: early tickets, show drops, and a vote on what we release next.</p>
+${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #333;font-size:14px;color:#bdbdbd">Bring people in and you move up for guest list spots. Your link:<br><a href="${refUrl(m)}" style="color:#fff;word-break:break-all">${refUrl(m)}</a></p>` : ""}
+<p style="margin:26px 0 0;color:#bdbdbd">See you down there.<br>Dylan</p>`;
+    const text = `You're in.\n\n${d ? `Your first unreleased track is unlocked: ${track}. Nobody outside this list has it.\n\nPlay it now: ${play}` : `You're on the list. Open your page: ${play}`}\n\nNext up: early tickets, show drops, and a vote on what we release next.\n${m.referral_code ? `\nBring people in and move up for guest list spots: ${refUrl(m)}\n` : ""}\nSee you down there.\nDylan`;
+    return { subject: d ? `you're in. ${d.title.toLowerCase()} is unlocked` : `you're in`, ...wrap(m, html, text, d ? `${track}. Unreleased. Tap to play.` : "Unreleased tracks land here first.") };
   },
   // 2. +2 days
   story: (m) => {
