@@ -27,5 +27,6 @@ The runner, webhook and IP salt secrets are generated in the database (`settings
 3. `node scripts/catalog.mjs` writes `supabase/seed/catalog.sql` and the printable QR codes in `qr/` (see `qr/README.md`).
 4. Run `supabase/seed/catalog.sql` against the project. Re-running is safe; a track's QR code never changes once made.
 
+A coupon can require any mix of: `minTracks` (collect N tracks), `event` (scanned at that show) and `artist` (holds a track by that artist). None set = everyone gets it.
 Scans are logged per track in `track_scans` (views, unlocks, repeat scans), so each artist can be measured.
 A QR tagged with a show also enters the member in that show's giveaway.

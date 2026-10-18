@@ -39,9 +39,12 @@ for (const e of events) {
 }
 for (const t of tracks) for (const p of t.placements ?? []) if (!eslugs.has(p)) bad(`track ${t.slug}: placement "${p}" is not an event in this file`);
 const ccodes = new Set();
+const artistSlugs = new Set(tracks.map((t) => t.artistSlug || slugify(t.artist)).filter(Boolean));
 for (const c of coupons) {
   if (!c.code || !c.title) bad(`coupon needs a code and a title (${JSON.stringify(c).slice(0, 60)})`);
   if (ccodes.has(c.code)) bad(`duplicate coupon code ${c.code}`); ccodes.add(c.code);
+  if (c.event && !eslugs.has(c.event)) bad(`coupon ${c.code}: event "${c.event}" is not an event in this file`);
+  if (c.artist && !artistSlugs.has(c.artist)) bad(`coupon ${c.code}: artist "${c.artist}" has no track in this file (use the artistSlug)`);
 }
 const codes = new Set(tracks.map((t) => t.qr).filter(Boolean));
 if (codes.size !== tracks.filter((t) => t.qr).length) bad("two tracks share a qr code");
@@ -69,10 +72,11 @@ on conflict (slug) do update set name=excluded.name, kind=excluded.kind, venue=e
   is_active=excluded.is_active, is_public=excluded.is_public;`);
 }
 for (const c of coupons) {
-  sql.push(`insert into public.coupons (code,title,description,url,min_tracks,starts_at,expires_at,is_active)
-values (${q(c.code)},${q(c.title)},${q(c.description)},${q(c.url)},${Number(c.minTracks) || 0},${q(c.startsAt)},${q(c.expiresAt)},${b(c.active, true)})
+  const evId = c.event ? `(select id from public.events where slug = ${q(c.event)})` : "null";
+  sql.push(`insert into public.coupons (code,title,description,url,min_tracks,event_id,artist_slug,starts_at,expires_at,is_active)
+values (${q(c.code)},${q(c.title)},${q(c.description)},${q(c.url)},${Number(c.minTracks) || 0},${evId},${q(c.artist)},${q(c.startsAt)},${q(c.expiresAt)},${b(c.active, true)})
 on conflict (code) do update set title=excluded.title, description=excluded.description, url=excluded.url, min_tracks=excluded.min_tracks,
-  starts_at=excluded.starts_at, expires_at=excluded.expires_at, is_active=excluded.is_active;`);
+  event_id=excluded.event_id, artist_slug=excluded.artist_slug, starts_at=excluded.starts_at, expires_at=excluded.expires_at, is_active=excluded.is_active;`);
 }
 sql.push("commit;", "");
 mkdirSync(join(root, "supabase/seed"), { recursive: true });
