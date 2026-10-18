@@ -184,7 +184,7 @@
       return call("track", { slug: slug, title: title, artist: artist || null, description: $("t_desc").value.trim() || null,
         audio_path: paths.audio, download_path: paths.wav || null, artwork_path: paths.cover || null, is_current: $("t_current").checked });
     }).then(function (r) {
-      say("tmsg", "Saved. QR code: " + r.qr_url); $("tf").reset(); $("t_go").disabled = false; $("addTrack").open = false;
+      say("tmsg", "Saved. QR code: " + r.qr_url + " (its link preview appears within a few hours)"); $("tf").reset(); $("t_go").disabled = false; $("addTrack").open = false;
       return call("overview").then(paint);
     }).catch(function (err) { say("tmsg", err.message); $("t_go").disabled = false; });
   });

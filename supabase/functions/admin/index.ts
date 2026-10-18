@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     const eventsOut = (ev ?? []).map((e) => ({ ...e, scans: byEvent[e.id] ?? { view: 0, unlocked: 0, joined: 0 } }));
     const per: Record<string, { view: number; unlocked: number; already: number }> = {};
     for (const s of scans ?? []) { const p = per[s.drop_id] ??= { view: 0, unlocked: 0, already: 0 }; p[s.outcome as "view" | "unlocked" | "already"]++; }
-    const tracks = (drops ?? []).map((d) => ({ ...d, scans: per[d.id] ?? { view: 0, unlocked: 0, already: 0 }, qr_url: d.qr_code ? `${SITE_URL}/t?c=${d.qr_code}` : null }));
+    const tracks = (drops ?? []).map((d) => ({ ...d, scans: per[d.id] ?? { view: 0, unlocked: 0, already: 0 }, qr_url: d.qr_code ? `${SITE_URL}/t/${d.qr_code}` : null }));
     const artists: Record<string, { artist: string; tracks: number; view: number; unlocked: number }> = {};
     for (const t of tracks) { const k = t.artist_slug || "unknown"; const x = artists[k] ??= { artist: t.artist || "Unknown", tracks: 0, view: 0, unlocked: 0 }; x.tracks++; x.view += t.scans.view; x.unlocked += t.scans.unlocked; }
     return ok({ members, with_info: withInfo, tracks, artists: Object.values(artists), events: eventsOut, brevo_list_id: await setting("brevo_list_id", null) });
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     const { error } = await db.from("drops").upsert(row, { onConflict: "slug" });
     if (error) return no("Couldn't save: " + error.message, 500);
     await log("track", { slug, title });
-    return ok({ slug, qr_code: qr, qr_url: `${SITE_URL}/t?c=${qr}` });
+    return ok({ slug, qr_code: qr, qr_url: `${SITE_URL}/t/${qr}` });
   }
   // Edit what's on a track card, or switch its QR off (a misprinted sticker batch dies here).
   if (a === "track-update") {
@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
   if (a === "qr.svg") {
     const code = (u.searchParams.get("c") || "").toUpperCase(), e = u.searchParams.get("e") || "";
     if (!/^[A-Z0-9]{6,12}$/.test(code)) return no("Bad request");
-    const link = `${SITE_URL}/t?c=${code}${e && SLUG.test(e) ? "&e=" + e : ""}`;
+    const link = `${SITE_URL}/t/${code}${e && SLUG.test(e) ? "?e=" + e : ""}`;
     const svg = await QRCode.toString(link, { type: "svg", margin: 2, errorCorrectionLevel: "M" });
     return new Response(svg, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store", "Access-Control-Allow-Origin": Deno.env.get("SITE_URL") || "*", ...CORS_ADMIN } });
   }

@@ -13,6 +13,17 @@ Deno.serve(async (req) => {
 
   if (req.method === "GET") {
     const u = new URL(req.url);
+    // ?list=1: every live code with title, artist and a cover link, so the site build can
+    // make a preview page per track (what a pasted link shows). Nothing here is secret: it is
+    // exactly what anyone sees on scanning the code.
+    if (u.searchParams.get("list") === "1") {
+      const { data } = await db.from("drops").select("qr_code,slug,title,artist,artwork_path").eq("qr_active", true).not("qr_code", "is", null).order("created_at", { ascending: false }).limit(200);
+      const out = await Promise.all((data ?? []).map(async (d) => {
+        const art = d.artwork_path ? await db.storage.from("drops").createSignedUrl(d.artwork_path, 3600) : null;
+        return { code: d.qr_code, slug: d.slug, title: d.title, artist: d.artist, artwork_url: art?.data?.signedUrl ?? null };
+      }));
+      return json({ tracks: out }, 200, { "Cache-Control": "public, max-age=300" });
+    }
     const drop = await dropByQr(u.searchParams.get("c"));
     if (!drop) return err("Not found", 404);
     // Which show's sticker: ?e=slug on the printed code.
