@@ -73,6 +73,8 @@ Deno.serve(async (req) => {
       const { data: row } = await db.from("email_queue")
         .insert({ subscriber_id: sub.id, template_key: "welcome", priority: 1, send_after: new Date(Date.now() + 15 * 60000).toISOString() })
         .select("id").single();
+      // Two days later: a nudge if they still haven't unlocked the track (the runner checks).
+      await db.from("email_queue").insert({ subscriber_id: sub.id, template_key: "nudge", priority: 3, send_after: new Date(Date.now() + 2 * 86400000).toISOString() });
       if (row) {
         const m = sub, job = welcomeExtra().then((extra) => sendNow(m, row.id, "welcome", extra)).catch(() => {});
         (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime?.waitUntil(job);

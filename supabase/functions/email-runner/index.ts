@@ -19,19 +19,21 @@ Deno.serve(async (req) => {
   if (room <= 0) return json({ sent: 0, reason: "daily budget reached", budget });
 
   const { data: due } = await db.from("email_queue")
-    .select("id,template_key,attempts,subscriber:subscribers(id,email,first_name,access_token,unsubscribe_token,referral_code,confirmed_referrals,status,email_pref)")
+    .select("id,template_key,attempts,subscriber:subscribers(id,email,first_name,phone,zip,access_token,unsubscribe_token,referral_code,confirmed_referrals,status,email_pref)")
     .eq("status", "pending").lte("send_after", new Date().toISOString())
     .order("priority").order("send_after").limit(Math.min(room, 50));
 
   let sent = 0, failed = 0, skipped = 0, stopped = false;
   let currentDrop: Record<string, unknown> | null | undefined;
   for (const row of due ?? []) {
-    const s = row.subscriber as unknown as (Member & { status: string; email_pref: string }) | null;
+    const s = row.subscriber as unknown as (Member & { status: string; email_pref: string; phone: string | null; zip: string | null }) | null;
     if (!s || s.status !== "active") { await db.from("email_queue").update({ status: "cancelled", last_error: "subscriber not active" }).eq("id", row.id); skipped++; continue; }
+    // The "still locked" nudge only goes to people who haven't unlocked the track yet.
+    if (row.template_key === "nudge" && s.first_name && s.phone && s.zip) { await db.from("email_queue").update({ status: "cancelled", last_error: "already unlocked" }).eq("id", row.id); skipped++; continue; }
 
     const [key, arg] = row.template_key.split(":");
     let extra: Record<string, unknown> | undefined;
-    if (key === "welcome") {
+    if (key === "welcome" || key === "nudge") {
       if (currentDrop === undefined) currentDrop = (await welcomeExtra()) ?? null;
       extra = currentDrop ?? undefined;
     }

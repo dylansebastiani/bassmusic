@@ -8,8 +8,6 @@ export interface Member {
 export interface Rendered { subject: string; html: string; text: string; }
 
 const M = CONFIG.membershipName, L = CONFIG.labelName || M;
-// Mail goes out from a no-reply address, so anything that needs an answer points to Instagram DMs.
-const IG = (CONFIG.social?.instagram || "subduction.wav").replace(/^@/, "");
 const hi = (m: Member) => (m.first_name ? `hey ${m.first_name}` : "hey");
 const FN = (Deno.env.get("SUPABASE_URL") || "https://hxfuelulxsituzcgsvhg.supabase.co") + "/functions/v1";
 const confirmUrl = (m: Member) => `${FN}/confirm?t=${m.access_token}`;
@@ -69,6 +67,21 @@ ${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #3
     const text = `You're in.\n\n${d ? `Your first unreleased track is waiting: ${track}. Nobody outside this list has it.\n\nPlay it now: ${play}` : `You're on the list. Open your page: ${play}`}\n\nNext up: early tickets, show drops, and a vote on what we release next.\n${m.referral_code ? `\nBring people in and move up for guest list spots: ${refUrl(m)}\n` : ""}\nSee you down there.\nDylan`;
     return { subject: d ? `you're in. ${d.title.toLowerCase()} is waiting` : `you're in`, ...wrap(m, html, text, d ? `${track}. Unreleased. Play it or grab the WAV.` : "Unreleased tracks land here first.") };
   },
+  // +2 days, only if the track is still locked (no name, phone or ZIP yet). The runner
+  // drops it for anyone who has unlocked by then.
+  nudge: (m, extra) => {
+    const d = extra?.drop as DropInfo | undefined;
+    const u = meUrl(m);
+    const art = d ? `<a href="${u}" style="display:block;text-decoration:none"><img src="${SITE_URL}/assets/drops/${d.slug}.jpg" width="480" alt="${d.title}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222;opacity:.55"></a>` : "";
+    const name = d ? d.title : "your track";
+    const html = `${eyebrow(M)}${big("Still locked.")}
+<p style="margin:0 0 26px;color:#bdbdbd">${d ? `${d.title}${d.artist ? " by " + d.artist : ""}` : "Your unreleased track"} is sitting on your page, waiting. Add your name, number and ZIP and it's yours: play it or grab the WAV.</p>
+${art}
+${btn(u, "Unlock it")}
+<p style="margin:0;color:#bdbdbd">Takes ten seconds. Your ZIP is how we know where to bring shows.</p>`;
+    const text = `Still locked.\n\n${name} is sitting on your page, waiting. Add your name, number and ZIP and it's yours: play it or grab the WAV.\n\nUnlock it: ${u}`;
+    return { subject: `${name.toLowerCase()} is still locked`, ...wrap(m, html, text, "Ten seconds and it's yours. Play it or grab the WAV.") };
+  },
   // 2. +2 days
   story: (m) => {
     const html = `<p>${hi(m)},</p><p>quick one on why ${L} exists.</p>
@@ -123,8 +136,8 @@ ${btn(u, "Open my page")}<p style="color:#bbb">Didn't ask for this? Ignore it an
   // Referral rewards
   reward: (m, extra) => {
     const label = String(extra?.label || "a reward");
-    const html = `<p>${hi(m)},</p><p>you got people in. That unlocks: <b>${label}</b>.</p><p>DM us on Instagram at @${IG} and we'll sort the details. Thank you for actually bringing people. That's the whole thing.</p><p>— Dylan</p>`;
-    const text = `${hi(m)},\n\nyou got people in. That unlocks: ${label}.\n\nDM us on Instagram at @${IG} and we'll sort the details.\n\n— Dylan`;
+    const html = `<p>${hi(m)},</p><p>you got people in. That unlocks: <b>${label}</b>.</p><p>We'll email you the details. Thank you for actually bringing people. That's the whole thing.</p><p>— Dylan</p>`;
+    const text = `${hi(m)},\n\nyou got people in. That unlocks: ${label}.\n\nWe'll email you the details.\n\n— Dylan`;
     return { subject: `you unlocked: ${label.toLowerCase()}`, ...wrap(m, html, text) };
   },
 };
