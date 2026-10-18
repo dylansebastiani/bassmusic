@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch.png">
 <meta property="og:title" content="Subduction">
-<meta property="og:description" content="Unreleased tracks, early tickets and a vote on what surfaces next. Members are under.">
+<meta property="og:description" content="A new bass music label and the community around it. Members get unreleased tracks free, before anyone else.">
 <meta property="og:image" content="https://subduction.art/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <script>document.documentElement.className="js"</script>
@@ -264,7 +264,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 <!-- 3. What you get. Catalogue style. -->
 <section class="sec get" id="get" aria-label="Benefits">
   <div>
-    <div class="gh rv"><span class="logo" style="--mw:34px"></span><h2 class="disp">Benefits</h2></div>
+    <div class="gh rv"><span class="logo" style="--mw:34px"></span><h2 class="disp">What members get</h2></div>
     <div class="laser rv" style="margin:16px 0 6px;max-width:160px"></div>
   </div>
   <ol id="plist"></ol>
@@ -378,11 +378,11 @@ window.Stack = (function () {
   // the promise: the A/B headline with the hot word picked out
   function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
   $("h1").innerHTML = hot((C.headlines || {})[v] || "Hear it first.");
-  $("offerH").innerHTML = "Get <em>early access</em>.";
+  $("offerH").innerHTML = "Your email is <em>the key</em>.";
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
-  $("fine").textContent = (C.microcopy || "") + " Already in? Same box, we'll email you a code.";
+  $("fine").textContent = "Drop it once. Your first unreleased track is waiting on the other side. " + (C.microcopy || "") + " Already in? Same box, we'll email you a code.";
   all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
   $("plist").innerHTML = (C.perks || []).map(function (p, i) { return '<li class="rv"><i>' + String(i + 1).padStart(3, "0") + "</i><h3>" + esc(p.title) + "</h3><p>" + esc(p.body) + "</p></li>"; }).join("");
 
