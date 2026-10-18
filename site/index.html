@@ -410,7 +410,7 @@ window.Stack = (function () {
       S.api("checkin", { t: mine, e: S.q.get("e") })
         .then(function (r) { window.__go("in.html?back=1" + (r.event ? "&e=" + encodeURIComponent(r.event.slug) : "")); })
         .catch(function (err) { if (err.status === 404) { try { localStorage.removeItem(MKEY); } catch (e) {} } });
-    } else if (!S.q.get("r")) window.__go("in.html?back=1");
+    } else if (!S.q.get("r")) window.__go("collection.html");
   }
 
   // ---------- Signup ----------
@@ -469,7 +469,7 @@ window.Stack = (function () {
     $("cbtn").disabled = true; say("Checking...");
     S.api("verify", { email: lastBody.email, code: c }).then(function (r) {
       remember(r.access_token);
-      window.__go("in.html?back=1" + (codeEvent ? "&e=" + encodeURIComponent(codeEvent.slug) : ""));
+      window.__go(codeEvent ? "in.html?back=1&e=" + encodeURIComponent(codeEvent.slug) : "collection.html");
     }).catch(function (err) { $("cbtn").disabled = false; $("code").select(); say(err.message || "That didn't work. Try again."); });
   });
   $("resend").addEventListener("click", function () { if (lastBody) { say("Sending a new code..."); submit(lastBody, true); } });

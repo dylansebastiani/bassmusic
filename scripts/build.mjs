@@ -30,6 +30,8 @@ const fn = pub.supabaseUrl + "/functions/v1";
 writeFileSync(join(out, "_redirects"), [
   "/in /in.html 200",
   "/bonus /bonus.html 200",
+  "/collection /collection.html 200",
+  "/t /t.html 200",
   "/privacy /privacy.html 200",
   "/rules /rules.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,

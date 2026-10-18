@@ -14,11 +14,18 @@ const stub = `<script>window.STACK=${JSON.stringify({ ...cfg, supabaseUrl: "http
   var body={ok:true};
   if(/\\/subscribe$/.test(u)){var b={};try{b=JSON.parse(o&&o.body||"{}")}catch(e){}body={access_token:"demo",already_member:/again|back/.test(b.email||""),event:b.e?{slug:b.e,name:"Shake It Up",prize:"a guest list +1"}:null};}
   else if(/\\/meta/.test(u)){var e=(u.match(/[?&]e=([^&]+)/)||[])[1];body={event:e?{slug:e,name:"Shake It Up",prize:"a guest list +1"}:null,count:null};}
+  else if(/\\/collection/.test(u))body=window.__col||(window.__col={first_name:"Sam",profile_done:false,confirmed:true,has_welcome:true,
+    tracks:[{slug:"deep-end",title:"DEEP END",artist:"Example Artist",artwork_url:null,audio_url:null,download_url:null,download_locked:true,unlocked_at:new Date().toISOString()},
+            {slug:"low-light",title:"LOW LIGHT",artist:"Another Artist",artwork_url:null,audio_url:null,download_url:null,download_locked:false,unlocked_at:new Date().toISOString()}],
+    coupons:[{title:"10% off",description:"On your first shop order.",code:"SUBDUCTION10",locked:false,need:0,expires_at:"2027-01-31T00:00:00Z"},{title:"Free sticker pack",description:"For collectors.",locked:true,need:1,code:null}],
+    events:[{slug:"shake",name:"Shake It Up",kind:"show",venue:"The Venue",city:"Bloomington, IL",starts_at:"2026-12-05T21:00:00-06:00",description:"Doors at nine.",ticket_url:"https://example.com",prize:"a guest list +1"},
+            {slug:"pop",name:"Warehouse pop-up",kind:"popup",city:"Chicago",starts_at:"2026-12-12T18:00:00-06:00"}]});
+  else if(/\\/track/.test(u)){body=(o&&o.method==="POST")?{unlocked:true,new_unlock:true,slug:"deep-end",title:"DEEP END"}:{slug:"deep-end",title:"DEEP END",artist:"Example Artist",artwork_url:null};}
   else if(/\\/me/.test(u))body=demo;
   return new Promise(function(r){setTimeout(function(){r(new Response(JSON.stringify(body),{status:200,headers:{"Content-Type":"application/json"}}))},400)});};
  window.__go=function(url){location.href=url==="/"?"index.html":url.replace(/^\\/in\\b\\/?/,"in.html").replace(/^\\/bonus\\b\\/?/,"bonus.html").replace(/^\\/privacy$/,"privacy.html").replace(/^\\/rules$/,"rules.html");};
 })();</script>`;
-for (const name of ["index.html", "in.html", "bonus.html", "privacy.html", "rules.html"]) {
+for (const name of ["index.html", "in.html", "bonus.html", "privacy.html", "rules.html", "t.html", "collection.html"]) {
   let s = readFileSync(join(root, "site", name), "utf8").replace("<!--CONFIG-->", stub)
     .replace(/location\.href = ([^;]*);/g, "window.__go($1);")
     .replace(/location\.replace\(([^;]*)\);/g, "window.__go($1);")
