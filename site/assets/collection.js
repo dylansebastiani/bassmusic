@@ -85,7 +85,9 @@
     if (!d.tracks.length) html += '<div class="empty">Nothing here yet. Every track has its own code. Scan one at a show and it lands here.</div>';
     else if (rest.length) html += '<div class="list">' + rest.map(function (k) { return trackCard(k, false); }).join("") + "</div>";
     else if (focus) html += '<div class="empty">That\'s your first one. Scan another code at a show and it lands here too.</div>';
-    if (d.profile_done) html += '<div class="list extra">' + friendCard(d) + infoBox(d) + "</div>";
+    if (d.profile_done && !d.light) html += '<div class="list extra">' + friendCard(d) + infoBox(d) + "</div>";
+    // Signed in from a sticker scan: tracks and shows only. Details need the emailed code.
+    if (d.light) html += '<div class="list extra"><div class="empty">Signed in from a sticker. To change your info or get your friend link, <button type="button" class="hint" id="upgrade">sign in with your email code</button>.</div></div>';
     el.innerHTML = html;
     $("n-collection").textContent = d.tracks.length ? "(" + d.tracks.length + ")" : "";
 
@@ -102,6 +104,8 @@
         .then(function () { return load(true); })
         .catch(function (err) { $("wallBtn").disabled = false; m.textContent = err.message || "Couldn't save. Try again."; });
     });
+    var up = $("upgrade");
+    if (up) up.addEventListener("click", function () { S.forget(); location.replace("/collection.html"); });
     var f = $("infoForm");
     if (f) f.addEventListener("submit", function (e) {
       e.preventDefault();

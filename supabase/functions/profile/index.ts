@@ -2,6 +2,7 @@ import { db } from "../_shared/db.ts";
 import { json, err, preflight, UUID_RE, clean, e164 } from "../_shared/util.ts";
 import { CONFIG, fill } from "../_shared/config.ts";
 import { brevoUpsert } from "../_shared/crm.ts";
+import { memberByKey } from "../_shared/collection.ts";
 
 Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
@@ -9,8 +10,11 @@ Deno.serve(async (req) => {
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return err("Bad request"); }
   const t = clean(b.t, 40) || "";
   if (!UUID_RE.test(t)) return err("Not found", 404);
-  const { data: m } = await db.from("subscribers").select("id,sms_consent,email,source").eq("access_token", t).maybeSingle();
-  if (!m) return err("Not found", 404);
+  const m = await memberByKey(t, "sms_consent,email,source,first_name,phone,zip") as
+    (null | { id: string; status: string; full: boolean; sms_consent: boolean | null; email: string; source: string | null; first_name: string | null; phone: string | null; zip: string | null });
+  if (!m || m.status === "deleted") return err("Not found", 404);
+  // A QR scan's light key can fill in the wall once, while nothing is on file. Changing details takes the emailed code.
+  if (!m.full && (m.first_name || m.phone || m.zip)) return err("To change your info, sign out and sign in with the code we email you.", 403);
 
   // unlock = the track wall: first name, phone and ZIP are all required.
   const unlock = b.unlock === true;

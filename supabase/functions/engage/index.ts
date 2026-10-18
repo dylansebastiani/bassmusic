@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return err("Bad request"); }
   const t = clean(b.t, 40) || "", type = clean(b.type, 30) || "";
   if (!UUID_RE.test(t) || !TYPES.has(type)) return err("Bad request");
-  const { data: m } = await db.from("subscribers").select("id").eq("access_token", t).maybeSingle();
+  const { data: m } = await db.from("subscribers").select("id").or(`access_token.eq.${t},light_token.eq.${t}`).limit(1).maybeSingle();
   if (!m) return err("Not found", 404);
   const since = new Date(Date.now() - 3600000).toISOString();
   const { data: dup } = await db.from("engagement_events").select("id").eq("subscriber_id", m.id).eq("type", type).gte("created_at", since).limit(1);

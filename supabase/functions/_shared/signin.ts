@@ -3,8 +3,8 @@ import type { Member } from "./templates.ts";
 import { sha256 } from "./util.ts";
 import { sendNow } from "./sendnow.ts";
 
-export type SigninMember = Member & { status: string };
-export const MEMBER_COLS = "id,email,first_name,access_token,unsubscribe_token,referral_code,confirmed_referrals,status";
+export type SigninMember = Member & { status: string; light_token?: string };
+export const MEMBER_COLS = "id,email,first_name,access_token,light_token,unsubscribe_token,referral_code,confirmed_referrals,status";
 
 // The code is stored only as a hash, salted per member, so the table alone can't sign anyone in.
 export const codeHash = async (subscriberId: string, code: string) =>
