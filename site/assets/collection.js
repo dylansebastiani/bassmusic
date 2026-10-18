@@ -59,7 +59,6 @@
     html += '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
     if (!d.tracks.length) html += '<div class="empty">Nothing here yet. Every track has its own QR code. Scan one at a show or pop-up and it lands here.</div>';
     else if (rest.length) html += '<div class="list">' + rest.map(function (k) { return trackCard(k, false); }).join("") + "</div>";
-    if (d.has_welcome) html += '<p class="fine" style="margin-top:18px"><a class="hint" href="in.html">Your welcome file</a></p>';
     el.innerHTML = html;
     $("n-collection").textContent = d.tracks.length ? "(" + d.tracks.length + ")" : "";
     var w = $("wall");

@@ -441,7 +441,8 @@ window.Stack = (function () {
   function go(res) {
     if (res.check_email) return askCode(res);
     remember(res.access_token);
-    window.__go("in.html?t=" + encodeURIComponent(res.access_token) + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""));
+    if (res.event) return window.__go("in.html?t=" + encodeURIComponent(res.access_token) + "&e=" + encodeURIComponent(res.event.slug));
+    window.__go("collection.html?t=" + encodeURIComponent(res.access_token) + (res.track ? "&new=" + encodeURIComponent(res.track.slug) : ""));
   }
   var EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/, pendingSuggest = null;
   function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }

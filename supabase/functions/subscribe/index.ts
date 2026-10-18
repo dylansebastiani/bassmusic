@@ -39,7 +39,10 @@ Deno.serve(async (req) => {
   }
 
   // A track's QR code (?c=): the track lands in their collection the moment they're in.
+  // Without one, a new member's collection starts with the current welcome track.
   const track = b.c ? await dropByQr(clean(b.c, 20)) : null;
+  const welcome = track ? null : (await db.from("drops").select("id,slug,title,artist,artwork_path").eq("is_current", true)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle()).data as QrDrop | null;
 
   const { data: existing } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
   let sub: SigninMember | null = null;
@@ -87,8 +90,9 @@ Deno.serve(async (req) => {
   }
 
   if (event && sub) await enterEvent(sub.id, event.id);
-  if (track && sub) await unlockTrack(sub.id, track.id, event?.id ?? null);
-  return json({ access_token: sub!.access_token, already_member: false, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null, track: track ? { slug: track.slug, title: track.title } : null });
+  const first = track ?? welcome;
+  if (first && sub) await unlockTrack(sub.id, first.id, event?.id ?? null);
+  return json({ access_token: sub!.access_token, already_member: false, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null, track: first ? { slug: first.slug, title: first.title } : null });
 });
 
 // A known email on a phone we don't know. Two cases:
