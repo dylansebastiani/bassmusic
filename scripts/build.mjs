@@ -1,6 +1,6 @@
 // Copies site/ to dist/ and injects config + public env into each page.
 // Public env (safe to ship to the browser): SUPABASE_URL, TURNSTILE_SITE_KEY.
-// Cloudflare Pages runs `npm run build` with these set in its Environment variables.
+// The deploy workflow (.github/workflows/pages.yml) runs `npm run build` with these set.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 

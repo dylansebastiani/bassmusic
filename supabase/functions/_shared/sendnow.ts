@@ -22,7 +22,10 @@ export async function sendNow(m: Member, rowId: string, key: string, extra?: Rec
 }
 
 // The welcome email shows the current free track.
+// The cover comes from storage with a year-long link, so a track added from the staff page shows its art.
 export async function welcomeExtra() {
-  const { data } = await db.from("drops").select("slug,title,artist").eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  return data ? { drop: data } : undefined;
+  const { data } = await db.from("drops").select("slug,title,artist,artwork_path").eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data) return undefined;
+  const art = data.artwork_path ? await db.storage.from("drops").createSignedUrl(data.artwork_path, 365 * 86400) : null;
+  return { drop: { slug: data.slug, title: data.title, artist: data.artist, artwork_url: art?.data?.signedUrl ?? null } };
 }

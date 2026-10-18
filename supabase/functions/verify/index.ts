@@ -14,7 +14,8 @@ Deno.serve(async (req) => {
 
   const ip = await ipHash(req, await setting("ip_salt", "unset"));
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
-  if ((n ?? 0) > 10) return err("Too many tries. Wait a minute and try again.", 429);
+  // A venue full of phones can share one connection; each code still locks after 5 wrong tries.
+  if ((n ?? 0) > 60) return err("Too many tries. Wait a minute and try again.", 429);
 
   const { data: m } = await db.from("subscribers").select("id,access_token,status").eq("email", email).maybeSingle();
   if (!m || m.status === "deleted") return err("That code didn't match. Check it, or send a new one.");

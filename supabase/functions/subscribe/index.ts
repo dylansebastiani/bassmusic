@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
   let event: { id: string; slug: string; name: string; prize: string | null } | null = null;
   if (eventSlug) {
-    const { data } = await db.from("events").select("id,slug,name,prize").eq("slug", eventSlug).eq("is_active", true).maybeSingle();
+    const { data } = await db.from("events").select("id,slug,name,prize").eq("slug", eventSlug).maybeSingle();
     event = data;
   }
 
