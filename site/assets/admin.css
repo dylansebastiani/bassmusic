@@ -1,0 +1,33 @@
+/* Admin page: same look as the member app, with forms and tables. */
+.admin .top .mono{margin-left:10px;flex:1}
+.tabs.five{grid-template-columns:repeat(5,1fr)}
+.form{display:grid;gap:6px;margin-top:12px}
+.form label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-top:8px}
+.form input[type=text],.form input[type=url],.form input[type=datetime-local],.form select{width:100%;min-width:0;background:#000;border:1px solid #6c6567;color:var(--fg);border-radius:0;font-family:var(--text);font-size:16px;padding:12px;outline:none}
+.form input:focus,.form select:focus{border-color:#fff}
+.form input[type=file]{color:var(--mute);font-size:13px}
+.form .btn{margin-top:10px}
+details.add{margin-top:18px}
+details.add summary{list-style:none;cursor:pointer}
+details.add summary::-webkit-details-marker{display:none}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat{border:1px solid var(--line);padding:12px 14px}
+.stat b{display:block;font-family:var(--disp);font-size:34px;line-height:1;color:#fff}
+.stat span{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.tablewrap{overflow-x:auto;margin:12px 0 22px;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);font-weight:400}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.sub{margin:16px 0 4px}
+.qr{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:start}
+.qr img{width:120px;height:120px;background:#fff;padding:4px}
+.qr .mono{word-break:break-all;text-transform:none;letter-spacing:0}
+.qr a.btn{margin-top:8px}
+.bar{height:6px;background:#1a1a1a;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--hot);width:0;transition:width .2s}
+#brevo{margin-bottom:14px}
+#brevo select{width:100%;background:#000;color:var(--fg);border:1px solid #6c6567;padding:10px;font-size:15px;margin:8px 0}
+.staff li{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);padding:10px 14px;list-style:none}
+.staff li button{background:none;border:0;color:var(--mute);cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.staff li button:hover{color:var(--hot)}

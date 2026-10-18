@@ -1,6 +1,7 @@
 import { db } from "../_shared/db.ts";
 import { json, err, preflight, UUID_RE, clean, e164 } from "../_shared/util.ts";
 import { CONFIG, fill } from "../_shared/config.ts";
+import { brevoUpsert } from "../_shared/crm.ts";
 
 Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
@@ -8,7 +9,7 @@ Deno.serve(async (req) => {
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return err("Bad request"); }
   const t = clean(b.t, 40) || "";
   if (!UUID_RE.test(t)) return err("Not found", 404);
-  const { data: m } = await db.from("subscribers").select("id,sms_consent").eq("access_token", t).maybeSingle();
+  const { data: m } = await db.from("subscribers").select("id,sms_consent,email,source").eq("access_token", t).maybeSingle();
   if (!m) return err("Not found", 404);
 
   // unlock = the track wall: first name, phone and ZIP are all required.
@@ -41,5 +42,8 @@ Deno.serve(async (req) => {
   const { error } = await db.from("subscribers").update(patch).eq("id", m.id);
   if (error) return err("Couldn't save.", 500);
   await db.from("engagement_events").insert({ subscriber_id: m.id, type: unlock ? "track_unlock" : "profile_update" });
+  // The CRM gets the new details in the background.
+  const { data: now } = await db.from("subscribers").select("email,first_name,phone,zip,source,sms_consent").eq("id", m.id).maybeSingle();
+  if (now) (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime?.waitUntil(brevoUpsert(now).catch(() => ({ ok: false })));
   return json({ ok: true });
 });
