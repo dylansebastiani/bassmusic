@@ -1,1 +1,16 @@
-{ "tracks": [], "events": [], "coupons": [] }
+{
+  "tracks": [
+    {
+      "slug": "elite-depth",
+      "title": "Elite Depth",
+      "artist": "Badguy Moolah",
+      "artistSlug": "badguy-moolah",
+      "audioPath": "elite-depth/elite-depth.mp3",
+      "artworkPath": "elite-depth/visual-paralysis.jpg",
+      "downloadPath": "elite-depth/elite-depth.wav",
+      "qr": "AZVHVDN3"
+    }
+  ],
+  "events": [],
+  "coupons": []
+}
