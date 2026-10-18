@@ -78,9 +78,9 @@ ${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #3
 <p style="margin:0 0 26px;color:#bdbdbd">${d ? `${d.title}${d.artist ? " by " + d.artist : ""}` : "Your unreleased track"} is sitting on your page, waiting. Add your name, number and ZIP and it's yours: play it or grab the WAV.</p>
 ${art}
 ${btn(u, "Unlock it")}
-<p style="margin:0;color:#bdbdbd">Takes ten seconds. Your ZIP is how we know where to bring shows.</p>`;
+<p style="margin:0;color:#bdbdbd">Tap in now.</p>`;
     const text = `Still locked.\n\n${name} is sitting on your page, waiting. Add your name, number and ZIP and it's yours: play it or grab the WAV.\n\nUnlock it: ${u}`;
-    return { subject: `${name.toLowerCase()} is still locked`, ...wrap(m, html, text, "Ten seconds and it's yours. Play it or grab the WAV.") };
+    return { subject: `${name.toLowerCase()} is still locked`, ...wrap(m, html, text, "Tap in now. Play it or grab the WAV.") };
   },
   // 2. +2 days
   story: (m) => {
