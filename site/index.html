@@ -114,7 +114,9 @@ form[hidden]{display:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .unit{display:flex;flex-direction:column;border:1px solid #6c6567;background:#000}
 .unit:focus-within{border-color:#fff}
-input[type=email]{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:17px 16px;outline:none}
+input[type=email],.unit input[type=text]{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:17px 16px;outline:none}
+#code{font-family:var(--mono);font-size:24px;letter-spacing:.32em;text-align:center}
+#code::placeholder{font-family:var(--text);font-size:17px;letter-spacing:0}
 input::placeholder{color:#8a8486}
 .btn{display:block;width:100%;background:var(--hot);color:#000;border:0;border-top:1px solid #6c6567;border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:14px 22px 12px;cursor:pointer;transition:background .15s,color .15s}
 .btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
@@ -245,6 +247,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div id="ts"></div>
     <p class="fine" id="fine"></p>
     </form>
+    <div id="msg" class="msg" role="status"></div>
     <!-- Known email: the box swaps to a 6-digit code (sent to their inbox) instead of a second signup. -->
     <form id="cf" novalidate hidden>
       <label for="code" class="sr">6-digit code</label>
@@ -254,7 +257,6 @@ html:not(.js) .rv{opacity:1;transform:none}
       </div>
       <p class="fine"><button type="button" class="hint" id="resend">Send a new code</button> &middot; <button type="button" class="hint" id="other">Different email</button></p>
     </form>
-    <div id="msg" class="msg" role="status"></div>
     <div class="proof" id="proof" hidden></div>
   </div>
 </section>

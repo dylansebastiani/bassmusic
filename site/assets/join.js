@@ -40,13 +40,13 @@ window.Join = (function () {
         '<input type="text" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">' +
         '<div class="ts"></div>' +
       "</form>" +
+      '<p class="msg" role="status"></p>' +
       '<form class="jc" novalidate hidden>' +
         '<label class="sr" for="jcode">6-digit code</label>' +
         '<div class="unit"><input type="text" id="jcode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" spellcheck="false">' +
         '<button type="submit" class="btn">Sign in</button></div>' +
         '<p class="fine"><button type="button" class="hint resend">Send a new code</button> &middot; <button type="button" class="hint other">Different email</button></p>' +
-      "</form>" +
-      '<p class="msg" role="status"></p>';
+      "</form>";
     var f = el.querySelector(".jf"), cf = el.querySelector(".jc"), msg = el.querySelector(".msg[role]"), email = el.querySelector("#jemail"),
         btn = f.querySelector(".btn"), hintRow = el.querySelector(".hintrow"), hintBtn = hintRow.querySelector(".hint"),
         code = el.querySelector("#jcode"), cbtn = cf.querySelector(".btn");
