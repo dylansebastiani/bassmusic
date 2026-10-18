@@ -35,7 +35,6 @@ img{display:block}
 .world{position:fixed;inset:0;z-index:0;overflow:hidden;background:#000}
 .wp{position:absolute;inset:0;will-change:transform,opacity;transform-origin:50% 50%;opacity:0;visibility:hidden}
 .wp[data-wp="0"] .ch{object-position:50% 45%}
-.rgb .hv{mix-blend-mode:normal;transform:scale(1.3);background:#000}
 .wp[data-wp="1"] .ch{object-position:60% 50%}
 .wp[data-wp="3"] .ch{object-fit:contain;object-position:50% 50%}
 .wscrim{position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse 90% 70% at 50% 50%,rgba(0,0,0,0) 40%,rgba(0,0,0,.6) 100%)}
@@ -58,7 +57,6 @@ img{display:block}
   .rgb .g{filter:none;mix-blend-mode:normal;transform:none!important}
   /* First screen: the machine fills the top three quarters edge to edge, bleeds into black under the headline. */
   .wp[data-wp="0"] .ch{object-fit:cover;object-position:50% 0%;height:80%;top:0;transform-origin:50% 30%}
-  .rgb .hv{transform:scale(1.2);transform-origin:50% 42%}
   .wp[data-wp="0"] .rgb{animation:breathe 9s ease-in-out infinite alternate;will-change:transform}
   @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.07) translate3d(0,-1.2%,0)}}
   .wscrim{background:linear-gradient(to bottom,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 14%,rgba(0,0,0,0) 46%,rgba(0,0,0,.6) 64%,rgba(0,0,0,.95) 78%,#000 90%)}
@@ -210,8 +208,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 <div class="grain" aria-hidden="true"></div>
 <div class="cut" id="cut" aria-hidden="true"></div>
 <div class="world" id="world" aria-hidden="true">
-  <div class="wp" data-wp="0"><div class="rgb"><video class="ch hv" id="hv" autoplay muted loop playsinline preload="auto" poster="assets/hero/hero-poster.webp"><source src="assets/hero/hero-1080.mp4" type="video/mp4"></video></div></div>
-<script>(function(){var v=document.getElementById("hv");if(v&&innerWidth<900){v.querySelector("source").src="assets/hero/hero-720.mp4";v.load()}})()</script>
+  <div class="wp" data-wp="0"><div class="rgb"><img class="ch r" src="assets/flyer.webp" alt=""><img class="ch g" src="assets/flyer.webp" alt=""><img class="ch b" src="assets/flyer.webp" alt=""></div></div>
   <div class="wp" data-wp="1"><div class="rgb"><img class="ch r" src="assets/offer.webp" alt=""><img class="ch g" src="assets/offer.webp" alt=""><img class="ch b" src="assets/offer.webp" alt=""></div></div>
   <div class="wp" data-wp="2"><div class="rgb"><img class="ch r" src="assets/inside.webp" alt=""><img class="ch g" src="assets/inside.webp" alt=""><img class="ch b" src="assets/inside.webp" alt=""></div></div>
   <div class="wp" data-wp="3"><div class="rgb"><img class="ch r" src="assets/vault.webp" alt=""><img class="ch g" src="assets/vault.webp" alt=""><img class="ch b" src="assets/vault.webp" alt=""></div></div>
@@ -514,7 +511,7 @@ window.Stack = (function () {
   (function () {
     var mobile = innerWidth < 900 || (window.matchMedia && matchMedia("(pointer:coarse)").matches);
     var bar = document.querySelector(".pbar");
-    if (still) { var hv = $("hv"); if (hv) { hv.removeAttribute("autoplay"); hv.pause(); } var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
+    if (still) { var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
     var wps = all(".wp").map(function (el) { return { el: el, r: el.querySelector(".r"), b: el.querySelector(".b") }; });
     var secs = [$("flyer"), $("offer"), $("get"), $("foot")];
     var cut = $("cut"), vel = 0, lastY = scrollY, lastT = performance.now(), px = 0, py = 0, tx = 0, ty = 0, cutT = 0, smooth = scrollY;
@@ -539,7 +536,7 @@ window.Stack = (function () {
         var mx = mobile ? (i === leg ? (i % 2 ? 1 : -1) * t * innerWidth * .05 : 0) : px * (i === leg ? 9 : 4), my = mobile ? 0 : py * (i === leg ? 5 : 2);
         w.el.style.transform = "translate3d(" + mx.toFixed(1) + "px," + (dy + my).toFixed(1) + "px,0) scale(" + z.toFixed(3) + ")";
         w.el.style.opacity = o.toFixed(3); w.el.style.visibility = o > .005 ? "visible" : "hidden";
-        if (mobile || !w.r) return;
+        if (mobile) return;
         var sp = av * 5 + (i === leg ? t * (1 - t) * 8 : 0);
         w.r.style.transform = "translate3d(" + (-sp).toFixed(1) + "px," + (v * 2).toFixed(1) + "px,0)";
         w.b.style.transform = "translate3d(" + sp.toFixed(1) + "px," + (-v * 2).toFixed(1) + "px,0)";
