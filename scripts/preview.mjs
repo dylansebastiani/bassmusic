@@ -14,7 +14,7 @@ const stub = `<script>window.STACK=${JSON.stringify({ ...cfg, supabaseUrl: "http
   var body={ok:true};
   if(/\\/subscribe$/.test(u)){var b={};try{b=JSON.parse(o&&o.body||"{}")}catch(e){}body={access_token:"0b5e3f1a-7c2d-4e8a-9f10-2a3b4c5d6e7f",track:b.c?{slug:"bad-guys",title:"BAD GUYS"}:null,already_member:/again|back/.test(b.email||""),event:b.e?{slug:b.e,name:"Shake It Up",prize:"a guest list +1"}:null};}
   else if(/\\/meta/.test(u)){var e=(u.match(/[?&]e=([^&]+)/)||[])[1];body={event:e?{slug:e,name:"Shake It Up",prize:"a guest list +1"}:null,count:null};}
-  else if(/\\/collection/.test(u))body=window.__col||(window.__col={first_name:"Sam",profile_done:false,confirmed:true,has_welcome:true,
+  else if(/\\/collection/.test(u))body=window.__col||(window.__col={first_name:null,profile_done:false,confirmed:true,has_welcome:true,
     tracks:[{slug:"bad-guys",title:"BAD GUYS",artist:"Badguy Moolah",artwork_url:null,audio_url:null,download_url:null,locked:true,unlocked_at:new Date().toISOString()}],
     coupons:[{title:"10% off",description:"On your first shop order.",code:"SUBDUCTION10",locked:false,need:0,expires_at:"2027-01-31T00:00:00Z"},{title:"Free sticker pack",description:"For collectors.",locked:true,need:2,code:null}],
     events:[{slug:"shake",name:"Shake It Up",kind:"show",venue:"The Venue",city:"Bloomington, IL",starts_at:"2026-12-05T21:00:00-06:00",description:"Doors at nine.",ticket_url:"https://example.com",prize:"a guest list +1"},
