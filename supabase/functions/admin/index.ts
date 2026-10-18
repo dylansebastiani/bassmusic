@@ -51,15 +51,21 @@ Deno.serve(async (req) => {
       db.from("subscribers").select("id", { count: "exact", head: true }).eq("status", "active"),
       db.from("subscribers").select("id", { count: "exact", head: true }).eq("status", "active").not("first_name", "is", null).not("phone", "is", null).not("zip", "is", null),
       db.from("drops").select("id,slug,title,artist,artist_slug,qr_code,qr_active,is_current,created_at").order("created_at", { ascending: false }),
-      db.from("track_scans").select("drop_id,outcome").limit(20000),
-      db.from("events").select("slug,name,kind,city,starts_at,is_active").order("starts_at", { ascending: false, nullsFirst: false }).limit(50),
+      db.from("track_scans").select("drop_id,event_id,outcome").limit(20000),
+      db.from("events").select("id,slug,name,kind,city,starts_at,is_active").order("starts_at", { ascending: false, nullsFirst: false }).limit(50),
     ]);
+    // Per show: sticker views and unlocks, plus people who joined at that show.
+    const { data: joined } = await db.from("subscribers").select("event_id").not("event_id", "is", null).neq("status", "deleted").limit(20000);
+    const byEvent: Record<string, { view: number; unlocked: number; joined: number }> = {};
+    for (const s of scans ?? []) { if (!s.event_id) continue; const x = byEvent[s.event_id] ??= { view: 0, unlocked: 0, joined: 0 }; if (s.outcome === "view") x.view++; if (s.outcome === "unlocked") x.unlocked++; }
+    for (const j of joined ?? []) { const x = byEvent[j.event_id as string] ??= { view: 0, unlocked: 0, joined: 0 }; x.joined++; }
+    const eventsOut = (ev ?? []).map((e) => ({ ...e, scans: byEvent[e.id] ?? { view: 0, unlocked: 0, joined: 0 } }));
     const per: Record<string, { view: number; unlocked: number; already: number }> = {};
     for (const s of scans ?? []) { const p = per[s.drop_id] ??= { view: 0, unlocked: 0, already: 0 }; p[s.outcome as "view" | "unlocked" | "already"]++; }
     const tracks = (drops ?? []).map((d) => ({ ...d, scans: per[d.id] ?? { view: 0, unlocked: 0, already: 0 }, qr_url: d.qr_code ? `${SITE_URL}/t?c=${d.qr_code}` : null }));
     const artists: Record<string, { artist: string; tracks: number; view: number; unlocked: number }> = {};
     for (const t of tracks) { const k = t.artist_slug || "unknown"; const x = artists[k] ??= { artist: t.artist || "Unknown", tracks: 0, view: 0, unlocked: 0 }; x.tracks++; x.view += t.scans.view; x.unlocked += t.scans.unlocked; }
-    return ok({ members, with_info: withInfo, tracks, artists: Object.values(artists), events: ev ?? [], brevo_list_id: await setting("brevo_list_id", null) });
+    return ok({ members, with_info: withInfo, tracks, artists: Object.values(artists), events: eventsOut, brevo_list_id: await setting("brevo_list_id", null) });
   }
 
   // ---- members: the list, and a CSV of it ----

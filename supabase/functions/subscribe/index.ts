@@ -6,7 +6,7 @@ import { sendNow, welcomeExtra } from "../_shared/sendnow.ts";
 import { dropByQr, unlockTrack, type QrDrop } from "../_shared/collection.ts";
 import { brevoUpsert } from "../_shared/crm.ts";
 
-const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct"]);
+const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct", "qr"]);
 
 Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
   const refCode = clean(b.r, 12)?.toUpperCase() || null;
   const eventSlug = clean(b.e, 80);
   if (refCode && !source) source = "ref";
+  if (clean(b.c, 20) && !source) source = "qr";
   if (eventSlug && !source) source = "show";
   if (source && !SOURCES.has(source)) source = "direct";
 

@@ -14,7 +14,7 @@
     $("title").textContent = "This code isn't active"; $("sub").innerHTML = 'Check the QR code, or <a href="./" style="color:var(--hot)">start from the homepage</a>.';
     $("eyebrow").hidden = true;
   }
-  S.get("track", { c: c }).then(function (meta) {
+  S.get("track", { c: c, e: S.attr.e || null }).then(function (meta) {
     $("title").textContent = meta.title;
     $("eyebrow").textContent = meta.artist ? meta.artist : "Unreleased";
     $("sub").textContent = "Unreleased. Unlock it into your collection.";
