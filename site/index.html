@@ -123,6 +123,7 @@ input::placeholder{color:#8a8486}
 .fine{font-size:13px;line-height:1.6;color:var(--mute);max-width:42ch}
 .msg{font-size:14px;min-height:20px;color:var(--mute)}
 .msg.ok{color:#fff}
+#ts{display:flex;justify-content:center;margin-top:10px}
 .hint{font-size:14px;color:var(--hot);cursor:pointer;text-decoration:underline;background:none;border:0;font-family:inherit;padding:4px 0}
 .proof{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#cfc9c5}
 
@@ -410,13 +411,15 @@ window.Stack = (function () {
   }
   // Bot check. Starts as soon as the page loads so the pass is usually ready
   // before they finish typing; submit waits for the pass itself, not just the script.
-  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [];
+  // No size is forced: an Invisible widget shows nothing, and a Managed one shows a
+  // checkbox only if Cloudflare actually needs a tap (interaction-only).
+  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [], tsErr = null;
   function tsGot(tok) { tsToken = tok; var w = tsWaiters; tsWaiters = []; w.forEach(function (f) { f(); }); }
   function loadTurnstile() {
     if (tsLoaded || !C.turnstileSiteKey) return; tsLoaded = true;
     window.__tsOnload = function () {
-      tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, size: "invisible", action: "signup", "refresh-expired": "auto",
-        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function () { tsToken = null; return true; } });
+      tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, action: "signup", appearance: "interaction-only", "refresh-expired": "auto",
+        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function (code) { tsToken = null; tsErr = String(code || "error").slice(0, 20); } });
     };
     var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
   }
@@ -449,7 +452,7 @@ window.Stack = (function () {
     $("btn").disabled = true; say("One sec...");
     var body = { email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
       utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null };
-    tsPass(12000).then(function () { body.turnstile = tsToken; return S.api("subscribe", body); })
+    tsPass(12000).then(function () { body.turnstile = tsToken; body.ts_err = tsToken ? null : (tsErr || (tsLoaded ? "no-pass" : "not-loaded")); return S.api("subscribe", body); })
       // A pass works once: clear it and fetch a fresh one for any retry.
       .then(function (r) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); return r; }, function (e) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); throw e; })
       .then(go)

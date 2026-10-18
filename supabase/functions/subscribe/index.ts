@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const ip = await ipHash(req, await setting("ip_salt", "unset"));
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 10) return err("Too many signups from this connection. Try again in a minute.", 429);
-  if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req)))) return err("Bot check failed. Refresh and try again.", 403);
+  if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req), clean(b.ts_err, 20)))) return err("Bot check failed. Refresh and try again.", 403);
 
   // Attribution
   let source = clean(b.src, 20)?.toLowerCase() || null;

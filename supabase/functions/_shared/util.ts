@@ -39,10 +39,11 @@ export function e164(raw: string | null) {
   if (d.length === 11 && d.startsWith("1")) return "+" + d;
   return d.length >= 8 && d.length <= 15 ? "+" + d : null;
 }
-export async function verifyTurnstile(token: string | null, ip: string) {
+export async function verifyTurnstile(token: string | null, ip: string, clientErr?: string | null) {
   const secret = Deno.env.get("TURNSTILE_SECRET");
   if (!secret) return true; // not configured yet: allow, the honeypot + rate limit still apply
-  if (!token) { console.warn("turnstile: no token sent"); return false; }
+  // clientErr is the widget's own error code from the page (e.g. 110200 = domain not allowed).
+  if (!token) { console.warn("turnstile: no token sent", clientErr || ""); return false; }
   const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ secret, response: token, remoteip: ip }),
