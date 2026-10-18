@@ -19,11 +19,12 @@ jobs:
       - run: npm run build
         env:
           SUPABASE_URL: https://hxfuelulxsituzcgsvhg.supabase.co
-          SITE_URL: https://dylansebastiani.github.io/bassmusic
+          SITE_URL: https://subduction.art
           TURNSTILE_SITE_KEY: 0x4AAAAAAFZadT27taMa0fvL
       - run: touch dist/.nojekyll
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          cname: subduction.art
           force_orphan: true

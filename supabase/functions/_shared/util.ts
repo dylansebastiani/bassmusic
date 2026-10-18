@@ -50,7 +50,8 @@ export async function verifyTurnstile(token: string | null, ip: string, clientEr
     signal: AbortSignal.timeout(10_000),
   }).then((x) => x.json()).catch(() => ({ success: false, "error-codes": ["fetch-failed"] }));
   // Token must come from our signup widget on our own site (not a token minted elsewhere).
-  const hosts = (Deno.env.get("TURNSTILE_HOSTNAMES") || new URL(CONFIG.siteUrl).hostname).split(",").map((h) => h.trim()).filter(Boolean);
+  const site = new URL(CONFIG.siteUrl).hostname;
+  const hosts = (Deno.env.get("TURNSTILE_HOSTNAMES") || `${site},www.${site}`).split(",").map((h) => h.trim()).filter(Boolean);
   const ok = !!r.success && r.action === "signup" && hosts.includes(r.hostname);
   // The reason only (never the token or secret), so a failing bot check can be diagnosed from the logs.
   if (!ok) console.warn("turnstile: rejected", JSON.stringify({ success: r.success, codes: r["error-codes"], hostname: r.hostname, action: r.action }));
