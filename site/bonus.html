@@ -62,7 +62,7 @@ footer a:hover{color:#fff}
 .card{width:100%;max-width:420px;border:1px solid var(--line);padding:22px 18px;margin-top:22px;text-align:left}
 .card h2{font-family:var(--display);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
 .art{width:100%;max-width:320px;aspect-ratio:1;background:#111;border:1px solid #222;object-fit:cover;margin:10px auto 18px;display:block}
-.art[hidden],.btn[hidden],audio[hidden]{display:none}
+.art[hidden],.btn[hidden],.play[hidden],audio[hidden]{display:none}
 .play{width:92px;height:92px;border-radius:50%;border:2px solid #fff;background:#000;color:#fff;font-size:34px;line-height:1;cursor:pointer;display:grid;place-items:center;margin:0 auto 14px}
 .play:hover{background:#fff;color:#000}
 .title{font-family:var(--display);font-weight:900;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
@@ -169,7 +169,7 @@ window.Stack = (function () {
 <script>
 (function () {
   var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); }, t = S.q.get("t");
-  $("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "Members");
+  $("brand").textContent = C.labelName && C.labelName !== C.membershipName ? C.labelName + " · " + (C.membershipName || "Members") : (C.membershipName || C.labelName || "Members");
   if (t) { try { localStorage.setItem("stack_member", t); } catch (e) {} }
   else { try { t = localStorage.getItem("stack_member"); } catch (e) {} }
   if (!t) { window.__go("./"); return; }

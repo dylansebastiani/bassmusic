@@ -62,7 +62,7 @@ footer a:hover{color:#fff}
 .card{width:100%;max-width:420px;border:1px solid var(--line);padding:22px 18px;margin-top:22px;text-align:left}
 .card h2{font-family:var(--display);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
 .art{width:100%;max-width:320px;aspect-ratio:1;background:#111;border:1px solid #222;object-fit:cover;margin:10px auto 18px;display:block}
-.art[hidden],.btn[hidden],audio[hidden]{display:none}
+.art[hidden],.btn[hidden],.play[hidden],audio[hidden]{display:none}
 .play{width:92px;height:92px;border-radius:50%;border:2px solid #fff;background:#000;color:#fff;font-size:34px;line-height:1;cursor:pointer;display:grid;place-items:center;margin:0 auto 14px}
 .play:hover{background:#fff;color:#000}
 .title{font-family:var(--display);font-weight:900;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
@@ -231,7 +231,7 @@ window.Stack = (function () {
   } else { t = null; try { t = localStorage.getItem(MKEY); } catch (e) {} }
   function forget() { try { localStorage.removeItem(MKEY); } catch (e) {} window.__go("./"); }
   $("signout").addEventListener("click", forget);
-  $("brand").textContent = (C.labelName ? C.labelName + " · " : "") + (C.membershipName || "Members");
+  $("brand").textContent = C.labelName && C.labelName !== C.membershipName ? C.labelName + " · " + (C.membershipName || "Members") : (C.membershipName || C.labelName || "Members");
   $("smsText").textContent = S.fill(C.smsConsentText, { LABEL_NAME: C.labelName });
   $("ageText").textContent = C.ageText || "I'm 13 or older.";
   if (C.social && C.social.instagram) { $("ig").href = "https://instagram.com/" + C.social.instagram.replace(/^@/, ""); $("ig").hidden = false; }
