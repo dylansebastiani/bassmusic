@@ -63,6 +63,7 @@ footer a:hover{color:#fff}
 .card h2{font-family:var(--display);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
 .lead[hidden]{display:none}
 .art{width:100%;max-width:384px;aspect-ratio:1;background:#111;border:1px solid #222;object-fit:cover;margin:10px auto 18px;display:block}
+.vis{width:100%;max-width:240px;height:auto;aspect-ratio:1;object-fit:cover;background:#000;margin:4px auto 6px;display:block}
 .art[hidden],.btn[hidden],.play[hidden],audio[hidden]{display:none}
 .play{width:92px;height:92px;border-radius:50%;border:2px solid #fff;background:#000;color:#fff;font-size:34px;line-height:1;cursor:pointer;display:grid;place-items:center;margin:0 auto 14px}
 .play:hover{background:#fff;color:#000}
@@ -98,6 +99,7 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
 
   <section class="card" id="player" aria-label="Unreleased track">
     <h2>Unreleased</h2>
+    <img class="vis" id="vis" src="assets/hero/member-locked.webp" width="720" height="720" alt="">
     <img class="art" id="art" alt="" hidden>
     <div class="title" id="title">Loading...</div>
     <div class="artist" id="artist"></div>
@@ -276,6 +278,7 @@ window.Stack = (function () {
         $("title").textContent = m.drop.title; $("artist").textContent = m.drop.artist || "";
         if (m.drop.artwork_url) { $("art").src = m.drop.artwork_url; $("art").hidden = false; }
         // Locked until name, phone and ZIP are on file; the server only sends links after that.
+        $("vis").src = m.drop.locked ? "assets/hero/member-locked.webp" : "assets/hero/member-unlocked.webp";
         $("step2").hidden = !m.drop.locked; $("open").hidden = !!m.drop.locked;
         audioUrl = m.drop.audio_url;
         if (m.drop.download_url) { $("dl").href = m.drop.download_url; $("dl").hidden = false; }
