@@ -2,6 +2,7 @@ import { db, setting } from "../_shared/db.ts";
 import { json, err, preflight, EMAIL_RE, clean, ipHash, clientIp, referralCode, verifyTurnstile } from "../_shared/util.ts";
 import { enterEvent } from "../_shared/events.ts";
 import { sendSignin, MEMBER_COLS, type SigninMember } from "../_shared/signin.ts";
+import { sendNow, welcomeExtra } from "../_shared/sendnow.ts";
 
 const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct"]);
 
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
   }
 
   const { data: existing } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
-  let sub: { id: string; access_token: string } | null = null;
+  let sub: SigninMember | null = null;
 
   if (existing) {
     if (existing.status === "deleted") return err("Couldn't sign you up.", 400);
@@ -59,15 +60,23 @@ Deno.serve(async (req) => {
       email, source, event_id: event?.id ?? null, referred_by: referredBy, referral_code: code,
       utm_source: clean(b.utm_source, 80), utm_medium: clean(b.utm_medium, 80), utm_campaign: clean(b.utm_campaign, 80),
       variant: clean(b.variant, 1), ip_hash: ip, user_agent: (req.headers.get("user-agent") || "").slice(0, 300),
-    }).select("id,access_token,status").single();
+    }).select(MEMBER_COLS).single();
     if (ins.error) {
       // Lost a race with a duplicate submit of the same email: treat as existing.
       const { data: again } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
       if (!again) return err("Couldn't save that. Try again.", 500);
       return knownMember(again as SigninMember, event);
     } else {
-      sub = ins.data;
-      await db.from("email_queue").insert({ subscriber_id: sub.id, template_key: "welcome", priority: 1 });
+      sub = ins.data as SigninMember;
+      // Welcome goes out now, in the background so signup stays fast. The row waits
+      // 15 minutes before the runner would touch it, so it can never send twice.
+      const { data: row } = await db.from("email_queue")
+        .insert({ subscriber_id: sub.id, template_key: "welcome", priority: 1, send_after: new Date(Date.now() + 15 * 60000).toISOString() })
+        .select("id").single();
+      if (row) {
+        const m = sub, job = welcomeExtra().then((extra) => sendNow(m, row.id, "welcome", extra)).catch(() => {});
+        (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime?.waitUntil(job);
+      }
     }
   }
 

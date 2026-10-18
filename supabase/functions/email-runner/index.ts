@@ -3,6 +3,7 @@ import { json, err } from "../_shared/util.ts";
 import { render, unsubUrl, type Member } from "../_shared/templates.ts";
 import { brevo as provider } from "../_shared/email/brevo.ts";   // <- swap provider here
 import { SITE_URL } from "../_shared/config.ts";
+import { welcomeExtra } from "../_shared/sendnow.ts";
 
 // Runs every 10 minutes from pg_cron. Sends what's due, newest priority first,
 // and stops at the daily budget so the free tier never bounces a send.
@@ -23,7 +24,7 @@ Deno.serve(async (req) => {
     .order("priority").order("send_after").limit(Math.min(room, 50));
 
   let sent = 0, failed = 0, skipped = 0, stopped = false;
-  let currentDrop: { slug: string; title: string; artist: string | null } | null | undefined;
+  let currentDrop: Record<string, unknown> | null | undefined;
   for (const row of due ?? []) {
     const s = row.subscriber as unknown as (Member & { status: string; email_pref: string }) | null;
     if (!s || s.status !== "active") { await db.from("email_queue").update({ status: "cancelled", last_error: "subscriber not active" }).eq("id", row.id); skipped++; continue; }
@@ -31,11 +32,8 @@ Deno.serve(async (req) => {
     const [key, arg] = row.template_key.split(":");
     let extra: Record<string, unknown> | undefined;
     if (key === "welcome") {
-      if (currentDrop === undefined) {
-        const { data } = await db.from("drops").select("slug,title,artist").eq("is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
-        currentDrop = data ?? null;
-      }
-      extra = currentDrop ? { drop: currentDrop } : undefined;
+      if (currentDrop === undefined) currentDrop = (await welcomeExtra()) ?? null;
+      extra = currentDrop ?? undefined;
     }
     if (key === "reward") {
       const tiers = await setting<Array<{ tier: string; label: string }>>("referral_tiers", []);

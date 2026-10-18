@@ -1,7 +1,6 @@
 import { db } from "./db.ts";
-import { render, unsubUrl, type Member } from "./templates.ts";
-import { brevo as provider } from "./email/brevo.ts";   // <- swap provider here
-import { SITE_URL } from "./config.ts";
+import type { Member } from "./templates.ts";
+import { sendNow } from "./sendnow.ts";
 
 export type SigninMember = Member & { status: string };
 export const MEMBER_COLS = "id,email,first_name,access_token,unsubscribe_token,referral_code,confirmed_referrals,status";
@@ -17,18 +16,9 @@ export async function sendSignin(m: SigninMember): Promise<"sent" | "recent" | "
   if (recent?.length) return "recent";
 
   const { data: row } = await db.from("email_queue")
-    .insert({ subscriber_id: m.id, template_key: "signin:" + Date.now(), priority: 0 }).select("id").single();
+    .insert({ subscriber_id: m.id, template_key: "signin:" + Date.now(), priority: 0, send_after: new Date(Date.now() + 15 * 60000).toISOString() })
+    .select("id").single();
+  if (!row) return "queued";
   // Someone who unsubscribed gets back in only by clicking this link (rejoin=1), never by typing the address.
-  const r = render("signin", m, { rejoin: m.status === "unsubscribed" || m.status === "sunset" })!;
-  const res = await provider.send({
-    to: { email: m.email, name: m.first_name }, subject: r.subject, html: r.html, text: r.text, tags: ["signin"],
-    headers: {
-      "List-Unsubscribe": `<${unsubUrl(m)}>, <mailto:${Deno.env.get("FROM_EMAIL") || "unsubscribe@" + new URL(SITE_URL).hostname}?subject=unsubscribe>`,
-      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-    },
-  });
-  if (!row) return res.ok ? "sent" : "queued";
-  if (res.ok) { await db.from("email_queue").update({ status: "sent", sent_at: new Date().toISOString(), attempts: 1 }).eq("id", row.id); return "sent"; }
-  await db.from("email_queue").update({ attempts: 1, last_error: res.error.slice(0, 300) }).eq("id", row.id);
-  return "queued";
+  return (await sendNow(m, row.id, "signin", { rejoin: m.status === "unsubscribed" || m.status === "sunset" })) ? "sent" : "queued";
 }
