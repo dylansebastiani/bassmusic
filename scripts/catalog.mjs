@@ -89,7 +89,7 @@ const rows = [];
 for (const t of tracks) {
   const dir = t.artistSlug || slugify(t.artist) || "tracks";
   mkdirSync(join(root, "qr", dir), { recursive: true });
-  const variants = [{ file: `${t.slug}.svg`, url: `${site}/t?c=${t.qr}`, where: "anywhere" }, ...(t.placements ?? []).map((p) => ({ file: `${t.slug}--${p}.svg`, url: `${site}/t?c=${t.qr}&e=${p}`, where: p }))];
+  const variants = [{ file: `${t.slug}.svg`, url: `${site}/t/${t.qr}`, where: "anywhere" }, ...(t.placements ?? []).map((p) => ({ file: `${t.slug}--${p}.svg`, url: `${site}/t/${t.qr}?e=${p}`, where: p }))];
   for (const v of variants) {
     writeFileSync(join(root, "qr", dir, v.file), await QRCode.toString(v.url, { type: "svg", margin: 2, errorCorrectionLevel: "M" }));
     rows.push(`| ${t.artist || ""} | ${t.title} | ${v.where} | \`${v.url}\` | \`qr/${dir}/${v.file}\` |`);

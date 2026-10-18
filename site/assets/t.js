@@ -1,17 +1,17 @@
 /* QR landing: /t?c=CODE[&e=show]. A remembered phone unlocks with no typing; anyone else gives an email and is in. */
 (function () {
   var S = window.Stack, $ = function (id) { return document.getElementById(id); };
-  var c = (S.q.get("c") || "").trim();
-  if (!c) { location.replace("./"); return; }
+  var c = (S.q.get("c") || window.__QR || "").trim();
+  if (!c) { location.replace("/"); return; }
   S.pageview("/t");
-  function toCollection(slug) { location.replace("collection.html" + (slug ? "?new=" + encodeURIComponent(slug) : "")); }
+  function toCollection(slug) { location.replace("/collection.html" + (slug ? "?new=" + encodeURIComponent(slug) : "")); }
   function showForm(meta) {
     $("status").textContent = "";
     $("join").hidden = false;
     window.Join.mount($("join"), { track: c, cta: "Unlock this track", hint: "Free. Already in? Same email, no code needed: it goes straight into your collection.", onDone: function (r) { toCollection(r.track && r.track.slug || meta && meta.slug); } });
   }
   function dead() {
-    $("title").textContent = "This code isn't active"; $("sub").innerHTML = 'Check the QR code, or <a href="./" style="color:var(--hot)">start from the homepage</a>.';
+    $("title").textContent = "This code isn't active"; $("sub").innerHTML = 'Check the QR code, or <a href="/" style="color:var(--hot)">start from the homepage</a>.';
     $("eyebrow").hidden = true;
   }
   S.get("track", { c: c, e: S.attr.e || null }).then(function (meta) {
