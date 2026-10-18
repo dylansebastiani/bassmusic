@@ -28,31 +28,54 @@
   }
 
   // ---------- render ----------
+  function trackCard(k, big) {
+    return '<article class="card track' + (big ? " big new" : "") + '" data-slug="' + esc(k.slug) + '">' +
+      (k.artwork_url ? '<img class="cover" src="' + esc(k.artwork_url) + '" alt="" loading="lazy">' : '<div class="cover blank"></div>') +
+      "<div>" + (big ? '<span class="chip">Unlocked</span> ' : "") + "<h3>" + esc(k.title) + "</h3>" +
+      (k.artist ? '<div class="by">' + esc(k.artist) + "</div>" : "") + "</div>" +
+      (k.audio_url ? '<audio controls controlsList="nodownload noplaybackrate" preload="none" src="' + esc(k.audio_url) + '"></audio>' : "") +
+      (k.download_url ? '<a class="btn ghost dl" href="' + esc(k.download_url) + '" rel="noopener">Download WAV</a>' : "") +
+      "</article>";
+  }
+  // The wall, same as the welcome track: first name, phone and ZIP open play and download for every track.
+  function wallForm() {
+    return '<form id="wall" class="wall" novalidate>' +
+      '<p class="gate">Drop your name, number and ZIP to unlock it. Play it here or download the WAV. One time, then every track opens.</p>' +
+      '<label for="first_name">First name</label><input type="text" id="first_name" autocomplete="given-name" placeholder="first name" required>' +
+      '<div class="row2"><div><label for="phone">Phone</label><input type="tel" id="phone" autocomplete="tel" placeholder="phone" required></div>' +
+      '<div><label for="zip">ZIP</label><input type="text" id="zip" inputmode="numeric" autocomplete="postal-code" placeholder="zip" required></div></div>' +
+      '<label class="check"><input type="checkbox" id="sms"><span>' + esc(S.fill ? S.fill(C.smsConsentText, { LABEL_NAME: C.labelName }) : String(C.smsConsentText || "").replace("{{LABEL_NAME}}", C.labelName || "")) + "</span></label>" +
+      '<label class="check"><input type="checkbox" id="age"><span>' + esc(C.ageText || "I'm 13 or older.") + "</span></label>" +
+      '<button type="submit" class="btn" id="wallBtn">Unlock the track</button>' +
+      '<div class="msg" id="wallMsg" role="status"></div></form>';
+  }
   function paintTracks(d) {
     var el = $("p-collection"), fresh = S.q.get("new");
-    var html = '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
-    if (!d.tracks.length) {
-      html += '<div class="empty">Nothing here yet. Every track has its own QR code. Scan one at a show or pop-up and it lands here.</div>';
-    } else {
-      html += '<div class="list">' + d.tracks.map(function (k) {
-        var isNew = fresh && k.slug === fresh;
-        return '<article class="card track' + (isNew ? " new" : "") + '" data-slug="' + esc(k.slug) + '">' +
-          (k.artwork_url ? '<img class="cover" src="' + esc(k.artwork_url) + '" alt="" loading="lazy">' : '<div class="cover blank"></div>') +
-          "<div>" + (isNew ? '<span class="chip">Just unlocked</span> ' : "") + "<h3>" + esc(k.title) + "</h3>" +
-          (k.artist ? '<div class="by">' + esc(k.artist) + "</div>" : "") + "</div>" +
-          (k.audio_url ? '<audio controls controlsList="nodownload noplaybackrate" preload="none" src="' + esc(k.audio_url) + '"></audio>' : "") +
-          (k.download_url ? '<div class="dl"><a href="' + esc(k.download_url) + '" rel="noopener">Download WAV</a></div>'
-            : k.download_locked ? '<div class="dl">WAV download: <a href="in.html">add your name, phone and ZIP</a> to unlock it.</div>' : "") +
-          "</article>";
-      }).join("") + "</div>";
-    }
+    var focus = fresh ? d.tracks.filter(function (k) { return k.slug === fresh; })[0] : null;
+    var rest = d.tracks.filter(function (k) { return k !== focus; });
+    var html = "";
+    if (focus) html += trackCard(focus, true) + (d.profile_done ? "" : wallForm());
+    else if (!d.profile_done && d.tracks.length) html += wallForm();
+    html += '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
+    if (!d.tracks.length) html += '<div class="empty">Nothing here yet. Every track has its own QR code. Scan one at a show or pop-up and it lands here.</div>';
+    else if (rest.length) html += '<div class="list">' + rest.map(function (k) { return trackCard(k, false); }).join("") + "</div>";
     if (d.has_welcome) html += '<p class="fine" style="margin-top:18px"><a class="hint" href="in.html">Your welcome file</a></p>';
     el.innerHTML = html;
     $("n-collection").textContent = d.tracks.length ? "(" + d.tracks.length + ")" : "";
-    // One track plays at a time.
-    el.addEventListener("play", function (e) { Array.prototype.forEach.call(el.querySelectorAll("audio"), function (a) { if (a !== e.target) a.pause(); }); }, true);
-    if (fresh) { $("banner").textContent = "Unlocked. It's in your collection."; $("banner").hidden = false; }
+    var w = $("wall");
+    if (w) w.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = $("first_name").value.trim(), phone = $("phone").value.trim(), zip = $("zip").value.trim(), m = $("wallMsg");
+      if (!name) return say(m, "Add your first name.", $("first_name"));
+      if (phone.replace(/\D/g, "").length < 10) return say(m, "Add your phone number.", $("phone"));
+      if (!/^\d{5}(-?\d{4})?$/.test(zip)) return say(m, "Add your ZIP.", $("zip"));
+      $("wallBtn").disabled = true; m.textContent = "Unlocking...";
+      S.api("profile", { t: t, unlock: true, first_name: name, zip: zip, phone: phone, sms_consent: $("sms").checked, age_confirmed: $("age").checked })
+        .then(function () { return load(true); })
+        .catch(function (err) { $("wallBtn").disabled = false; m.textContent = err.message || "Couldn't save. Try again."; });
+    });
   }
+  function say(m, text, field) { m.textContent = text; if (field) field.focus(); }
   function paintCoupons(d) {
     var html = '<h2 class="disp">Coupons</h2>';
     if (!d.coupons.length) html += '<div class="empty">No codes right now. Check back after the next show.</div>';
@@ -88,6 +111,8 @@
     else { var r = document.createRange(); r.selectNodeContents(b.previousElementSibling); getSelection().removeAllRanges(); getSelection().addRange(r); done(); }
   });
 
+  $("p-collection").addEventListener("play", function (e) { Array.prototype.forEach.call(document.querySelectorAll("#p-collection audio"), function (a) { if (a !== e.target) a.pause(); }); }, true);
+
   // ---------- load, and keep the 10-minute links fresh ----------
   function load(first) {
     return S.get("collection", { t: t }).then(function (d) {
@@ -96,13 +121,13 @@
         paintTracks(d); paintCoupons(d); paintEvents(d);
         $("app").hidden = false; $("tabs").hidden = false; $("signout").hidden = false;
         show((location.hash || "").slice(1) || "collection");
-        refresher = setInterval(function () { load(false).catch(function () {}); }, 8 * 60000);
+        if (!refresher) refresher = setInterval(function () { load(false).catch(function () {}); }, 8 * 60000);
       } else {
         // Swap the links in place so a playing track never restarts.
         d.tracks.forEach(function (k) {
           var card = document.querySelector('.track[data-slug="' + k.slug.replace(/"/g, "") + '"]'); if (!card) return;
           var a = card.querySelector("audio"); if (a && k.audio_url && a.paused && !a.currentTime) a.src = k.audio_url;
-          var dl = card.querySelector(".dl a[download], .dl a[rel]"); if (dl && k.download_url) dl.href = k.download_url;
+          var dl = card.querySelector("a.dl"); if (dl && k.download_url) dl.href = k.download_url;
         });
       }
     });

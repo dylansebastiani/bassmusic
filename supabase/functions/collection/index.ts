@@ -3,8 +3,8 @@ import { json, err, preflight, UUID_RE } from "../_shared/util.ts";
 
 // Everything the member app needs in one call: their tracks (10-minute signed links),
 // coupons, and upcoming events. Never returns email or phone.
-// Play works the moment a track is unlocked. The lossless download also needs first
-// name, phone and ZIP on file (the same wall as the welcome track), so it stays skippable.
+// A track in the collection plays and downloads once first name, phone and ZIP are on
+// file: the same wall as the welcome track. Before that the page gets cover and title only.
 Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
   const t = new URL(req.url).searchParams.get("t") || "";
@@ -39,17 +39,18 @@ Deno.serve(async (req) => {
     (data ?? []).forEach((x) => { if (x.path && x.signedUrl) out.set(x.path, x.signedUrl); });
     return out;
   };
+  const none = Promise.resolve(new Map<string, string>());
   const [audio, art, dl] = await Promise.all([
-    sign(rows.map((r) => r.d.audio_path)),
+    profileDone ? sign(rows.map((r) => r.d.audio_path)) : none,
     sign(rows.map((r) => r.d.artwork_path)),
-    profileDone ? sign(rows.map((r) => r.d.download_path), { download: true }) : Promise.resolve(new Map<string, string>()),
+    profileDone ? sign(rows.map((r) => r.d.download_path), { download: true }) : none,
   ]);
   const tracks = rows.map(({ at, d }) => ({
     slug: d.slug, title: d.title, artist: d.artist, artist_slug: d.artist_slug, description: d.description, unlocked_at: at,
     audio_url: d.audio_path ? audio.get(d.audio_path) ?? null : null,
     artwork_url: d.artwork_path ? art.get(d.artwork_path) ?? null : null,
     download_url: d.download_path ? dl.get(d.download_path) ?? null : null,
-    download_locked: !!d.download_path && !profileDone,
+    locked: !profileDone,
   }));
 
   const have = tracks.length;

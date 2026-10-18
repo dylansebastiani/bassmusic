@@ -55,11 +55,12 @@ window.Stack = (function () {
   function remember(t) { try { localStorage.setItem(MKEY, t); } catch (e) {} }
   function forget() { try { localStorage.removeItem(MKEY); } catch (e) {} }
 
+  function fill(s, map) { return String(s || "").replace(/\{\{(\w+)\}\}/g, function (_, k) { return map[k] != null ? map[k] : ""; }); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   // Only ever link out to web addresses.
   function safeUrl(u) { return /^https?:\/\//i.test(u || "") ? u : null; }
   function fmtDate(s, withTime) {
     try { return new Date(s).toLocaleString(undefined, withTime ? { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } : { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; }
   }
-  return { C: C, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, token: token, remember: remember, forget: forget, esc: esc, safeUrl: safeUrl, fmtDate: fmtDate };
+  return { C: C, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, token: token, remember: remember, forget: forget, fill: fill, esc: esc, safeUrl: safeUrl, fmtDate: fmtDate };
 })();
