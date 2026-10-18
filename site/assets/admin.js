@@ -43,7 +43,7 @@
   function qrBlock(t, events) {
     if (!t.qr_code) return "";
     var svg = FN + "?a=qr.svg&c=" + encodeURIComponent(t.qr_code);
-    var opts = (events || []).map(function (e) { return '<option value="' + esc(e.slug) + '">' + esc(e.name) + "</option>"; }).join("");
+    var opts = (events || []).filter(function (e) { return e.is_active; }).map(function (e) { return '<option value="' + esc(e.slug) + '">' + esc(e.name) + "</option>"; }).join("");
     return '<div class="qr"><img alt="QR code" data-svg="' + esc(svg) + '"><div><div class="mono">' + esc(t.qr_url) + '</div>' +
       '<div class="when">' + num(t.scans.view) + " views · " + num(t.scans.unlocked) + " unlocks</div>" +
       '<a class="btn ghost" href="' + esc(svg) + '" download="' + esc(t.slug) + '-qr.svg" data-dl>Download QR (SVG)</a></div></div>' +
@@ -78,7 +78,7 @@
     $("etable").querySelector("tbody").innerHTML = d.events.length ? d.events.map(function (e) { return "<tr><td>" + esc(e.name) + '</td><td class="num">' + num(e.scans.view) + '</td><td class="num">' + num(e.scans.unlocked) + '</td><td class="num">' + num(e.scans.joined) + "</td></tr>"; }).join("") : '<tr><td colspan="4">No shows yet.</td></tr>';
     $("ttable").querySelector("tbody").innerHTML = d.tracks.map(function (t) { return "<tr><td>" + esc(t.title) + (t.artist ? " · " + esc(t.artist) : "") + '</td><td class="num">' + num(t.scans.view) + '</td><td class="num">' + num(t.scans.unlocked) + '</td><td class="num">' + num(t.scans.already) + "</td></tr>"; }).join("");
     $("events").innerHTML = d.events.length ? d.events.map(function (e) {
-      return '<article class="card"><span class="chip">' + esc(e.kind) + "</span><h3>" + esc(e.name) + "</h3>" + (e.starts_at ? '<div class="when">' + esc(fmt(e.starts_at)) + "</div>" : "") + (e.city ? '<div class="where">' + esc(e.city) + "</div>" : "") +
+      return '<article class="card"><span class="chip' + (e.is_active ? '' : ' alt') + '">' + esc(e.kind) + (e.is_active ? '' : ' · off') + "</span><h3>" + esc(e.name) + "</h3>" + (e.starts_at ? '<div class="when">' + esc(fmt(e.starts_at)) + "</div>" : "") + (e.city ? '<div class="where">' + esc(e.city) + "</div>" : "") +
         '<div class="mono" style="text-transform:none;letter-spacing:0;word-break:break-all">' + esc((C.siteUrl || "") + "/?e=" + e.slug) + "</div></article>";
     }).join("") : '<div class="empty">No events yet.</div>';
   }

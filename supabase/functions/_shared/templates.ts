@@ -43,7 +43,8 @@ const eyebrow = (t: string) => `<div style="font-size:11px;letter-spacing:.32em;
 
 // The current free track, for the welcome email. Cover art is public (site/assets/drops/<slug>.jpg);
 // the audio itself stays private behind the member page.
-export interface DropInfo { slug: string; title: string; artist: string | null; }
+export interface DropInfo { slug: string; title: string; artist: string | null; artwork_url?: string | null; }
+const coverUrl = (d: DropInfo) => d.artwork_url || `${SITE_URL}/assets/drops/${d.slug}.jpg`;
 
 type Tpl = (m: Member, extra?: Record<string, unknown>) => Rendered;
 
@@ -54,7 +55,7 @@ export const TEMPLATES: Record<string, Tpl> = {
     const d = extra?.drop as DropInfo | undefined;
     const play = confirmUrl(m);
     const track = d ? `${d.title}${d.artist ? " by " + d.artist : ""}` : "";
-    const cover = d ? `<a href="${play}" style="display:block;text-decoration:none"><img src="${SITE_URL}/assets/drops/${d.slug}.jpg" width="480" alt="${track}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222"></a>
+    const cover = d ? `<a href="${play}" style="display:block;text-decoration:none"><img src="${coverUrl(d)}" width="480" alt="${track}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222"></a>
 <div style="margin-top:16px;font:900 20px/1.2 ${FONT};letter-spacing:.04em;text-transform:uppercase;color:#fff">${d.title}</div>
 <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#888;margin-top:4px">${d.artist || ""}</div>` : "";
     const html = `${eyebrow(M)}${big("You're in.")}
@@ -72,7 +73,7 @@ ${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #3
   nudge: (m, extra) => {
     const d = extra?.drop as DropInfo | undefined;
     const u = meUrl(m);
-    const art = d ? `<a href="${u}" style="display:block;text-decoration:none"><img src="${SITE_URL}/assets/drops/${d.slug}.jpg" width="480" alt="${d.title}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222;opacity:.55"></a>` : "";
+    const art = d ? `<a href="${u}" style="display:block;text-decoration:none"><img src="${coverUrl(d)}" width="480" alt="${d.title}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222;opacity:.55"></a>` : "";
     const name = d ? d.title : "your track";
     const html = `${eyebrow(M)}${big("Still locked.")}
 <p style="margin:0 0 26px;color:#bdbdbd">${d ? `${d.title}${d.artist ? " by " + d.artist : ""}` : "Your unreleased track"} is sitting on your page, waiting. Add your name, number and ZIP and it's yours: play it or grab the WAV.</p>

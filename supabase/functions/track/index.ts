@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
   const { data: m } = await db.from("subscribers").select("id,status").eq("access_token", t).maybeSingle();
   if (!m || m.status === "deleted") return err("Member not found", 404);
   // A scan at a show (?e=slug) also counts as being there: same as typing your email at the door.
+  // A sticker outlives the show, so the show is matched whether or not it is still switched on.
   const slug = clean(b.e, 80);
   const { data: ev } = slug && /^[a-z0-9-]{1,80}$/i.test(slug)
-    ? await db.from("events").select("id").eq("slug", slug).eq("is_active", true).maybeSingle() : { data: null };
+    ? await db.from("events").select("id").eq("slug", slug).maybeSingle() : { data: null };
   if (ev) await enterEvent(m.id, ev.id);
   const fresh = await unlockTrack(m.id, drop.id, ev?.id ?? null);
   return json({ unlocked: true, new_unlock: fresh, slug: drop.slug, title: drop.title });
