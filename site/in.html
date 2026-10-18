@@ -61,7 +61,8 @@ footer a{color:#777;text-decoration:none}
 footer a:hover{color:#fff}
 .card{width:100%;max-width:420px;border:1px solid var(--line);padding:22px 18px;margin-top:22px;text-align:left}
 .card h2{font-family:var(--display);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
-.art{width:100%;max-width:320px;aspect-ratio:1;background:#111;border:1px solid #222;object-fit:cover;margin:10px auto 18px;display:block}
+.lead[hidden]{display:none}
+.art{width:100%;max-width:384px;aspect-ratio:1;background:#111;border:1px solid #222;object-fit:cover;margin:10px auto 18px;display:block}
 .art[hidden],.btn[hidden],.play[hidden],audio[hidden]{display:none}
 .play{width:92px;height:92px;border-radius:50%;border:2px solid #fff;background:#000;color:#fff;font-size:34px;line-height:1;cursor:pointer;display:grid;place-items:center;margin:0 auto 14px}
 .play:hover{background:#fff;color:#000}
@@ -87,9 +88,9 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
 <!--CONFIG-->
 </head><body>
 <main>
-  <img src="assets/logo.png" alt="" style="width:56px;height:auto;margin:0 auto 18px;display:block"><img src="assets/in.webp" alt="" style="width:min(70vw,320px);height:auto;margin:0 auto 22px;display:block"><div class="brand" id="brand"></div>
-  <h1 id="h1"><span class="g" data-text="Access granted.">Access granted.</span></h1>
-  <p class="lead" id="sub">File 001 is decrypted for you. Nobody outside has heard it.</p>
+  <img src="assets/logo.png" alt="" style="width:48px;height:auto;margin:0 auto 26px;display:block">
+  <h1 id="h1"><span class="g" data-text="You're in.">You're in.</span></h1>
+  <p class="lead" id="sub" hidden></p>
 
   <section class="card" id="player" aria-label="Unreleased track">
     <h2>Unreleased</h2>
@@ -143,8 +144,8 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
   </section>
 
   <section class="card" id="next">
-    <h2>Next</h2>
-    <p style="font-size:14px;line-height:1.8" id="nextBody">Check your inbox for a bonus track. Tap the link in that email to unlock it.</p>
+    <h2>Stay close</h2>
+    <p style="font-size:14px;line-height:1.8;margin-bottom:14px">New tracks and shows hit your inbox first. Instagram is where we post the rest.</p>
     <a class="btn ghost" id="ig" href="#" hidden target="_blank" rel="noopener">Follow on Instagram</a>
   </section>
 
@@ -231,11 +232,10 @@ window.Stack = (function () {
   } else { t = null; try { t = localStorage.getItem(MKEY); } catch (e) {} }
   function forget() { try { localStorage.removeItem(MKEY); } catch (e) {} window.__go("./"); }
   $("signout").addEventListener("click", forget);
-  $("brand").textContent = C.labelName && C.labelName !== C.membershipName ? C.labelName + " · " + (C.membershipName || "Members") : (C.membershipName || C.labelName || "Members");
   $("smsText").textContent = S.fill(C.smsConsentText, { LABEL_NAME: C.labelName });
   $("ageText").textContent = C.ageText || "I'm 13 or older.";
   if (C.social && C.social.instagram) { $("ig").href = "https://instagram.com/" + C.social.instagram.replace(/^@/, ""); $("ig").hidden = false; }
-  if (S.q.get("back")) { $("h1").innerHTML = '<span class="g" data-text="Already cleared.">Already cleared.</span>'; $("sub").textContent = "Clearance confirmed. Current status below."; }
+  if (S.q.get("back")) $("h1").innerHTML = '<span class="g" data-text="Welcome back.">Welcome back.</span>';
   S.pageview("/in");
 
   var audioUrl = null, started = false, refresher = null;
@@ -266,17 +266,16 @@ window.Stack = (function () {
         });
         if (navigator.share) { $("share").hidden = false; $("share").addEventListener("click", function () { navigator.share({ title: C.membershipName, text: "Unreleased bass, free. Go under:", url: link }).then(function () { S.api("engage", { t: tok, type: "share_click" }).catch(function () {}); }).catch(function () {}); }); }
       }
-      if (m.confirmed) $("nextBody").textContent = "Bonus file decrypted. The next transmission will follow.";
       if (m.drop) {
         $("title").textContent = m.drop.title; $("artist").textContent = m.drop.artist || "";
         if (m.drop.artwork_url) { $("art").src = m.drop.artwork_url; $("art").hidden = false; }
         audioUrl = m.drop.audio_url;
         // Signed links last 10 minutes; refresh quietly until they hit play.
         if (!refresher) refresher = setInterval(function () { if (started) return clearInterval(refresher); S.get("me", { t: tok }).then(function (n) { if (n.drop && !started) audioUrl = n.drop.audio_url; }).catch(function () {}); }, 8 * 60000);
-      } else { $("title").textContent = "First drop lands soon"; $("pmsg").textContent = "It will be transmitted the moment it is ready."; $("play").hidden = true; }
+      } else { $("title").textContent = "First track lands soon"; $("pmsg").textContent = "We'll email you the second it's up."; $("play").hidden = true; }
     }).catch(function (err) {
       if (err.status === 404) return forget();
-      $("title").textContent = "File failed to load"; $("pmsg").textContent = "Retry shortly.";
+      $("title").textContent = "Couldn't load the track"; $("pmsg").textContent = "Check your connection and refresh.";
     });
   }
 
@@ -290,7 +289,7 @@ window.Stack = (function () {
   });
   a.addEventListener("play", function () { log("track_start"); });
   a.addEventListener("timeupdate", function () { if (a.currentTime >= 30) log("track_30s"); if (a.duration && a.currentTime / a.duration >= 0.9) log("track_complete"); });
-  a.addEventListener("error", function () { if (started) { $("pmsg").textContent = "Session expired. Refresh to continue."; } });
+  a.addEventListener("error", function () { if (started) { $("pmsg").textContent = "Link timed out. Refresh the page to keep listening."; } });
 
   // Step 2: optional profile
   $("skip").addEventListener("click", function () { $("step2").hidden = true; });
@@ -299,17 +298,17 @@ window.Stack = (function () {
     var phone = $("phone").value.trim(), zip = $("zip").value.trim(), m = $("s2msg");
     if (phone && phone.replace(/\D/g, "").length < 10) { m.textContent = "That phone number doesn't look right."; return; }
     if (zip && !/^\d{5}(-?\d{4})?$/.test(zip)) { m.textContent = "That ZIP doesn't look right."; return; }
-    if (phone && !$("sms").checked) { m.textContent = "Enable texts or clear the phone field."; return; }
+    if (phone && !$("sms").checked) { m.textContent = "Tick the text box, or clear the phone number."; return; }
     $("save").disabled = true; m.textContent = "Saving...";
     S.api("profile", { t: t, first_name: $("first_name").value.trim(), zip: zip, phone: phone, sms_consent: $("sms").checked, age_confirmed: $("age").checked })
-      .then(function () { m.className = "msg ok"; m.textContent = "Logged. You will be notified when coordinates are near you."; setTimeout(function () { $("step2").hidden = true; }, 1200); })
-      .catch(function (err) { $("save").disabled = false; m.textContent = err.message || "Not saved. Retry."; });
+      .then(function () { m.className = "msg ok"; m.textContent = "Saved. We'll tell you when we're playing near you."; setTimeout(function () { $("step2").hidden = true; }, 1200); })
+      .catch(function (err) { $("save").disabled = false; m.textContent = err.message || "Didn't save. Try again."; });
   });
 
   if (t) load(t);
   else if (S.q.get("pending")) {
-    $("sub").textContent = "Request logged. The file decrypts the moment you are back online.";
-    $("title").textContent = "Awaiting signal."; $("play").hidden = true; $("step2").hidden = true;
+    $("sub").textContent = "Signal's weak. You're saved, and your track loads as soon as you're back online."; $("sub").hidden = false;
+    $("title").textContent = "Waiting for signal..."; $("play").hidden = true; $("step2").hidden = true;
     var tries = 0, iv = setInterval(function () {
       if (!navigator.onLine && tries++ < 200) return;
       S.flushPending().then(landed).catch(function () {});
@@ -317,7 +316,7 @@ window.Stack = (function () {
     function landed(res) {
       if (!res) return; clearInterval(iv);
       if (res.access_token) window.__go("in.html?t=" + encodeURIComponent(res.access_token));
-      else if (res.check_email) { $("sub").textContent = "You were already in. We emailed you a link to open your page."; $("title").textContent = "Check your inbox."; }
+      else if (res.check_email) { $("sub").textContent = "You were already in. We emailed you a link to open your page."; $("sub").hidden = false; $("title").textContent = "Check your inbox."; }
     }
     window.addEventListener("online", function () { S.flushPending().then(landed).catch(function () {}); });
   } else window.__go("./");

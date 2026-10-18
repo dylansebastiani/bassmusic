@@ -28,7 +28,7 @@ function wrap(m: Member, bodyHtml: string, bodyText: string, preheader = ""): Om
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background:#000"><tr><td align="center" style="padding:36px 16px 40px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;color:#e9e9e9;font:16px/1.6 ${FONT}">
 <tr><td align="center" style="padding-bottom:28px"><img src="${SITE_URL}/assets/mail-logo.png" width="40" height="40" alt="${L}" style="display:block;border:0"></td></tr>
-<tr><td>${bodyHtml}</td></tr>
+<tr><td style="padding-bottom:32px">${bodyHtml}</td></tr>
 <tr><td style="padding-top:36px;border-top:1px solid #222;font-size:12px;line-height:1.7;color:#777">You're getting this because you joined ${M}.<br>
 <a href="${unsubUrl(m)}" style="color:#999">Unsubscribe</a> · ${foot}</td></tr>
 </table></td></tr></table></body></html>`,
