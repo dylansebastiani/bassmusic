@@ -24,6 +24,8 @@ h1 em{font-style:normal;color:var(--hot)}
 .unit:focus-within{border-color:#fff}
 .unit input{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:17px 16px;outline:none}
 .unit input::placeholder{color:#8a8486}
+#jcode{font-family:var(--mono);font-size:24px;letter-spacing:.32em;text-align:center}
+#jcode::placeholder{font-family:var(--text);font-size:17px;letter-spacing:0}
 .btn{display:block;width:100%;background:var(--hot);color:#000;border:0;border-top:1px solid #6c6567;border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:14px 22px 12px;cursor:pointer;text-align:center;text-decoration:none}
 .btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
 .btn:disabled{opacity:.5;cursor:default}
