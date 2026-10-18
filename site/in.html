@@ -329,7 +329,7 @@ window.Stack = (function () {
     function landed(res) {
       if (!res) return; clearInterval(iv);
       if (res.access_token) window.__go("in.html?t=" + encodeURIComponent(res.access_token));
-      else if (res.check_email) { $("sub").textContent = "You were already in. We emailed you a link to open your page."; $("sub").hidden = false; $("title").textContent = "Check your inbox."; }
+      else if (res.check_email) { $("sub").textContent = "You were already in. Enter your email on the home page to get a sign-in code."; $("sub").hidden = false; $("title").textContent = "Check your inbox."; }
     }
     window.addEventListener("online", function () { S.flushPending().then(landed).catch(function () {}); });
   } else window.__go("./");

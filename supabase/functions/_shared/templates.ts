@@ -125,13 +125,17 @@ ${btn(a, "Option A")}${btn(b, "Option B")}<p>One tap counts your vote. Results g
     const text = `${hi(m)},\n\nwe repost members at shows and in drops. Add your Instagram handle here:\n${u}\n\n— Dylan`;
     return { subject: "want to get featured?", ...wrap(m, html, text) };
   },
-  // Sign-in link: someone typed this email on a phone we don't know yet.
+  // Sign-in: someone typed this email on a phone we don't know yet. The code goes in the
+  // subject too, so phones offer it above the keyboard. The link is the backup.
   signin: (m, extra) => {
+    const code = extra?.code ? String(extra.code) : "";
     const u = meUrl(m) + (extra?.rejoin ? "&rejoin=1" : "");
-    const html = `<p>${hi(m)},</p><p>tap below to open your ${M} page on this device. Your track, your shows and your unlocks are all there.</p>
-${btn(u, "Open my page")}<p style="color:#bbb">Didn't ask for this? Ignore it and nothing changes.</p><p>— Dylan</p>`;
-    const text = `${hi(m)},\n\nopen your ${M} page on this device:\n${u}\n\nDidn't ask for this? Ignore it and nothing changes.\n\n— Dylan`;
-    return { subject: `your ${M} sign-in link`, ...wrap(m, html, text) };
+    const big6 = code ? `<div style="margin:6px 0 22px;font:900 44px/1 ${FONT};letter-spacing:.32em;color:#fff">${code}</div>` : "";
+    const html = `${eyebrow(M)}${big(code ? "Your code" : "Sign in")}
+${big6}<p style="margin:0 0 6px;color:#bdbdbd">${code ? "Type it on the site to sign in. It works for 10 minutes." : "Tap below to open your page on this device."}</p>
+${btn(u, code ? "Or tap to sign in" : "Open my page")}<p style="margin:0;color:#888;font-size:14px">Didn't ask for this? Ignore it and nothing changes.</p>`;
+    const text = `${code ? `Your ${M} sign-in code: ${code}\n\nType it on the site. It works for 10 minutes.\n\nOr tap to sign in: ${u}` : `Open your ${M} page on this device:\n${u}`}\n\nDidn't ask for this? Ignore it and nothing changes.`;
+    return { subject: code ? `${code} is your ${M} code` : `your ${M} sign-in link`, ...wrap(m, html, text, code ? "Type it on the site to sign in." : "") };
   },
   // Referral rewards
   reward: (m, extra) => {

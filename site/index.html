@@ -244,6 +244,15 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div id="ts"></div>
     <p class="fine" id="fine"></p>
     </form>
+    <!-- Known email: the box swaps to a 6-digit code (sent to their inbox) instead of a second signup. -->
+    <form id="cf" novalidate hidden>
+      <label for="code" class="sr">6-digit code</label>
+      <div class="unit">
+        <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" spellcheck="false">
+        <button type="submit" class="btn" id="cbtn">Sign in</button>
+      </div>
+      <p class="fine"><button type="button" class="hint" id="resend">Send a new code</button> &middot; <button type="button" class="hint" id="other">Different email</button></p>
+    </form>
     <div id="msg" class="msg" role="status"></div>
     <div class="proof" id="proof" hidden></div>
   </div>
@@ -373,7 +382,7 @@ window.Stack = (function () {
   $("btn").textContent = C.cta || "REQUEST ACCESS";
   $("sub").textContent = C.subhead || "";
   $("again").textContent = C.cta || "REQUEST ACCESS";
-  $("fine").textContent = (C.microcopy || "") + " Already in? Same box, we'll email your link.";
+  $("fine").textContent = (C.microcopy || "") + " Already in? Same box, we'll email you a code.";
   all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
   $("plist").innerHTML = (C.perks || []).map(function (p, i) { return '<li class="rv"><i>' + String(i + 1).padStart(3, "0") + "</i><h3>" + esc(p.title) + "</h3><p>" + esc(p.body) + "</p></li>"; }).join("");
 
@@ -430,11 +439,7 @@ window.Stack = (function () {
   }
   if (document.readyState === "complete") loadTurnstile(); else addEventListener("load", loadTurnstile);
   function go(res) {
-    if (res.check_email) {
-      $("f").hidden = true;
-      say((res.event ? "You're entered for " + (res.event.prize || "the giveaway") + ". " : "") + "You're already in. We just emailed you a link to open your page on this phone.", true);
-      return;
-    }
+    if (res.check_email) return askCode(res);
     remember(res.access_token);
     window.__go("in.html?t=" + encodeURIComponent(res.access_token) + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""));
   }
@@ -442,6 +447,31 @@ window.Stack = (function () {
   function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
   $("hintBtn").addEventListener("click", function () { $("email").value = pendingSuggest; $("hint").hidden = true; pendingSuggest = null; });
   $("email").addEventListener("focus", loadTurnstile, { once: true });
+  // ---------- Known email: sign in with the 6-digit code we just emailed ----------
+  var lastBody = null, codeEvent = null;
+  function askCode(res) {
+    codeEvent = res.event;
+    $("f").hidden = true; $("cf").hidden = false; $("code").value = ""; $("cbtn").disabled = false;
+    say((res.event ? "You're entered for " + (res.event.prize || "the giveaway") + ". " : "") + "You're already in. We emailed a 6-digit code to " + lastBody.email + ".", true);
+    setTimeout(function () { $("code").focus(); }, 50);
+  }
+  $("code").addEventListener("input", function () {
+    var c = $("code").value.replace(/\D/g, "").slice(0, 6); $("code").value = c;
+    if (c.length === 6) $("cf").requestSubmit ? $("cf").requestSubmit() : $("cbtn").click();
+  });
+  $("cf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var c = $("code").value.replace(/\D/g, "");
+    if (c.length !== 6) { say("Enter the 6-digit code from your email."); return; }
+    $("cbtn").disabled = true; say("Checking...");
+    S.api("verify", { email: lastBody.email, code: c }).then(function (r) {
+      remember(r.access_token);
+      window.__go("in.html?back=1" + (codeEvent ? "&e=" + encodeURIComponent(codeEvent.slug) : ""));
+    }).catch(function (err) { $("cbtn").disabled = false; $("code").select(); say(err.message || "That didn't work. Try again."); });
+  });
+  $("resend").addEventListener("click", function () { if (lastBody) { say("Sending a new code..."); submit(lastBody, true); } });
+  $("other").addEventListener("click", function () { $("cf").hidden = true; $("f").hidden = false; $("btn").disabled = false; say(""); $("email").focus(); });
+
   $("f").addEventListener("submit", function (e) {
     e.preventDefault();
     var email = $("email").value.trim();
@@ -450,21 +480,25 @@ window.Stack = (function () {
     if (sug && pendingSuggest !== sug) { pendingSuggest = sug; $("hintBtn").textContent = "Did you mean " + sug + "?"; $("hint").hidden = false; say(""); return; }
     $("hint").hidden = true;
     $("btn").disabled = true; say("One sec...");
-    var body = { email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
-      utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null };
+    submit({ email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
+      utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null });
+  });
+  function submit(body, resend) {
+    lastBody = body;
     tsPass(12000).then(function () { body.turnstile = tsToken; body.ts_err = tsToken ? null : (tsErr || (tsLoaded ? "no-pass" : "not-loaded")); return S.api("subscribe", body); })
       // A pass works once: clear it and fetch a fresh one for any retry.
       .then(function (r) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); return r; }, function (e) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); throw e; })
-      .then(go)
+      .then(function (r) { if (resend && r.check_email) { $("cf").hidden = false; say("New code sent to " + body.email + ".", true); } else go(r); })
       .catch(function (err) {
         if (err.status === 429) { say("Slow down a sec and try again."); $("btn").disabled = false; return; }
         if (err.status === 403) { say("Couldn't confirm you're human. Give it a second and tap again."); $("btn").disabled = false; return; }
         if (err.status && err.status < 500) { say(err.message || "Couldn't sign you up."); $("btn").disabled = false; return; }
         // Network died (festival wifi). Keep the signup, show success, retry later.
+        if (resend) { say("No signal. Try again in a sec."); return; }
         S.savePending(body);
         window.__go("in.html?pending=1");
       });
-  });
+  }
   if (navigator.onLine) S.flushPending().catch(function () {});
 
   addEventListener("scroll", function () { $("cue").classList.toggle("off", scrollY > 40); }, { passive: true });

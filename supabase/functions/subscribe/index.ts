@@ -87,10 +87,10 @@ Deno.serve(async (req) => {
 });
 
 // A known email never gets the account handed to whoever typed it. They still
-// get the show entry (typing your email at the door counts), and the page link
-// goes to their inbox.
+// get the show entry (typing your email at the door counts), and a 6-digit code
+// goes to their inbox; the page swaps to a code box (see verify).
 async function knownMember(m: SigninMember, event: { id: string; slug: string; name: string; prize: string | null } | null) {
   if (event) await enterEvent(m.id, event.id);
   await sendSignin(m);
-  return json({ already_member: true, check_email: true, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
+  return json({ already_member: true, check_email: true, code_sent: true, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null });
 }
