@@ -91,13 +91,23 @@ Deno.serve(async (req) => {
   return json({ access_token: sub!.access_token, already_member: false, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null, track: track ? { slug: track.slug, title: track.title } : null });
 });
 
-// A known email never gets the account handed to whoever typed it. They still
-// get the show entry (typing your email at the door counts), and a 6-digit code
-// goes to their inbox; the page swaps to a code box (see verify).
+// A known email on a phone we don't know. Two cases:
+//  - They scanned a track's QR code: the code on the wall is the proof, so the track
+//    goes in their collection and this phone gets their key right away. No email code.
+//    (Someone who left the list still proves it's them first.)
+//  - No QR code: a 6-digit code goes to their inbox and the page swaps to a code box
+//    (see verify), so typing an address never hands over the account.
 async function knownMember(m: SigninMember, event: { id: string; slug: string; name: string; prize: string | null } | null, track: QrDrop | null, eventId: string | null) {
   if (event) await enterEvent(m.id, event.id);
-  // The track is saved to their account now; the code only proves it's them on this phone.
-  if (track) await unlockTrack(m.id, track.id, eventId);
+  const ev = event ? { slug: event.slug, name: event.name, prize: event.prize } : null;
+  const tr = track ? { slug: track.slug, title: track.title } : null;
+  if (track) {
+    await unlockTrack(m.id, track.id, eventId);
+    if (m.status === "active") {
+      await db.from("engagement_events").insert({ subscriber_id: m.id, type: "signin", meta: { via: "qr" } });
+      return json({ access_token: m.access_token, already_member: true, event: ev, track: tr });
+    }
+  }
   await sendSignin(m);
-  return json({ already_member: true, check_email: true, code_sent: true, event: event ? { slug: event.slug, name: event.name, prize: event.prize } : null, track: track ? { slug: track.slug, title: track.title } : null });
+  return json({ already_member: true, check_email: true, code_sent: true, event: ev, track: tr });
 }
