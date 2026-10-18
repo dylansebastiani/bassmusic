@@ -58,14 +58,14 @@ export const TEMPLATES: Record<string, Tpl> = {
 <div style="margin-top:16px;font:900 20px/1.2 ${FONT};letter-spacing:.04em;text-transform:uppercase;color:#fff">${d.title}</div>
 <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#888;margin-top:4px">${d.artist || ""}</div>` : "";
     const html = `${eyebrow(M)}${big("You're in.")}
-<p style="margin:0 0 26px;color:#bdbdbd">${d ? "Your first unreleased track is unlocked. Nobody outside this list has it." : "You're on the list. Unreleased tracks, early tickets and show drops land here first."}</p>
+<p style="margin:0 0 26px;color:#bdbdbd">${d ? "Your first unreleased track is waiting. Nobody outside this list has it." : "You're on the list. Unreleased tracks, early tickets and show drops land here first."}</p>
 ${cover}
 ${btn(play, d ? "&#9654;&nbsp; Play it now" : "Open my page")}
 <p style="margin:0 0 8px;color:#bdbdbd">Next up: early tickets, show drops, and a vote on what we release next.</p>
 ${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #333;font-size:14px;color:#bdbdbd">Bring people in and you move up for guest list spots. Your link:<br><a href="${refUrl(m)}" style="color:#fff;word-break:break-all">${refUrl(m)}</a></p>` : ""}
 <p style="margin:26px 0 0;color:#bdbdbd">See you down there.<br>Dylan</p>`;
-    const text = `You're in.\n\n${d ? `Your first unreleased track is unlocked: ${track}. Nobody outside this list has it.\n\nPlay it now: ${play}` : `You're on the list. Open your page: ${play}`}\n\nNext up: early tickets, show drops, and a vote on what we release next.\n${m.referral_code ? `\nBring people in and move up for guest list spots: ${refUrl(m)}\n` : ""}\nSee you down there.\nDylan`;
-    return { subject: d ? `you're in. ${d.title.toLowerCase()} is unlocked` : `you're in`, ...wrap(m, html, text, d ? `${track}. Unreleased. Tap to play.` : "Unreleased tracks land here first.") };
+    const text = `You're in.\n\n${d ? `Your first unreleased track is waiting: ${track}. Nobody outside this list has it.\n\nPlay it now: ${play}` : `You're on the list. Open your page: ${play}`}\n\nNext up: early tickets, show drops, and a vote on what we release next.\n${m.referral_code ? `\nBring people in and move up for guest list spots: ${refUrl(m)}\n` : ""}\nSee you down there.\nDylan`;
+    return { subject: d ? `you're in. ${d.title.toLowerCase()} is waiting` : `you're in`, ...wrap(m, html, text, d ? `${track}. Unreleased. Play it or grab the WAV.` : "Unreleased tracks land here first.") };
   },
   // 2. +2 days
   story: (m) => {

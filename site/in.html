@@ -66,6 +66,10 @@ footer a:hover{color:#fff}
 .art[hidden],.btn[hidden],.play[hidden],audio[hidden]{display:none}
 .play{width:92px;height:92px;border-radius:50%;border:2px solid #fff;background:#000;color:#fff;font-size:34px;line-height:1;cursor:pointer;display:grid;place-items:center;margin:0 auto 14px}
 .play:hover{background:#fff;color:#000}
+.gate{font-size:14px;line-height:1.7;color:#cfcfcf;margin:6px 0 16px;text-align:left}
+#player .title,#player .artist{text-align:center}
+#dl{margin-top:12px;text-align:center}
+#open[hidden],#step2[hidden]{display:none}
 .title{font-family:var(--display);font-weight:900;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
 .artist{font-size:13px;color:var(--mute);letter-spacing:.14em;text-transform:uppercase;margin-top:4px;margin-bottom:12px}
 audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
@@ -95,10 +99,31 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
   <section class="card" id="player" aria-label="Unreleased track">
     <h2>Unreleased</h2>
     <img class="art" id="art" alt="" hidden>
-    <button class="play" id="play" aria-label="Play">&#9654;</button>
     <div class="title" id="title">Loading...</div>
     <div class="artist" id="artist"></div>
-    <audio id="audio" controls controlsList="nodownload noplaybackrate" preload="none" hidden></audio>
+
+    <!-- The wall: name, number and ZIP unlock play + download. The server enforces it too. -->
+    <form id="step2" novalidate hidden>
+      <p class="gate">Drop your name, number and ZIP to unlock it. Play it here or download the WAV.</p>
+      <div style="display:grid;gap:8px">
+        <label for="first_name">First name</label>
+        <input type="text" id="first_name" autocomplete="given-name" placeholder="first name" required>
+        <div class="row2">
+          <div><label for="phone">Phone</label><input type="tel" id="phone" autocomplete="tel" placeholder="phone" required></div>
+          <div><label for="zip">ZIP</label><input type="text" id="zip" inputmode="numeric" autocomplete="postal-code" placeholder="zip" required></div>
+        </div>
+        <label class="check"><input type="checkbox" id="sms"><span id="smsText"></span></label>
+        <label class="check"><input type="checkbox" id="age"><span id="ageText"></span></label>
+        <button type="submit" class="btn" id="save">Unlock the track</button>
+        <div class="msg" id="s2msg" role="status"></div>
+      </div>
+    </form>
+
+    <div id="open" hidden>
+      <button class="play" id="play" aria-label="Play">&#9654;</button>
+      <audio id="audio" controls controlsList="nodownload noplaybackrate" preload="none" hidden></audio>
+      <a class="btn ghost" id="dl" href="#" hidden rel="noopener">Download WAV</a>
+    </div>
     <p class="micro" id="pmsg"></p>
   </section>
 
@@ -106,25 +131,6 @@ audio{width:100%;filter:invert(1) grayscale(1);margin-top:6px}
     <h2>Giveaway</h2>
     <p style="font-size:14px;line-height:1.7">You're entered. Winner announced before the set ends.</p>
   </section>
-
-  <form class="card" id="step2" novalidate>
-    <h2>Want first dibs on shows near you?</h2>
-    <div style="display:grid;gap:8px">
-      <label for="first_name">First name</label>
-      <input type="text" id="first_name" autocomplete="given-name" placeholder="first name">
-      <div class="row2">
-        <div><label for="zip">ZIP</label><input type="text" id="zip" inputmode="numeric" autocomplete="postal-code" placeholder="zip"></div>
-        <div><label for="phone">Phone</label><input type="tel" id="phone" autocomplete="tel" placeholder="phone"></div>
-      </div>
-      <label class="check"><input type="checkbox" id="sms"><span id="smsText"></span></label>
-      <label class="check"><input type="checkbox" id="age"><span id="ageText"></span></label>
-      <div class="row2">
-        <button type="button" class="btn ghost" id="skip">Skip</button>
-        <button type="submit" class="btn" id="save">Save</button>
-      </div>
-      <div class="msg" id="s2msg" role="status"></div>
-    </div>
-  </form>
 
   <section class="card" id="ref" hidden>
     <h2>Bring your people</h2>
@@ -238,7 +244,7 @@ window.Stack = (function () {
   if (S.q.get("back")) $("h1").innerHTML = '<span class="g" data-text="Welcome back.">Welcome back.</span>';
   S.pageview("/in");
 
-  var audioUrl = null, started = false, refresher = null;
+  var audioUrl = null, started = false, refresher = null, refWired = false;
   function fmtDate(s) { try { return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; } }
   function load(tok) {
     S.get("me", { t: tok, e: S.q.get("e"), rejoin: rejoin }).then(function (m) {
@@ -253,8 +259,8 @@ window.Stack = (function () {
       $("acctUnlocks").innerHTML = unl.length ? '<div class="sub">Unlocked</div><ul class="list">' + unl.map(function (u) { return "<li>" + S.esc(u.label || u.tier) + "</li>"; }).join("") + "</ul>" : "";
       $("acct").hidden = false;
       if (m.first_name) { $("first_name").value = m.first_name; }
-      if (m.profile_done) $("step2").hidden = true;
-      if (m.referral_code) {
+      if (m.referral_code && !refWired) {
+        refWired = true;
         var link = (C.siteUrl || location.origin) + "/?r=" + m.referral_code;
         $("refLink").textContent = link; $("ref").hidden = false;
         var n = m.confirmed_referrals || 0, tiers = C.referralTiers || [], nxt = tiers.filter(function (x) { return x.referrals > n; })[0];
@@ -269,10 +275,15 @@ window.Stack = (function () {
       if (m.drop) {
         $("title").textContent = m.drop.title; $("artist").textContent = m.drop.artist || "";
         if (m.drop.artwork_url) { $("art").src = m.drop.artwork_url; $("art").hidden = false; }
+        // Locked until name, phone and ZIP are on file; the server only sends links after that.
+        $("step2").hidden = !m.drop.locked; $("open").hidden = !!m.drop.locked;
         audioUrl = m.drop.audio_url;
-        // Signed links last 10 minutes; refresh quietly until they hit play.
-        if (!refresher) refresher = setInterval(function () { if (started) return clearInterval(refresher); S.get("me", { t: tok }).then(function (n) { if (n.drop && !started) audioUrl = n.drop.audio_url; }).catch(function () {}); }, 8 * 60000);
-      } else { $("title").textContent = "First track lands soon"; $("pmsg").textContent = "We'll email you the second it's up."; $("play").hidden = true; }
+        if (m.drop.download_url) { $("dl").href = m.drop.download_url; $("dl").hidden = false; }
+        // Signed links last 10 minutes; refresh quietly so play and download keep working.
+        if (!m.drop.locked && !refresher) refresher = setInterval(function () {
+          S.get("me", { t: tok }).then(function (n) { if (!n.drop) return; if (!started) audioUrl = n.drop.audio_url; if (n.drop.download_url) $("dl").href = n.drop.download_url; }).catch(function () {});
+        }, 8 * 60000);
+      } else { $("title").textContent = "First track lands soon"; $("pmsg").textContent = "We'll email you the second it's up."; }
     }).catch(function (err) {
       if (err.status === 404) return forget();
       $("title").textContent = "Couldn't load the track"; $("pmsg").textContent = "Check your connection and refresh.";
@@ -291,17 +302,19 @@ window.Stack = (function () {
   a.addEventListener("timeupdate", function () { if (a.currentTime >= 30) log("track_30s"); if (a.duration && a.currentTime / a.duration >= 0.9) log("track_complete"); });
   a.addEventListener("error", function () { if (started) { $("pmsg").textContent = "Link timed out. Refresh the page to keep listening."; } });
 
-  // Step 2: optional profile
-  $("skip").addEventListener("click", function () { $("step2").hidden = true; });
+  $("dl").addEventListener("click", function () { log("download"); });
+
+  // The wall: first name, phone and ZIP unlock play + download. Texting stays opt-in (the box).
   $("step2").addEventListener("submit", function (e) {
     e.preventDefault();
-    var phone = $("phone").value.trim(), zip = $("zip").value.trim(), m = $("s2msg");
-    if (phone && phone.replace(/\D/g, "").length < 10) { m.textContent = "That phone number doesn't look right."; return; }
-    if (zip && !/^\d{5}(-?\d{4})?$/.test(zip)) { m.textContent = "That ZIP doesn't look right."; return; }
-    if (phone && !$("sms").checked) { m.textContent = "Tick the text box, or clear the phone number."; return; }
-    $("save").disabled = true; m.textContent = "Saving...";
-    S.api("profile", { t: t, first_name: $("first_name").value.trim(), zip: zip, phone: phone, sms_consent: $("sms").checked, age_confirmed: $("age").checked })
-      .then(function () { m.className = "msg ok"; m.textContent = "Saved. We'll tell you when we're playing near you."; setTimeout(function () { $("step2").hidden = true; }, 1200); })
+    var name = $("first_name").value.trim(), phone = $("phone").value.trim(), zip = $("zip").value.trim(), m = $("s2msg");
+    m.className = "msg";
+    if (!name) { m.textContent = "Add your first name."; $("first_name").focus(); return; }
+    if (phone.replace(/\D/g, "").length < 10) { m.textContent = "Add a real phone number."; $("phone").focus(); return; }
+    if (!/^\d{5}(-?\d{4})?$/.test(zip)) { m.textContent = "Add a 5-digit ZIP."; $("zip").focus(); return; }
+    $("save").disabled = true; m.textContent = "Unlocking...";
+    S.api("profile", { t: t, unlock: true, first_name: name, zip: zip, phone: phone, sms_consent: $("sms").checked, age_confirmed: $("age").checked })
+      .then(function () { m.textContent = ""; $("save").disabled = false; load(t); })
       .catch(function (err) { $("save").disabled = false; m.textContent = err.message || "Didn't save. Try again."; });
   });
 

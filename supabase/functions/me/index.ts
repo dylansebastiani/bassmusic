@@ -22,16 +22,23 @@ Deno.serve(async (req) => {
   const bonus = u.searchParams.get("kind") === "bonus";
   if (bonus && !m.email_confirmed_at) return err("Confirm your email first", 403);
 
-  const { data: drop } = await db.from("drops").select("id,title,artist,audio_path,artwork_path")
+  const { data: drop } = await db.from("drops").select("id,slug,title,artist,audio_path,artwork_path,download_path")
     .eq(bonus ? "is_bonus" : "is_current", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
+  // The wall: play and download links exist only once first name, phone and ZIP are on file.
+  // Before that the page gets the cover and title, nothing it could play or save.
+  const unlocked = !!(m.first_name && m.phone && m.zip);
   let dropOut = null;
   if (drop?.audio_path) {
-    const [a, art] = await Promise.all([
-      db.storage.from("drops").createSignedUrl(drop.audio_path, 600),
-      drop.artwork_path ? db.storage.from("drops").createSignedUrl(drop.artwork_path, 600) : Promise.resolve({ data: null }),
+    const none = Promise.resolve({ data: null as { signedUrl: string } | null });
+    const file = `${drop.artist ? drop.artist + " - " : ""}${drop.title}.wav`.replace(/[\\/:*?"<>|]/g, "");
+    const [a, art, dl] = await Promise.all([
+      unlocked ? db.storage.from("drops").createSignedUrl(drop.audio_path, 600) : none,
+      drop.artwork_path ? db.storage.from("drops").createSignedUrl(drop.artwork_path, 600) : none,
+      unlocked && drop.download_path ? db.storage.from("drops").createSignedUrl(drop.download_path, 600, { download: file }) : none,
     ]);
-    dropOut = { title: drop.title, artist: drop.artist, audio_url: a.data?.signedUrl ?? null, artwork_url: art.data?.signedUrl ?? null };
+    dropOut = { title: drop.title, artist: drop.artist, locked: !unlocked, artwork_url: art.data?.signedUrl ?? null,
+      audio_url: a.data?.signedUrl ?? null, download_url: dl.data?.signedUrl ?? null };
   }
 
   const [{ data: entries }, { data: rewards }] = await Promise.all([
@@ -54,7 +61,7 @@ Deno.serve(async (req) => {
 
   return json({
     first_name: m.first_name, referral_code: m.referral_code, confirmed_referrals: m.confirmed_referrals,
-    confirmed: !!m.email_confirmed_at, profile_done: !!(m.first_name && (m.zip || m.phone)),
+    confirmed: !!m.email_confirmed_at, profile_done: unlocked,
     event_entered: !!current, event: current, shows, unlocks: (rewards ?? []).map((r) => ({ tier: r.tier, label: r.note })),
     drop: dropOut,
   }, 200, { "Cache-Control": "no-store" });

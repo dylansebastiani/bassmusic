@@ -1,7 +1,7 @@
 import { db } from "../_shared/db.ts";
 import { json, err, preflight, UUID_RE, clean } from "../_shared/util.ts";
 
-const TYPES = new Set(["track_start", "track_30s", "track_complete", "bonus_play", "share_click"]);
+const TYPES = new Set(["track_start", "track_30s", "track_complete", "bonus_play", "share_click", "download"]);
 
 // Play / share events from the pages. One row per type per member per hour, so
 // a page refresh can't inflate anyone's score.
