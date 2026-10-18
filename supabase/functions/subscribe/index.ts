@@ -102,8 +102,10 @@ Deno.serve(async (req) => {
 });
 
 // A known email on a phone we don't know. Two cases:
-//  - They scanned a track's QR code: the code on the wall is the proof, so the track
-//    goes in their collection and this phone gets their key right away. No email code.
+//  - They scanned a track's QR code: the code on the wall is proof enough to put the
+//    track in their collection and play it, so this phone gets the LIGHT key right away,
+//    no email code. The light key never shows or changes name, phone or ZIP: typing
+//    someone else's email at a sticker gets you their tracks, never their details.
 //    (Someone who left the list still proves it's them first.)
 //  - No QR code: a 6-digit code goes to their inbox and the page swaps to a code box
 //    (see verify), so typing an address never hands over the account.
@@ -115,7 +117,7 @@ async function knownMember(m: SigninMember, event: { id: string; slug: string; n
     await unlockTrack(m.id, track.id, eventId);
     if (m.status === "active") {
       await db.from("engagement_events").insert({ subscriber_id: m.id, type: "signin", meta: { via: "qr" } });
-      return json({ access_token: m.access_token, already_member: true, event: ev, track: tr });
+      return json({ access_token: m.light_token, light: true, already_member: true, event: ev, track: tr });
     }
   }
   await sendSignin(m);

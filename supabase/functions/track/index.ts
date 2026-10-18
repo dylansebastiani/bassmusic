@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   if (!UUID_RE.test(t)) return err("Bad request");
   const drop = await dropByQr(clean(b.c, 20));
   if (!drop) return err("Not found", 404);
-  const { data: m } = await db.from("subscribers").select("id,status").eq("access_token", t).maybeSingle();
+  const { data: m } = await db.from("subscribers").select("id,status").or(`access_token.eq.${t},light_token.eq.${t}`).limit(1).maybeSingle();
   if (!m || m.status === "deleted") return err("Member not found", 404);
   // A scan at a show (?e=slug) also counts as being there: same as typing your email at the door.
   // A sticker outlives the show, so the show is matched whether or not it is still switched on.

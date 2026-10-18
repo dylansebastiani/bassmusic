@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   const t = clean(b.t, 40) || "", slug = clean(b.e, 80) || "";
   if (!UUID_RE.test(t) || !/^[a-z0-9-]{1,80}$/i.test(slug)) return err("Bad request");
 
-  const { data: m } = await db.from("subscribers").select("id,status").eq("access_token", t).maybeSingle();
+  const { data: m } = await db.from("subscribers").select("id,status").or(`access_token.eq.${t},light_token.eq.${t}`).limit(1).maybeSingle();
   if (!m || m.status === "deleted") return err("Not found", 404);
   const { data: ev } = await db.from("events").select("id,slug,name,prize").eq("slug", slug).eq("is_active", true).maybeSingle();
   if (!ev) return json({ event: null, entered: false });

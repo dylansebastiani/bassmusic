@@ -1,5 +1,6 @@
 import { db } from "../_shared/db.ts";
 import { json, err, preflight, UUID_RE } from "../_shared/util.ts";
+import { memberByKey } from "../_shared/collection.ts";
 
 // Everything the member app needs in one call: their tracks (10-minute signed links),
 // coupons, and upcoming events. Never returns the email; phone and ZIP come back only to the key holder, for the "Your info" box.
@@ -10,11 +11,11 @@ Deno.serve(async (req) => {
   const u = new URL(req.url);
   const t = u.searchParams.get("t") || "";
   if (!UUID_RE.test(t)) return err("Not found", 404);
-  const { data: m } = await db.from("subscribers")
-    .select("id,first_name,zip,phone,sms_consent,email_confirmed_at,referral_code,status").eq("access_token", t).maybeSingle();
+  const m = await memberByKey(t, "first_name,zip,phone,sms_consent,email_confirmed_at,referral_code") as
+    (null | { id: string; status: string; full: boolean; first_name: string | null; zip: string | null; phone: string | null; sms_consent: boolean | null; email_confirmed_at: string | null; referral_code: string | null });
   if (!m || m.status === "deleted") return err("Not found", 404);
   // Back in only by clicking their own emailed sign-in link.
-  if (u.searchParams.get("rejoin") === "1" && (m.status === "unsubscribed" || m.status === "sunset")) {
+  if (m.full && u.searchParams.get("rejoin") === "1" && (m.status === "unsubscribed" || m.status === "sunset")) {
     await db.from("subscribers").update({ status: "active", last_engaged_at: new Date().toISOString() }).eq("id", m.id);
   }
   const profileDone = !!(m.first_name && m.phone && m.zip);
@@ -104,9 +105,13 @@ Deno.serve(async (req) => {
     const end = e.ends_at ?? e.starts_at; return !end || new Date(end).getTime() >= cutoff;
   });
 
+  // The light key (a QR scan with a known email) gets the tracks and the events, nothing personal.
+  const personal = m.full
+    ? { first_name: m.first_name, phone: m.phone, zip: m.zip, sms_consent: !!m.sms_consent, referral_code: m.referral_code }
+    : { first_name: null, phone: null, zip: null, sms_consent: false, referral_code: null };
   return json({
-    first_name: m.first_name, phone: m.phone, zip: m.zip, sms_consent: !!m.sms_consent,
-    profile_done: profileDone, confirmed: !!m.email_confirmed_at, referral_code: m.referral_code,
+    ...personal, light: !m.full,
+    profile_done: profileDone, confirmed: !!m.email_confirmed_at,
     tracks, coupons: out, events: upcoming, entered,
   }, 200, { "Cache-Control": "no-store" });
 });
