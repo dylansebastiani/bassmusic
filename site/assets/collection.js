@@ -56,8 +56,6 @@
     var focus = fresh ? d.tracks.filter(function (k) { return k.slug === fresh; })[0] : null;
     var rest = d.tracks.filter(function (k) { return k !== focus; });
     var html = "";
-    // The show they just scanned at: say so, right at the top.
-    if (d.entered) { $("banner").textContent = "You're entered for " + (d.entered.prize || "the giveaway") + " at " + d.entered.name + "."; $("banner").hidden = false; }
     if (focus) html += trackCard(focus, true) + (d.profile_done ? "" : wallForm());
     else if (!d.profile_done && d.tracks.length) html += wallForm();
     html += '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
@@ -101,7 +99,6 @@
         (e.starts_at ? '<div class="when">' + esc(S.fmtDate(e.starts_at, true)) + "</div>" : "") +
         (where ? '<div class="where">' + esc(where) + "</div>" : "") + (e.address ? '<div class="where">' + esc(e.address) + "</div>" : "") +
         (e.description ? "<p>" + esc(e.description) + "</p>" : "") +
-        (e.prize ? '<div class="when">Giveaway: ' + esc(e.prize) + "</div>" : "") +
         (link ? '<a class="btn ghost" href="' + esc(link) + '" rel="noopener" target="_blank">Tickets / info</a>' : "") + "</article>";
     }).join("") + "</div>";
     $("p-events").innerHTML = html;

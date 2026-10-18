@@ -14,7 +14,7 @@ const stub = `<script>window.STACK=${JSON.stringify({ ...cfg, supabaseUrl: "http
  function unlockIf(col){if(col.profile_done)col.tracks.forEach(function(k){k.locked=false;k.audio_url="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";k.download_url="#";});return col;}
  var real=window.fetch; window.fetch=function(u,o){u=String(u);if(u.indexOf("preview.invalid")<0)return real.apply(this,arguments);
   var body={ok:true};
-  if(/\\/subscribe$/.test(u)){var b={};try{b=JSON.parse(o&&o.body||"{}")}catch(e){}body={access_token:"0b5e3f1a-7c2d-4e8a-9f10-2a3b4c5d6e7f",track:{slug:"elite-depth",title:"Elite Depth"},already_member:/again|back/.test(b.email||""),event:b.e?{slug:b.e,name:"Shake It Up",prize:"a guest list +1"}:null};}
+  if(/\\/subscribe$/.test(u)){var b={};try{b=JSON.parse(o&&o.body||"{}")}catch(e){}body={access_token:"0b5e3f1a-7c2d-4e8a-9f10-2a3b4c5d6e7f",track:{slug:"elite-depth",title:"Elite Depth"},already_member:/again|back/.test(b.email||""),event:b.e?{slug:b.e,name:"Shake It Up"}:null};}
   else if(/\\/meta/.test(u)){var e=(u.match(/[?&]e=([^&]+)/)||[])[1];body={event:e?{slug:e,name:"Shake It Up",prize:"a guest list +1"}:null,count:null};}
   else if(/\\/collection/.test(u))body=window.__col||(window.__col=unlockIf({first_name:null,profile_done:PD,confirmed:true,
     tracks:[{slug:"elite-depth",title:"Elite Depth",artist:"Badguy Moolah",artwork_url:"assets/drops/elite-depth.jpg",audio_url:null,download_url:null,locked:true,unlocked_at:new Date().toISOString()}],

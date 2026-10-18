@@ -34,7 +34,6 @@ writeFileSync(join(out, "_redirects"), [
   "/t /t.html 200",
   "/admin /admin.html 200",
   "/privacy /privacy.html 200",
-  "/rules /rules.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,
   `/u/:token ${fn}/unsubscribe?u=:token 302`,
   "",
