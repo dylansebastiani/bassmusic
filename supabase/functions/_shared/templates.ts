@@ -92,7 +92,7 @@ ${btn(u, "Unlock it")}
   },
   // 3. +4 days
   vote: (m) => {
-    const a = `${SITE_URL}/in.html?vote=a&t=${m.access_token}`, b = `${SITE_URL}/in.html?vote=b&t=${m.access_token}`;
+    const a = `${SITE_URL}/collection.html?vote=a&t=${m.access_token}`, b = `${SITE_URL}/collection.html?vote=b&t=${m.access_token}`;
     const html = `<p>${hi(m)},</p><p>two tracks are fighting for the next drop. You decide.</p>
 ${btn(a, "Option A")}${btn(b, "Option B")}<p>One tap counts your vote. Results go to members first.</p><p>— Dylan</p>`;
     const text = `${hi(m)},\n\ntwo tracks are fighting for the next drop. You decide.\n\nOption A: ${a}\nOption B: ${b}\n\n— Dylan`;
@@ -113,14 +113,14 @@ ${btn(a, "Option A")}${btn(b, "Option B")}<p>One tap counts your vote. Results g
   },
   // 6. +14 days
   birthday: (m) => {
-    const u = `${SITE_URL}/in.html?t=${m.access_token}#birthday`;
+    const u = `${SITE_URL}/collection.html?t=${m.access_token}#birthday`;
     const html = `<p>${hi(m)},</p><p>we want to send you something on your birthday. Drop the date on your member page and it's handled. It also sorts out age checks for 18+ and 21+ shows.</p>${btn(u, "Add my birthday")}<p>— Dylan</p>`;
     const text = `${hi(m)},\n\nwe want to send you something on your birthday. Add the date here:\n${u}\n\n— Dylan`;
     return { subject: "we want to send you something on your birthday", ...wrap(m, html, text) };
   },
   // 7. +21 days
   featured: (m) => {
-    const u = `${SITE_URL}/in.html?t=${m.access_token}#ig`;
+    const u = `${SITE_URL}/collection.html?t=${m.access_token}#ig`;
     const html = `<p>${hi(m)},</p><p>we repost members at shows and in drops. Want in? Add your Instagram handle and we'll find you in the crowd.</p>${btn(u, "Add my Instagram")}<p>— Dylan</p>`;
     const text = `${hi(m)},\n\nwe repost members at shows and in drops. Add your Instagram handle here:\n${u}\n\n— Dylan`;
     return { subject: "want to get featured?", ...wrap(m, html, text) };

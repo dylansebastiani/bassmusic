@@ -23,6 +23,8 @@
   // ---------- signed out: the same email box as everywhere ----------
   if (!t) {
     $("signin").hidden = false;
+    // Signed up with no signal: the homepage kept it and will finish when the phone is back online.
+    if (S.q.get("pending")) $("signin").querySelector(".lead").textContent = "No signal right now. Your signup is saved on this phone and finishes the next time you open the site with a connection.";
     window.Join.mount($("join"), { cta: "Open my collection", onDone: function () { location.reload(); } });
     return;
   }
@@ -54,6 +56,8 @@
     var focus = fresh ? d.tracks.filter(function (k) { return k.slug === fresh; })[0] : null;
     var rest = d.tracks.filter(function (k) { return k !== focus; });
     var html = "";
+    // The show they just scanned at: say so, right at the top.
+    if (d.entered) { $("banner").textContent = "You're entered for " + (d.entered.prize || "the giveaway") + " at " + d.entered.name + "."; $("banner").hidden = false; }
     if (focus) html += trackCard(focus, true) + (d.profile_done ? "" : wallForm());
     else if (!d.profile_done && d.tracks.length) html += wallForm();
     html += '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
@@ -114,7 +118,7 @@
 
   // ---------- load, and keep the 10-minute links fresh ----------
   function load(first) {
-    return S.get("collection", { t: t }).then(function (d) {
+    return S.get("collection", { t: t, e: S.q.get("e"), rejoin: S.q.get("rejoin") }).then(function (d) {
       data = d;
       if (first) {
         paintTracks(d); paintCoupons(d); paintEvents(d);

@@ -7,11 +7,16 @@ import { json, err, preflight, UUID_RE } from "../_shared/util.ts";
 // file: the same wall as the welcome track. Before that the page gets cover and title only.
 Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
-  const t = new URL(req.url).searchParams.get("t") || "";
+  const u = new URL(req.url);
+  const t = u.searchParams.get("t") || "";
   if (!UUID_RE.test(t)) return err("Not found", 404);
   const { data: m } = await db.from("subscribers")
     .select("id,first_name,zip,phone,email_confirmed_at,referral_code,status").eq("access_token", t).maybeSingle();
   if (!m || m.status === "deleted") return err("Not found", 404);
+  // Back in only by clicking their own emailed sign-in link.
+  if (u.searchParams.get("rejoin") === "1" && (m.status === "unsubscribed" || m.status === "sunset")) {
+    await db.from("subscribers").update({ status: "active", last_engaged_at: new Date().toISOString() }).eq("id", m.id);
+  }
   const profileDone = !!(m.first_name && m.phone && m.zip);
   const now = new Date();
 
@@ -58,6 +63,13 @@ Deno.serve(async (req) => {
   const have = tracks.length;
   const artists = new Set(tracks.map((k) => k.artist_slug).filter(Boolean));
   const shows = new Set((been ?? []).map((b) => (b.event as unknown as { slug: string } | null)?.slug).filter(Boolean));
+  // "You're entered": the show they just scanned (?e=), if they're in its giveaway.
+  const eSlug = u.searchParams.get("e");
+  let entered: { slug: string; name: string; prize: string | null } | null = null;
+  if (eSlug && shows.has(eSlug)) {
+    const { data: ev } = await db.from("events").select("slug,name,prize").eq("slug", eSlug).maybeSingle();
+    entered = ev;
+  }
   const live = (c: { starts_at: string | null; expires_at: string | null }) =>
     (!c.starts_at || new Date(c.starts_at) <= now) && (!c.expires_at || new Date(c.expires_at) >= now);
   const out = (coupons ?? []).filter(live).map((c) => {
@@ -83,6 +95,6 @@ Deno.serve(async (req) => {
 
   return json({
     first_name: m.first_name, profile_done: profileDone, confirmed: !!m.email_confirmed_at, referral_code: m.referral_code,
-    tracks, coupons: out, events: upcoming,
+    tracks, coupons: out, events: upcoming, entered,
   }, 200, { "Cache-Control": "no-store" });
 });
