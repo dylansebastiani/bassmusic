@@ -81,7 +81,7 @@
     else html += '<div class="list">' + d.coupons.map(function (c) {
       var link = S.safeUrl(c.url);
       return '<article class="card"><h3>' + esc(c.title) + "</h3>" + (c.description ? '<div class="where">' + esc(c.description) + "</div>" : "") +
-        (c.locked ? '<div class="lock">Collect ' + c.need + " more track" + (c.need > 1 ? "s" : "") + " to unlock</div>"
+        (c.locked ? '<div class="lock">' + esc(c.need) + " to unlock</div>"
           : '<div class="code"><b>' + esc(c.code) + '</b><button type="button" data-copy="' + esc(c.code) + '">Copy</button></div>') +
         (c.expires_at ? '<div class="when">Ends ' + esc(S.fmtDate(c.expires_at)) + "</div>" : "") +
         (link && !c.locked ? '<a class="btn ghost" href="' + esc(link) + '" rel="noopener" target="_blank">Use it</a>' : "") + "</article>";

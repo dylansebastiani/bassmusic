@@ -29,6 +29,8 @@
   ],
   "coupons": [
     { "code": "SUBDUCTION10", "title": "10% off", "description": "On your first shop order.", "minTracks": 0, "expiresAt": "2027-01-31T23:59:00-06:00" },
-    { "code": "DEEPCUT", "title": "Free sticker pack", "description": "For collectors.", "minTracks": 3 }
+    { "code": "DEEPCUT", "title": "Free sticker pack", "description": "For collectors.", "minTracks": 3 },
+    { "code": "SHOWNIGHT", "title": "Half-off merch tonight", "description": "For everyone who scanned at the show.", "event": "example-show", "expiresAt": "2026-12-06T06:00:00-06:00" },
+    { "code": "ARTISTLOVE", "title": "Artist tee discount", "description": "You've got their track, now the shirt.", "artist": "example-artist" }
   ]
 }

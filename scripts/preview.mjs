@@ -18,7 +18,7 @@ const stub = `<script>window.STACK=${JSON.stringify({ ...cfg, supabaseUrl: "http
   else if(/\\/meta/.test(u)){var e=(u.match(/[?&]e=([^&]+)/)||[])[1];body={event:e?{slug:e,name:"Shake It Up",prize:"a guest list +1"}:null,count:null};}
   else if(/\\/collection/.test(u))body=window.__col||(window.__col=unlockIf({first_name:null,profile_done:PD,confirmed:true,
     tracks:[{slug:"elite-depth",title:"Elite Depth",artist:"Badguy Moolah",artwork_url:"assets/drops/elite-depth.jpg",audio_url:null,download_url:null,locked:true,unlocked_at:new Date().toISOString()}],
-    coupons:[{title:"10% off",description:"On your first shop order.",code:"SUBDUCTION10",locked:false,need:0,expires_at:"2027-01-31T00:00:00Z"},{title:"Free sticker pack",description:"For collectors.",locked:true,need:2,code:null}],
+    coupons:[{title:"10% off",description:"On your first shop order.",code:"SUBDUCTION10",locked:false,need:0,expires_at:"2027-01-31T00:00:00Z"},{title:"Free sticker pack",description:"For collectors.",locked:true,need:"Collect 2 more tracks",code:null},{title:"Half-off merch tonight",description:"For everyone who scanned at the show.",locked:true,need:"Scan at Shake It Up",code:null}],
     events:[{slug:"shake",name:"Shake It Up",kind:"show",venue:"The Venue",city:"Bloomington, IL",starts_at:"2026-12-05T21:00:00-06:00",description:"Doors at nine.",ticket_url:"https://example.com",prize:"a guest list +1"},
             {slug:"pop",name:"Warehouse pop-up",kind:"popup",city:"Chicago",starts_at:"2026-12-12T18:00:00-06:00"}]}));
   else if(/\\/profile/.test(u)){try{localStorage.setItem("pv_profile","1")}catch(e){}if(window.__col){window.__col.profile_done=true;unlockIf(window.__col);}demo.profile_done=true;body={ok:true};}

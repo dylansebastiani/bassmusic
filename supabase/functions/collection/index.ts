@@ -15,14 +15,15 @@ Deno.serve(async (req) => {
   const profileDone = !!(m.first_name && m.phone && m.zip);
   const now = new Date();
 
-  const [{ data: items }, { data: coupons }, { data: events }] = await Promise.all([
+  const [{ data: items }, { data: coupons }, { data: events }, { data: been }] = await Promise.all([
     db.from("collection_items")
       .select("unlocked_at, drop:drops(slug,title,artist,artist_slug,description,audio_path,artwork_path,download_path)")
       .eq("subscriber_id", m.id).order("unlocked_at", { ascending: false }).limit(200),
-    db.from("coupons").select("code,title,description,url,min_tracks,starts_at,expires_at")
+    db.from("coupons").select("code,title,description,url,min_tracks,starts_at,expires_at,artist_slug,event:events(slug,name)")
       .eq("is_active", true).order("min_tracks", { ascending: true }),
     db.from("events").select("slug,name,kind,venue,city,address,starts_at,ends_at,description,ticket_url,prize")
       .eq("is_active", true).eq("is_public", true).order("starts_at", { ascending: true, nullsFirst: false }).limit(60),
+    db.from("giveaway_entries").select("event:events(slug)").eq("subscriber_id", m.id),
   ]);
 
   type D = { slug: string; title: string; artist: string | null; artist_slug: string | null; description: string | null;
@@ -52,14 +53,26 @@ Deno.serve(async (req) => {
     locked: !profileDone,
   }));
 
+  // Coupon rules: each one optional, all must hold. Shows they've been to come from scans
+  // tagged with a show and from typing their email at the door.
   const have = tracks.length;
+  const artists = new Set(tracks.map((k) => k.artist_slug).filter(Boolean));
+  const shows = new Set((been ?? []).map((b) => (b.event as unknown as { slug: string } | null)?.slug).filter(Boolean));
   const live = (c: { starts_at: string | null; expires_at: string | null }) =>
     (!c.starts_at || new Date(c.starts_at) <= now) && (!c.expires_at || new Date(c.expires_at) >= now);
   const out = (coupons ?? []).filter(live).map((c) => {
-    const open = have >= c.min_tracks;
+    const ev = c.event as unknown as { slug: string; name: string } | null;
+    const need: string[] = [];
+    if (have < c.min_tracks) need.push(`Collect ${c.min_tracks - have} more track${c.min_tracks - have > 1 ? "s" : ""}`);
+    if (ev && !shows.has(ev.slug)) need.push(`Scan at ${ev.name}`);
+    if (c.artist_slug && !artists.has(c.artist_slug)) {
+      const name = c.artist_slug.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      need.push(`Collect a track by ${name}`);
+    }
+    const open = !need.length;
     // A locked coupon shows what it takes to open it, never the code.
     return { title: c.title, description: c.description, url: c.url, expires_at: c.expires_at,
-      locked: !open, need: open ? 0 : c.min_tracks - have, code: open ? c.code : null };
+      locked: !open, need: need.join(" and "), code: open ? c.code : null };
   });
 
   // Upcoming and recent: drop anything that ended more than a day ago.
