@@ -31,3 +31,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .staff li{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);padding:10px 14px;list-style:none}
 .staff li button{background:none;border:0;color:var(--mute);cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
 .staff li button:hover{color:var(--hot)}
+.showqr{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px}
+.showqr label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.showqr select{width:100%;min-width:0;background:#000;color:var(--fg);border:1px solid #6c6567;padding:10px;font-size:15px}
+.showqr .btn{font-size:16px;padding:10px 12px 8px}

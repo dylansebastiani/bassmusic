@@ -40,18 +40,32 @@
   // ---------- render ----------
   function num(n) { return (n || 0).toLocaleString(); }
   function fmt(s) { return s ? S.fmtDate(s, true) : ""; }
-  function qrBlock(t) {
+  function qrBlock(t, events) {
     if (!t.qr_code) return "";
     var svg = FN + "?a=qr.svg&c=" + encodeURIComponent(t.qr_code);
+    var opts = (events || []).map(function (e) { return '<option value="' + esc(e.slug) + '">' + esc(e.name) + "</option>"; }).join("");
     return '<div class="qr"><img alt="QR code" data-svg="' + esc(svg) + '"><div><div class="mono">' + esc(t.qr_url) + '</div>' +
       '<div class="when">' + num(t.scans.view) + " views · " + num(t.scans.unlocked) + " unlocks</div>" +
-      '<a class="btn ghost" href="' + esc(svg) + '" download="' + esc(t.slug) + '-qr.svg" data-dl>Download QR (SVG)</a></div></div>';
+      '<a class="btn ghost" href="' + esc(svg) + '" download="' + esc(t.slug) + '-qr.svg" data-dl>Download QR (SVG)</a></div></div>' +
+      (opts ? '<div class="showqr"><label>Stickers for a show</label><div class="row2"><select data-show="' + esc(t.qr_code) + '">' + opts + '</select>' +
+        '<button type="button" class="btn ghost" data-showqr="' + esc(t.qr_code) + '" data-slug="' + esc(t.slug) + '">Download show QR</button></div>' +
+        '<div class="fine">Each show gets its own code, so scans and signups count against that show.</div></div>' : "");
   }
+  // A show's QR: same track, with the show baked in. Fetched with the token, then handed over as a file.
+  $("tracks").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-showqr]"); if (!b) return;
+    var sel = b.parentNode.querySelector("select"), show = sel.value, code = b.getAttribute("data-showqr");
+    b.disabled = true;
+    fetch(FN + "?a=qr.svg&c=" + encodeURIComponent(code) + "&e=" + encodeURIComponent(show), { headers: { "x-admin-token": tok } })
+      .then(function (r) { return r.blob(); }).then(function (bl) {
+        var a = document.createElement("a"); a.href = URL.createObjectURL(bl); a.download = b.getAttribute("data-slug") + "--" + show + "-qr.svg"; document.body.appendChild(a); a.click(); a.remove(); b.disabled = false;
+      }).catch(function () { b.disabled = false; });
+  });
   function paint(d) {
     data = d;
     $("tracks").innerHTML = d.tracks.length ? d.tracks.map(function (t) {
       return '<article class="card"><h3>' + esc(t.title) + "</h3>" + (t.artist ? '<div class="by">' + esc(t.artist) + "</div>" : "") +
-        (t.is_current ? '<span class="chip">Welcome track</span>' : "") + qrBlock(t) + "</article>";
+        (t.is_current ? '<span class="chip">Welcome track</span>' : "") + qrBlock(t, d.events) + "</article>";
     }).join("") : '<div class="empty">No tracks yet. Add one below.</div>';
     // QR images and downloads need the token, so fetch them and swap in a blob.
     Array.prototype.forEach.call($("tracks").querySelectorAll("img[data-svg]"), function (img) {
@@ -61,6 +75,7 @@
     });
     $("mstats").innerHTML = '<div class="stat"><b>' + num(d.members) + "</b><span>Members</span></div><div class=\"stat\"><b>" + num(d.with_info) + "</b><span>With name, phone, ZIP</span></div>";
     $("atable").querySelector("tbody").innerHTML = d.artists.map(function (a) { return "<tr><td>" + esc(a.artist) + '</td><td class="num">' + a.tracks + '</td><td class="num">' + num(a.view) + '</td><td class="num">' + num(a.unlocked) + "</td></tr>"; }).join("");
+    $("etable").querySelector("tbody").innerHTML = d.events.length ? d.events.map(function (e) { return "<tr><td>" + esc(e.name) + '</td><td class="num">' + num(e.scans.view) + '</td><td class="num">' + num(e.scans.unlocked) + '</td><td class="num">' + num(e.scans.joined) + "</td></tr>"; }).join("") : '<tr><td colspan="4">No shows yet.</td></tr>';
     $("ttable").querySelector("tbody").innerHTML = d.tracks.map(function (t) { return "<tr><td>" + esc(t.title) + (t.artist ? " · " + esc(t.artist) : "") + '</td><td class="num">' + num(t.scans.view) + '</td><td class="num">' + num(t.scans.unlocked) + '</td><td class="num">' + num(t.scans.already) + "</td></tr>"; }).join("");
     $("events").innerHTML = d.events.length ? d.events.map(function (e) {
       return '<article class="card"><span class="chip">' + esc(e.kind) + "</span><h3>" + esc(e.name) + "</h3>" + (e.starts_at ? '<div class="when">' + esc(fmt(e.starts_at)) + "</div>" : "") + (e.city ? '<div class="where">' + esc(e.city) + "</div>" : "") +

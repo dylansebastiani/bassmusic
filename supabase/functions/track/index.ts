@@ -12,12 +12,16 @@ Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
 
   if (req.method === "GET") {
-    const drop = await dropByQr(new URL(req.url).searchParams.get("c"));
+    const u = new URL(req.url);
+    const drop = await dropByQr(u.searchParams.get("c"));
     if (!drop) return err("Not found", 404);
+    // Which show's sticker: ?e=slug on the printed code.
+    const es = clean(u.searchParams.get("e"), 80);
+    const { data: ev } = es && /^[a-z0-9-]{1,80}$/i.test(es) ? await db.from("events").select("id").eq("slug", es).maybeSingle() : { data: null };
     // Count the view unless one connection is hammering the link. Its own bucket, so a
     // venue full of people scanning on one wifi can never use up the signup limit.
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, (await setting("ip_salt", "unset")) + "|view") });
-    if ((n ?? 0) <= 30) await db.from("track_scans").insert({ drop_id: drop.id, outcome: "view" });
+    if ((n ?? 0) <= 30) await db.from("track_scans").insert({ drop_id: drop.id, event_id: ev?.id ?? null, outcome: "view" });
     const art = drop.artwork_path ? await db.storage.from("drops").createSignedUrl(drop.artwork_path, 600) : null;
     return json({ slug: drop.slug, title: drop.title, artist: drop.artist, artwork_url: art?.data?.signedUrl ?? null }, 200, { "Cache-Control": "no-store" });
   }
