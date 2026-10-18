@@ -4,6 +4,7 @@ import { enterEvent } from "../_shared/events.ts";
 import { sendSignin, MEMBER_COLS, type SigninMember } from "../_shared/signin.ts";
 import { sendNow, welcomeExtra } from "../_shared/sendnow.ts";
 import { dropByQr, unlockTrack, type QrDrop } from "../_shared/collection.ts";
+import { brevoUpsert } from "../_shared/crm.ts";
 
 const SOURCES = new Set(["ig", "tt", "fb", "show", "ref", "dm", "direct"]);
 
@@ -82,10 +83,13 @@ Deno.serve(async (req) => {
         .select("id").single();
       // Two days later: a nudge if they still haven't unlocked the track (the runner checks).
       await db.from("email_queue").insert({ subscriber_id: sub.id, template_key: "nudge", priority: 3, send_after: new Date(Date.now() + 2 * 86400000).toISOString() });
+      const rt = (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
       if (row) {
         const m = sub, job = welcomeExtra().then((extra) => sendNow(m, row.id, "welcome", extra)).catch(() => {});
-        (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime?.waitUntil(job);
+        rt?.waitUntil(job);
       }
+      // Into the CRM too, in the background. Never blocks or breaks the signup.
+      rt?.waitUntil(brevoUpsert({ email, first_name: null, phone: null, zip: null, source, sms_consent: false }).catch(() => ({ ok: false })));
     }
   }
 

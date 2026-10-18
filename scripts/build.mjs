@@ -32,6 +32,7 @@ writeFileSync(join(out, "_redirects"), [
   "/bonus /bonus.html 200",
   "/collection /collection.html 200",
   "/t /t.html 200",
+  "/admin /admin.html 200",
   "/privacy /privacy.html 200",
   "/rules /rules.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,
@@ -44,7 +45,7 @@ writeFileSync(join(out, "_headers"), [
   "  X-Frame-Options: DENY",
   "  Referrer-Policy: strict-origin-when-cross-origin",
   "  Permissions-Policy: camera=(), microphone=(), geolocation=()",
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"}; frame-src https://challenges.cloudflare.com; base-uri 'none'; form-action 'self'`,
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"}; frame-src https://challenges.cloudflare.com; base-uri 'none'; form-action 'self'`,
   "",
 ].join("\n"));
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");
