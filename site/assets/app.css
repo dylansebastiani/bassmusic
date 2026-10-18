@@ -123,3 +123,4 @@ footer a:hover{color:var(--hot)}
 .info input[type=text],.info input[type=tel]{width:100%;min-width:0;background:#000;border:1px solid #6c6567;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:14px;outline:none}
 .info input:focus{border-color:#fff}
 .info .check{text-transform:none;letter-spacing:0}
+.friend .code b{font-size:14px;letter-spacing:.04em;word-break:break-all}
