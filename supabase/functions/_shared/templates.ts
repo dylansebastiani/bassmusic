@@ -8,6 +8,8 @@ export interface Member {
 export interface Rendered { subject: string; html: string; text: string; }
 
 const M = CONFIG.membershipName, L = CONFIG.labelName || M;
+// Mail goes out from a no-reply address, so anything that needs an answer points to Instagram DMs.
+const IG = (CONFIG.social?.instagram || "subduction.wav").replace(/^@/, "");
 const hi = (m: Member) => (m.first_name ? `hey ${m.first_name}` : "hey");
 const FN = (Deno.env.get("SUPABASE_URL") || "https://hxfuelulxsituzcgsvhg.supabase.co") + "/functions/v1";
 const confirmUrl = (m: Member) => `${FN}/confirm?t=${m.access_token}`;
@@ -71,8 +73,8 @@ ${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #3
   story: (m) => {
     const html = `<p>${hi(m)},</p><p>quick one on why ${L} exists.</p>
 <p>Bass music needed a home around here again. Rooms that feel safe, sound that actually hits, and a crew that puts the community before the headcount. That's the whole idea. ${M} is how we keep the people who care close.</p>
-<p>Do me a favour: hit reply and tell me your city. One word is fine. It's how I figure out where to book next.</p><p>— Dylan</p>`;
-    const text = `${hi(m)},\n\nquick one on why ${L} exists.\n\nBass music needed a home around here again. Rooms that feel safe, sound that actually hits, and a crew that puts the community before the headcount. ${M} is how we keep the people who care close.\n\nDo me a favour: hit reply and tell me your city. One word is fine.\n\n— Dylan`;
+<p>Want us in your city? Make sure your ZIP is on your page. It's how we figure out where to book next.</p>${btn(meUrl(m), "Open my page")}<p>— Dylan</p>`;
+    const text = `${hi(m)},\n\nquick one on why ${L} exists.\n\nBass music needed a home around here again. Rooms that feel safe, sound that actually hits, and a crew that puts the community before the headcount. ${M} is how we keep the people who care close.\n\nWant us in your city? Make sure your ZIP is on your page: ${meUrl(m)}\n\n— Dylan`;
     return { subject: "why we started this", ...wrap(m, html, text) };
   },
   // 3. +4 days
@@ -121,8 +123,8 @@ ${btn(u, "Open my page")}<p style="color:#bbb">Didn't ask for this? Ignore it an
   // Referral rewards
   reward: (m, extra) => {
     const label = String(extra?.label || "a reward");
-    const html = `<p>${hi(m)},</p><p>you got people in. That unlocks: <b>${label}</b>.</p><p>Reply to this email and we'll sort the details. Thank you for actually bringing people. That's the whole thing.</p><p>— Dylan</p>`;
-    const text = `${hi(m)},\n\nyou got people in. That unlocks: ${label}.\n\nReply to this email and we'll sort the details.\n\n— Dylan`;
+    const html = `<p>${hi(m)},</p><p>you got people in. That unlocks: <b>${label}</b>.</p><p>DM us on Instagram at @${IG} and we'll sort the details. Thank you for actually bringing people. That's the whole thing.</p><p>— Dylan</p>`;
+    const text = `${hi(m)},\n\nyou got people in. That unlocks: ${label}.\n\nDM us on Instagram at @${IG} and we'll sort the details.\n\n— Dylan`;
     return { subject: `you unlocked: ${label.toLowerCase()}`, ...wrap(m, html, text) };
   },
 };

@@ -12,6 +12,8 @@ async function unsub(u: string) {
   await db.from("email_queue").update({ status: "cancelled" }).eq("subscriber_id", m.id).eq("status", "pending");
   return true;
 }
+// Mail comes from a no-reply address, so stragglers get pointed at Instagram DMs.
+const IG = (CONFIG.social?.instagram || "subduction.wav").replace(/^@/, "");
 const page = (title: string, body: string) => new Response(
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#eee;font:16px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;text-align:center;padding:24px}a{color:#fff}</style></head>
@@ -24,5 +26,5 @@ Deno.serve(async (req) => {
   if (req.method === "POST") return new Response(ok ? "ok" : "not found", { status: ok ? 200 : 404 });
   return ok
     ? page("You're out", "No more emails from us. If that was a mistake, just join again from the site.")
-    : page("Link not recognised", "That unsubscribe link didn't match anyone. Reply to any of our emails and we'll remove you by hand.");
+    : page("Link not recognised", `That unsubscribe link didn't match anyone. DM us on Instagram at @${IG} and we'll remove you by hand.`);
 });
