@@ -12,7 +12,7 @@ const hi = (m: Member) => (m.first_name ? `hey ${m.first_name}` : "hey");
 const FN = (Deno.env.get("SUPABASE_URL") || "https://hxfuelulxsituzcgsvhg.supabase.co") + "/functions/v1";
 const confirmUrl = (m: Member) => `${FN}/confirm?t=${m.access_token}`;
 const refUrl = (m: Member) => `${SITE_URL}/?r=${m.referral_code}`;
-const meUrl = (m: Member) => `${SITE_URL}/in.html?t=${m.access_token}`;
+const meUrl = (m: Member) => `${SITE_URL}/collection.html?t=${m.access_token}`;
 export const unsubUrl = (m: Member) => `${FN}/unsubscribe?u=${m.unsubscribe_token}`;
 
 // Black, one column, logo on top, one button. Tables + inline styles so Gmail,

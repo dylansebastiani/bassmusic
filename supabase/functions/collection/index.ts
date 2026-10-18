@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   const profileDone = !!(m.first_name && m.phone && m.zip);
   const now = new Date();
 
-  const [{ data: items }, { data: coupons }, { data: events }, { data: welcome }] = await Promise.all([
+  const [{ data: items }, { data: coupons }, { data: events }] = await Promise.all([
     db.from("collection_items")
       .select("unlocked_at, drop:drops(slug,title,artist,artist_slug,description,audio_path,artwork_path,download_path)")
       .eq("subscriber_id", m.id).order("unlocked_at", { ascending: false }).limit(200),
@@ -23,7 +23,6 @@ Deno.serve(async (req) => {
       .eq("is_active", true).order("min_tracks", { ascending: true }),
     db.from("events").select("slug,name,kind,venue,city,address,starts_at,ends_at,description,ticket_url,prize")
       .eq("is_active", true).eq("is_public", true).order("starts_at", { ascending: true, nullsFirst: false }).limit(60),
-    db.from("drops").select("id").eq("is_current", true).limit(1).maybeSingle(),
   ]);
 
   type D = { slug: string; title: string; artist: string | null; artist_slug: string | null; description: string | null;
@@ -71,6 +70,6 @@ Deno.serve(async (req) => {
 
   return json({
     first_name: m.first_name, profile_done: profileDone, confirmed: !!m.email_confirmed_at, referral_code: m.referral_code,
-    has_welcome: !!welcome, tracks, coupons: out, events: upcoming,
+    tracks, coupons: out, events: upcoming,
   }, 200, { "Cache-Control": "no-store" });
 });
