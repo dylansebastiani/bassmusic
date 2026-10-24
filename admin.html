@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/admin.css">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"PO Box TBD, Bloomington, IL 61701","social":{"instagram":"subduction.wav","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction is a new bass music label, and the community around it. Members get unreleased tracks for free, before anyone else, and first word on shows. Look for us at shows.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+<title>Admin</title>
+</head>
+<body>
+<main class="wrap admin">
+  <div class="top"><img src="assets/logo.png" alt=""><span class="mono">Admin</span><button type="button" id="signout" hidden>Sign out</button></div>
+
+  <section id="login">
+    <h1 class="disp">Staff <em>sign in</em></h1>
+    <p class="lead">Your email, then the 6-digit code we send it. Only emails on the staff list get in.</p>
+    <form id="lf" novalidate><label class="sr" for="aemail">Email</label>
+      <div class="unit"><input type="email" id="aemail" placeholder="email" autocomplete="email" inputmode="email"><button type="submit" class="btn">Send code</button></div></form>
+    <form id="cf" novalidate hidden><label class="sr" for="acode">Code</label>
+      <div class="unit"><input type="text" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code"><button type="submit" class="btn">Sign in</button></div></form>
+    <p class="msg" id="lmsg" role="status"></p>
+  </section>
+
+  <section class="app" id="app" hidden>
+    <div class="panel" id="p-tracks" role="tabpanel">
+      <h2 class="disp">Tracks</h2>
+      <div class="list" id="tracks"></div>
+      <details class="add" id="addTrack"><summary class="btn ghost">Add a track</summary>
+        <form id="tf" novalidate class="form">
+          <label for="t_title">Title</label><input type="text" id="t_title" required>
+          <label for="t_artist">Artist</label><input type="text" id="t_artist">
+          <label for="t_desc">One line (optional)</label><input type="text" id="t_desc">
+          <label for="t_audio">Audio to stream (mp3 or m4a, under 20 MB)</label><input type="file" id="t_audio" accept="audio/*" required>
+          <label for="t_wav">Lossless download (WAV, optional, up to 50 MB)</label><input type="file" id="t_wav" accept=".wav,audio/wav,audio/x-wav">
+          <label for="t_cover">Cover (square JPG, under 3 MB)</label><input type="file" id="t_cover" accept="image/*">
+          <label class="check"><input type="checkbox" id="t_current"><span>Make this the welcome track everyone gets on signup</span></label>
+          <button type="submit" class="btn" id="t_go">Upload and create</button>
+          <div class="msg" id="tmsg" role="status"></div>
+        </form></details>
+    </div>
+
+    <div class="panel" id="p-members" role="tabpanel" hidden>
+      <h2 class="disp">Members</h2>
+      <div class="stats" id="mstats"></div>
+      <div class="row2"><button type="button" class="btn ghost" id="csv">Download CSV</button><button type="button" class="btn ghost" id="brevoBtn">Brevo</button></div>
+      <div class="card" id="brevo" hidden></div>
+      <div class="tablewrap"><table id="mtable"><thead><tr><th>Email</th><th>Name</th><th>Phone</th><th>ZIP</th><th>From</th><th>Tracks</th><th>Joined</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="panel" id="p-numbers" role="tabpanel" hidden>
+      <h2 class="disp">Numbers</h2>
+      <div class="sub mono">Per show</div><div class="tablewrap"><table id="etable"><thead><tr><th>Show</th><th>Stickers out</th><th>Views</th><th>Unlocks</th><th>Joined there</th><th>Scan rate</th></tr></thead><tbody></tbody></table></div>
+      <div class="sub mono">Per artist</div><div class="tablewrap"><table id="atable"><thead><tr><th>Artist</th><th>Tracks</th><th>QR views</th><th>Unlocks</th></tr></thead><tbody></tbody></table></div>
+      <div class="sub mono">Per track</div><div class="tablewrap"><table id="ttable"><thead><tr><th>Track</th><th>Views</th><th>Unlocks</th><th>Re-scans</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="panel" id="p-events" role="tabpanel" hidden>
+      <h2 class="disp">Events</h2>
+      <div class="list" id="events"></div>
+      <details class="add"><summary class="btn ghost">Add a show or pop-up</summary>
+        <form id="ef" novalidate class="form">
+          <label for="e_name">Name</label><input type="text" id="e_name" required>
+          <label for="e_kind">Type</label><select id="e_kind"><option value="show">Show</option><option value="popup">Pop-up</option><option value="drop">Drop</option><option value="other">Other</option></select>
+          <label for="e_venue">Venue</label><input type="text" id="e_venue">
+          <label for="e_city">City</label><input type="text" id="e_city">
+          <label for="e_address">Address</label><input type="text" id="e_address">
+          <label for="e_start">Starts</label><input type="datetime-local" id="e_start">
+          <label for="e_end">Ends</label><input type="datetime-local" id="e_end">
+          <label for="e_ticket">Tickets / info link</label><input type="url" id="e_ticket" placeholder="https://">
+          <label for="e_stickers">Stickers printed for this show</label><input type="number" id="e_stickers" inputmode="numeric" min="0" placeholder="0">
+          <label for="e_desc">Details</label><input type="text" id="e_desc">
+          <button type="submit" class="btn">Save event</button>
+          <div class="msg" id="emsg" role="status"></div>
+        </form></details>
+    </div>
+
+    <div class="panel" id="p-staff" role="tabpanel" hidden>
+      <h2 class="disp">Staff</h2>
+      <p class="lead">These emails can open this page. They sign up on the homepage like anyone, then sign in here.</p>
+      <ul class="list" id="staff"></ul>
+      <form id="sf" novalidate><label class="sr" for="s_email">Email</label><div class="unit"><input type="email" id="s_email" placeholder="email"><button type="submit" class="btn">Add</button></div></form>
+      <div class="msg" id="smsg" role="status"></div>
+    </div>
+  </section>
+</main>
+<nav class="tabs five" id="tabs" role="tablist" hidden>
+  <button type="button" role="tab" data-tab="tracks" aria-selected="true">Tracks</button>
+  <button type="button" role="tab" data-tab="members" aria-selected="false">Members</button>
+  <button type="button" role="tab" data-tab="numbers" aria-selected="false">Numbers</button>
+  <button type="button" role="tab" data-tab="events" aria-selected="false">Events</button>
+  <button type="button" role="tab" data-tab="staff" aria-selected="false">Staff</button>
+</nav>
+<script src="assets/stack.js"></script>
+<script src="assets/admin.js"></script>
+</body>
+</html>
