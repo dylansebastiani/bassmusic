@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Subduction privacy">
+<meta property="og:description" content="What Subduction collects when you join, why, and how to get it deleted.">
+<meta property="og:image" content="https://subduction.art/assets/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Subduction privacy">
+<meta name="twitter:description" content="What Subduction collects when you join, why, and how to get it deleted.">
+<meta name="twitter:image" content="https://subduction.art/assets/og.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<style>.prose{padding-bottom:48px;color:#cfc9c5;line-height:1.75}.prose h1{margin:8px 0 18px}.prose h2{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:28px 0 8px}.prose a{color:var(--hot)}</style>
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"PO Box TBD, Bloomington, IL 61701","social":{"instagram":"subduction.wav","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction is a new bass music label, and the community around it. Members get unreleased tracks for free, before anyone else, and first word on shows. Look for us at shows.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+<title>Privacy</title>
+</head>
+<body>
+<main class="wrap prose">
+  <div class="top"><a href="./"><img src="assets/logo.png" alt="Home"></a></div>
+
+  <h1 class="disp">Privacy</h1>
+  <p>This page explains what <span data-k="labelName"></span> collects when you join <span data-k="membershipName"></span>, why, and how to get it deleted.</p>
+  <h2>What we collect</h2>
+  <p>Your email address when you join. Optionally, if you give them: first name, ZIP code and phone number. We also record which link brought you here (Instagram, TikTok, a show QR code, a friend's referral link), a hashed version of your IP address for abuse prevention (never the raw address), which tracks you unlock and play, and which emails you open.</p>
+  <h2>Why</h2>
+  <p>To send you unreleased music, show announcements, presales and member-only drops; to see which shows people scan at; to work out which cities to book shows in; and to stop bots and duplicate signups.</p>
+  <h2>Texts</h2>
+  <p>We only text you if you gave a phone number and ticked the consent box. We store the exact wording you agreed to and when. Reply STOP to any text to opt out. Message and data rates may apply.</p>
+  <h2>On your phone</h2>
+  <p>After you join, your browser keeps a private member key so you don't have to sign in again and show codes you scan land on your account. It never contains your email. Tap "Sign out" on your collection page, or clear this site's data, to remove it.</p>
+  <h2>Who we share it with</h2>
+  <p>Our email provider (to deliver email) and our hosting and database providers (to run this site). We may share hashed versions of member emails and phone numbers with Meta and TikTok so we can show ads to members and to people like them. Hashing means they receive a scrambled version they can only match against accounts they already hold. We never sell your information.</p>
+  <h2>How to opt out or delete</h2>
+  <p>Every email has a one-click unsubscribe. To be removed from ad audiences or to have everything we hold about you deleted, email <a data-mail="contactEmail"></a> from the address you signed up with and we'll do it within 30 days.</p>
+  <h2>Age</h2>
+  <p>You must be 13 or older to join.</p>
+  <h2>Contact</h2>
+  <p><span data-k="labelName"></span><br><span data-k="mailingAddress"></span><br><a data-mail="contactEmail"></a></p>
+  <footer><a href="./">Home</a><a href="collection.html">My collection</a></footer>
+</main>
+<script>
+(function () { var C = window.STACK || {};
+  document.querySelectorAll("[data-k]").forEach(function (el) { el.textContent = C[el.getAttribute("data-k")] || ""; });
+  document.querySelectorAll("[data-mail]").forEach(function (el) { var m = C[el.getAttribute("data-mail")] || ""; el.textContent = m; el.href = "mailto:" + m; });
+})();
+</script>
+</body>
+</html>
