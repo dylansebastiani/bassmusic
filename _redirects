@@ -1,0 +1,8 @@
+/in /in.html 200
+/bonus /bonus.html 200
+/collection /collection.html 200
+/t /t.html 200
+/admin /admin.html 200
+/privacy /privacy.html 200
+/c/:token https://hxfuelulxsituzcgsvhg.supabase.co/functions/v1/confirm?t=:token 302
+/u/:token https://hxfuelulxsituzcgsvhg.supabase.co/functions/v1/unsubscribe?u=:token 302
