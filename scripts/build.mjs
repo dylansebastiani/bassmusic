@@ -27,6 +27,11 @@ for (const f of readdirSync(out)) {
   const p = join(out, f);
   writeFileSync(p, readFileSync(p, "utf8").replace("<!--CONFIG-->", inject));
 }
+// /underground/ is the event page itself (not a redirect), so link previews in iMessage,
+// Instagram and Facebook read its cover image and title. <base> keeps its asset paths working.
+mkdirSync(join(out, "underground"), { recursive: true });
+writeFileSync(join(out, "underground", "index.html"),
+  readFileSync(join(out, "tickets.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 // Pretty routes and the short links used in emails (/c/<token>, /u/<token>).
 const fn = pub.supabaseUrl + "/functions/v1";
 writeFileSync(join(out, "_redirects"), [
