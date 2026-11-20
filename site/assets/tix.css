@@ -181,3 +181,4 @@ html:has(.toftu){background:#050505}
 .ftu-img{margin:16px auto 2px;width:min(100%,560px)}
 .ftu-img img{width:100%;height:auto}
 .hero img{mask-image:linear-gradient(transparent,#000 14%,#000 75%,transparent);-webkit-mask-image:linear-gradient(transparent,#000 14%,#000 75%,transparent)}
+.toftu .tree{width:84px;opacity:.75;mix-blend-mode:normal}
