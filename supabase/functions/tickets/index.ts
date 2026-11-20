@@ -105,7 +105,12 @@ Deno.serve(async (req) => {
     p_promo: clean(b.promo, 40), p_ref: clean(b.ref, 80), p_minutes: 35,
   });
   if (holdErr || !orderId) return err(holdErr?.message || "Couldn't hold those tickets. Try again.");
-  const { data: o } = await db.from("ticket_orders").select("id,items,discount_cents").eq("id", orderId).single();
+  const { data: o } = await db.from("ticket_orders").select("id,items,subtotal_cents,discount_cents").eq("id", orderId).single();
+  // The buyer covers the card fee: Stripe takes 2.9% + 30c of the total, so the fee is set
+  // so that what's left is the full ticket price.
+  const net = o!.subtotal_cents - o!.discount_cents;
+  const fee = net > 0 ? Math.ceil((net + 30) / (1 - 0.029)) - net : 0;
+  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee }).eq("id", o!.id);
 
   try {
     const line_items: Record<string, unknown> = {};
@@ -115,6 +120,9 @@ Deno.serve(async (req) => {
         price_data: { currency: "usd", unit_amount: it.unit_cents, product_data: { name: `${ev.name}: ${it.name}`, description: it.tier } },
       };
     });
+    if (fee > 0) {
+      line_items[Object.keys(line_items).length] = { quantity: 1, price_data: { currency: "usd", unit_amount: fee, product_data: { name: "Card processing fee" } } };
+    }
     let discounts: Record<string, unknown> | undefined;
     if (o!.discount_cents > 0) {
       const c = await stripe("coupons", { amount_off: o!.discount_cents, currency: "usd", duration: "once", max_redemptions: 1, name: "Promo code" });

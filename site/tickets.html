@@ -49,7 +49,7 @@
       <h2 class="sec">Tickets</h2>
       <div class="types" id="types"></div>
       <form class="buy" id="buy" novalidate>
-        <div class="total"><span class="mono">Total</span><b id="total">$0</b></div>
+        <div class="total"><span class="mono">Total <small id="feeNote" style="text-transform:none;letter-spacing:0"></small></span><b id="total">$0</b></div>
         <label for="bname">Name</label><input type="text" id="bname" autocomplete="name" maxlength="80">
         <label for="bemail">Email (your tickets go here)</label><input type="email" id="bemail" autocomplete="email" inputmode="email" maxlength="254">
         <details class="promo" id="promoBox"><summary>Have a code?</summary>
@@ -57,7 +57,7 @@
         </details>
         <button type="submit" class="btn" id="go">Checkout</button>
         <p class="msg" id="bmsg" role="status"></p>
-        <p class="fineprint">Price shown is what you pay. Tickets are emailed right away with a QR code for the door. All sales final unless the show is cancelled.</p>
+        <p class="fineprint">21+ with ID. Ticket prices plus a small card processing fee, shown before you pay. Tickets are emailed right away with a QR code for the door. All sales final unless the show is cancelled.</p>
       </form>
       <div id="payWrap" hidden>
         <button type="button" class="back" id="back">&larr; Change tickets</button>

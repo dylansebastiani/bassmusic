@@ -74,7 +74,10 @@
       total += atTier * t.tier.price_cents + rest * (t.next_tier ? t.next_tier.price_cents : t.tier.price_cents);
       count += n;
     });
-    $("total").textContent = usd(total);
+    // Card fee is added at checkout so the show keeps the full ticket price (Stripe: 2.9% + 30c).
+    var fee = total > 0 ? Math.ceil((total + 30) / (1 - 0.029)) - total : 0;
+    $("total").textContent = usd(total + fee);
+    $("feeNote").textContent = fee ? "incl. " + usd(fee) + " card fee" : "";
     $("go").disabled = !count;
     $("go").textContent = count ? "Checkout · " + count + " ticket" + (count > 1 ? "s" : "") : "Pick tickets";
   }
