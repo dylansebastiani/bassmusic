@@ -194,3 +194,4 @@ html:has(.toftu){background:#050505}
 .toftu .night.n2 .char{filter:drop-shadow(0 0 16px rgba(138,43,226,.55))}
 .toftu .night .eye{top:18px;transform:none;width:58px;height:58px;z-index:1}
 .toftu .night h3,.toftu .night .when,.toftu .night ul{position:relative;z-index:1}
+.toftu .night .char{bottom:14px;height:54%;max-width:32%}
