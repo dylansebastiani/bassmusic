@@ -30,8 +30,8 @@
     $("meta").innerHTML = ['<span class="pill">' + esc(ev.age || "Age TBA") + "</span>"]
       .concat(data.nights.map(function (n) { return '<span class="pill">' + esc(n.label) + "</span>"; })).join("");
     $("nights").innerHTML = data.nights.map(function (n, i) {
-      return '<div class="nw">' + (i === 0 ? '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="520" height="849">' : "") +
-        '<div class="night' + (i % 2 ? " n2" : "") + '"><img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240"><h3>' + esc(n.label) + "</h3>" +
+      var ch = i % 2 ? '<img class="char" src="assets/toftu/jumper.webp" alt="" width="520" height="796">' : '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="520" height="849">';
+      return '<div class="nw"><div class="night' + (i % 2 ? " n2" : "") + '">' + ch + '<img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240"><h3>' + esc(n.label) + "</h3>" +
         (n.starts_at ? '<div class="when">Doors ' + time(n.starts_at) + (n.ends_at ? " – " + time(n.ends_at) : "") + "</div>" : "") +
         "<ul>" + (n.lineup || []).map(function (a) { return "<li>" + esc(a.name) + (a.note ? "<small>" + esc(a.note) + "</small>" : "") + "</li>"; }).join("") + "</ul></div></div>";
     }).join("");
