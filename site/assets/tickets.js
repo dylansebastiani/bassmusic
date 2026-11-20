@@ -24,7 +24,9 @@
     if (ev.poster_url) { $("poster").src = ev.poster_url; $("poster").hidden = false; }
     $("name").textContent = ev.name;
     var map = ev.address ? "https://maps.google.com/?q=" + encodeURIComponent(ev.address) : null;
-    $("where").innerHTML = esc(ev.venue || "") + (ev.address ? '<br><a href="' + map + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : "");
+    $("where").innerHTML = ev.location_secret
+      ? "<b>Secret location</b> · " + esc(ev.city || "") + '<br><span class="fineprint" style="margin:0">The address comes with your tickets.</span>'
+      : esc(ev.venue || "") + (ev.address ? '<br><a href="' + map + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : "");
     $("meta").innerHTML = ['<span class="pill">' + esc(ev.age || "Age TBA") + "</span>"]
       .concat(data.nights.map(function (n) { return '<span class="pill">' + esc(n.label) + "</span>"; })).join("");
     $("nights").innerHTML = data.nights.map(function (n, i) {

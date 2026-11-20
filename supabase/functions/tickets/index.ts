@@ -65,7 +65,9 @@ Deno.serve(async (req) => {
     if (!x) return err("Not found", 404);
     const { ev, nights, types } = x;
     return json({
-      event: { slug: ev.slug, name: ev.name, venue: ev.venue, city: ev.city, address: ev.address, description: ev.description, age: ev.age,
+      // A secret location stays off the public page; ticket holders get it on their ticket and in the email.
+      event: { slug: ev.slug, name: ev.name, venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city,
+               address: ev.location_secret ? null : ev.address, location_secret: ev.location_secret, description: ev.description, age: ev.age,
                poster_url: ev.poster_url, sales_open: ev.sales_open, max_per_order: ev.max_per_order },
       nights: nights.map((n) => ({ id: n.id, slug: n.slug, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, lineup: n.lineup })),
       types: await availability(types.filter((t) => t.on_sale)),

@@ -17,7 +17,7 @@ export interface Night { id: string; slug: string; label: string; starts_at: str
 
 export async function loadEvent(slug: string) {
   const { data: ev } = await db.from("events")
-    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,starts_at,ends_at,door_pin_hash")
+    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,starts_at,ends_at,door_pin_hash,location_secret")
     .eq("slug", slug).maybeSingle();
   if (!ev) return null;
   const [{ data: nights }, { data: types }] = await Promise.all([
