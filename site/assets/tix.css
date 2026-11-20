@@ -168,3 +168,13 @@ html:has(.toftu){background:#050505}
 .flyers a:last-child{box-shadow:0 0 18px -4px rgba(138,43,226,.7)}
 .flyers img{width:100%;height:auto}
 .toftu .night li:nth-child(2){font-weight:600;font-size:17px}
+/* real art: crisp logo, full hero, the violet figure leaping over the ticket list */
+.brand .wm{mix-blend-mode:normal;filter:drop-shadow(0 0 18px rgba(138,43,226,.45))}
+.hero{margin:16px -18px 4px}
+.hero img{mix-blend-mode:normal;mask-image:linear-gradient(#000 75%,transparent);-webkit-mask-image:linear-gradient(#000 75%,transparent)}
+#shop{position:relative}
+.jumper{position:absolute;right:-14px;top:-40px;width:150px;height:auto;z-index:0;pointer-events:none;filter:drop-shadow(0 0 22px rgba(138,43,226,.5))}
+#shop .sec,#shop .types,#shop .buy,#shop #payWrap{position:relative;z-index:1}
+.jumper{top:-118px;width:128px}
+.toftu .type{background-color:#050505}
+.toftu .type:not(.tp){background-image:linear-gradient(180deg,rgba(59,23,96,.28),rgba(5,5,5,0) 70%)}
