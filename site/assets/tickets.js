@@ -22,8 +22,7 @@
     var ev = data.event;
     document.title = ev.name + " · Tickets";
     if (ev.poster_url) { $("poster").src = ev.poster_url; $("poster").hidden = false; }
-    var words = esc(ev.name).split(" ");
-    $("name").innerHTML = words.length > 1 ? words.slice(0, -1).join(" ") + ' <span class="u">' + words[words.length - 1] + "</span>" : esc(ev.name);
+    $("name").textContent = ev.name;
     var map = ev.address ? "https://maps.google.com/?q=" + encodeURIComponent(ev.address) : null;
     $("where").innerHTML = esc(ev.venue || "") + (ev.address ? '<br><a href="' + map + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : "");
     $("meta").innerHTML = ['<span class="pill">' + esc(ev.age || "Age TBA") + "</span>"]
@@ -44,7 +43,9 @@
       var line = !open ? "On sale soon" : t.sold_out ? "Sold out" :
         (t.tier_count > 1 ? esc(tier.name) + " · " + tier.left + " left at this price" + (t.next_tier ? " <s>then " + usd(t.next_tier.price_cents) + "</s>" : "") : t.left + " left");
       var low = open && tier && tier.left <= 10;
-      return '<div class="type' + (n ? " on" : "") + (t.sold_out ? " out" : "") + '">' +
+      var idx = t.night_ids.map(function (id) { return data.nights.findIndex(function (x) { return x.id === id; }); });
+      var tone = idx.length > 1 ? " tp" : idx[0] % 2 ? " t2" : " t1";
+      return '<div class="type' + tone + (n ? " on" : "") + (t.sold_out ? " out" : "") + '">' +
         "<div><h4>" + esc(t.name) + "</h4>" + (t.blurb ? '<div class="b">' + esc(t.blurb) + "</div>" : "") + "</div>" +
         '<div class="price">' + (tier ? usd(tier.price_cents) : "") + "</div>" +
         '<div class="tier' + (low ? " low" : "") + '">' + line + "</div>" +

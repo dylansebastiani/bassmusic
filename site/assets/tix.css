@@ -97,3 +97,60 @@
 .door .form select,.door .form input[type=number],.door .form input[type=password]{width:100%;background:#000;border:1px solid #6c6567;color:var(--fg);font-size:16px;padding:12px;border-radius:0}
 .switch{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);padding:12px 14px;margin:10px 0}
 .switch .btn{width:auto;font-size:16px;padding:8px 14px 6px}
+
+/* ===== T.O.F.T.U. brand kit =====
+   Void Black #050505 canvas · Deep Ultraviolet #3B1760 containers · Lavender Mist #B5A1C8 outlines
+   Solar Plasma #FF5A1F = night one + calls to action · Electric Violet #8A2BE2 = night two */
+.toftu{--bg:#050505;--fg:#f3effa;--mute:#B5A1C8;--line:#3B1760;--hot:#FF5A1F;--n1:#FF5A1F;--n2:#8A2BE2;--uv:#3B1760;--lav:#B5A1C8;
+  background:#050505}
+html:has(.toftu){background:#050505}
+.toftu .btn{background:var(--n1);color:#050505;font-family:"Archivo Black",var(--disp);letter-spacing:.06em}
+.toftu .btn:hover:not(:disabled),.toftu .btn:focus-visible{background:#fff}
+.toftu .btn.ghost{background:transparent;color:var(--fg);border-color:var(--lav)}
+.brand{text-align:center;padding:6px 0 4px}
+.brand .wm{width:min(80%,380px);height:auto;margin:0 auto;mix-blend-mode:lighten}
+.ftu{font-family:"Archivo Black",var(--disp);text-transform:uppercase;color:transparent;-webkit-text-stroke:1.4px #fff;
+  font-size:clamp(18px,5.6vw,34px);letter-spacing:.03em;line-height:1.1;margin:12px 0 4px}
+.toftu h1.ftu{font-weight:400;font-size:clamp(18px,5.6vw,34px)}
+.hero{position:relative;margin:14px 0 6px;overflow:hidden}
+.hero img{width:100%;height:auto;mix-blend-mode:lighten;mask-image:linear-gradient(#000 70%,transparent);-webkit-mask-image:linear-gradient(#000 70%,transparent)}
+.dots{position:absolute;inset:0;pointer-events:none;background:radial-gradient(rgba(181,161,200,.22) 1px,transparent 1.4px) 0 0/7px 7px;
+  mask-image:radial-gradient(circle at 50% 50%,#000,transparent 70%);-webkit-mask-image:radial-gradient(circle at 50% 50%,#000,transparent 70%);mix-blend-mode:screen}
+.toftu .pill{border-color:var(--uv);color:var(--lav);font-family:var(--mono)}
+.toftu .where2,.toftu .where2 a{color:#e7e0f0}
+/* frames: the angled corner panels from the kit */
+.toftu .night,.toftu .type,.toftu .ticket,.toftu .done{border:1px solid var(--uv);background:linear-gradient(180deg,rgba(59,23,96,.28),rgba(5,5,5,0) 70%);
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.toftu .night{border-left:4px solid var(--n1);box-shadow:inset 3px 0 18px -6px var(--n1)}
+.toftu .night.n2{border-left-color:var(--n2);box-shadow:inset 3px 0 18px -6px var(--n2)}
+.toftu .night h3,.toftu .type h4,.toftu .sec,.toftu .ticket .hd h2{font-family:"Archivo Black",var(--disp);letter-spacing:.02em}
+.toftu .night h3{color:var(--n1)} .toftu .night.n2 h3{color:var(--n2)}
+.toftu .night li:first-child{font-family:"Archivo Black",var(--disp);font-size:21px}
+.toftu .when,.toftu .night li small{color:var(--lav)}
+.toftu .sec{color:transparent;-webkit-text-stroke:1.2px #fff;letter-spacing:.08em}
+.toftu .type.t1{border-color:rgba(255,90,31,.5)} .toftu .type.t2{border-color:rgba(138,43,226,.6)}
+.toftu .type.tp{border-color:var(--lav);background:linear-gradient(120deg,rgba(255,90,31,.16),rgba(138,43,226,.22))}
+.toftu .type.on{border-color:#fff;box-shadow:0 0 0 1px #fff inset}
+.toftu .type.t1 .price{color:var(--n1)} .toftu .type.t2 .price{color:#b57cff} .toftu .type.tp .price{color:#fff}
+.toftu .type .price{font-family:"Archivo Black",var(--disp);font-size:26px}
+.toftu .type .tier{color:var(--lav)} .toftu .type .tier.low{color:var(--n1)}
+.toftu .qty{border-color:var(--lav)}
+.toftu .buy input,.toftu .manual,.toftu .unit{border-color:var(--uv)}
+.toftu .buy input:focus{border-color:var(--lav)}
+.toftu .total b{font-family:"Archivo Black",var(--disp);color:#fff}
+.toftu .done{border-color:var(--n1)} .toftu .done h2{color:var(--n1);font-family:"Archivo Black",var(--disp)}
+.toftu .tlinks a{border-color:var(--uv)}
+.toftu .ticket .cd{color:#fff;border-color:var(--uv)}
+.toftu .ticket .hd,.toftu .ticket .row{border-color:var(--uv)}
+.toftu .ticket .qrbox{box-shadow:0 0 30px rgba(138,43,226,.35)}
+.toftu .msg,.toftu .fineprint{color:var(--lav)}
+.toftu .mono{color:var(--lav)}
+.toftu .tree{width:64px;height:auto;margin:30px auto 0;opacity:.6;mix-blend-mode:lighten}
+/* door: same colors, nights in their own color */
+.toftu.door .nightpick button{font-family:"Archivo Black",var(--disp);border-color:var(--uv)}
+.toftu.door .nightpick button[aria-pressed="true"]{border-color:var(--n1);background:rgba(255,90,31,.14)}
+.toftu.door .nightpick button.n2[aria-pressed="true"]{border-color:var(--n2);background:rgba(138,43,226,.18)}
+.toftu .tabs{background:#050505;border-top-color:var(--uv)}
+.toftu .tabs button[aria-selected="true"]::before{background:var(--n1)}
+.toftu .person{border-color:var(--uv)} .toftu .person button{background:var(--n1)} .toftu .person .tag{color:#b57cff}
+.toftu .stat,.toftu .tablewrap,.toftu th,.toftu td,.toftu .switch{border-color:var(--uv)}
