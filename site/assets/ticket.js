@@ -11,7 +11,8 @@
     document.title = (k.type || "Ticket") + " · " + ev.name;
     $("kind").textContent = k.comp ? "Guest list" : "Ticket";
     $("ename").textContent = ev.name;
-    $("ewhere").innerHTML = esc(ev.venue || "") + (ev.address ? "<br>" + esc(ev.address) : "") + (ev.age ? "<br>" + esc(ev.age) + " · bring ID" : "");
+    $("ewhere").innerHTML = (ev.address ? '<span class="loclabel">The secret location</span><b>' + esc(ev.venue || "") + '</b><br><a href="https://maps.google.com/?q=' + encodeURIComponent(ev.address) + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : esc(ev.venue || "")) +
+      (ev.age ? '<br><span class="agepill">' + esc(ev.age) + " · bring ID</span>" : "");
     $("ttype").textContent = k.type || "Ticket";
     $("tname").textContent = k.name || "";
     $("qr").src = FN + "?a=qr&t=" + t;
@@ -21,6 +22,14 @@
       return '<div class="row"><span>' + esc(n.label) + (n.starts_at ? " · doors " + time(n.starts_at) : "") + "</span>" +
         (n.used_at ? '<b class="used">In at ' + time(n.used_at) + "</b>" : "<b>Not used yet</b>") + "</div>";
     }).join("");
+    // Night colors: look up where this ticket's nights sit in the show (first night orange, second violet).
+    fetch(FN + "?e=" + encodeURIComponent(ev.slug)).then(function (r) { return r.json(); }).then(function (pub) {
+      var idx = d.nights.map(function (n) { return (pub.nights || []).findIndex(function (x) { return x.label === n.label; }); }).filter(function (i) { return i >= 0; });
+      if (!idx.length) return;
+      var card = $("card"), pass = idx.length > 1;
+      card.classList.add(pass ? "tp" : idx[0] % 2 ? "t2" : "t1");
+      $("ttype").insertAdjacentHTML("afterbegin", idx.map(function (i) { return '<img class="teye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="">'; }).join(""));
+    }).catch(function () {});
     $("msg").hidden = true; $("tk").hidden = false;
   }).catch(function () { $("msg").textContent = "Couldn't find that ticket. Open it again from your email."; });
 })();

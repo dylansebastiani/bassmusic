@@ -195,3 +195,17 @@ html:has(.toftu){background:#050505}
 .toftu .night .eye{top:18px;transform:none;width:58px;height:58px;z-index:1}
 .toftu .night h3,.toftu .night .when,.toftu .night ul{position:relative;z-index:1}
 .toftu .night .char{bottom:14px;height:54%;max-width:32%}
+/* ticket page: night color bar, eyes, the night's figure */
+.toftu .ticket{position:relative;background:#0D0716;border-top:6px solid var(--lav)}
+.toftu .ticket.t1{border-top-color:var(--n1)} .toftu .ticket.t2{border-top-color:var(--n2)}
+.toftu .ticket.tp{border-top:0;box-shadow:inset 0 6px 0 0 var(--n1)}
+.toftu .ticket.tp::before{content:"";position:absolute;left:50%;right:0;top:0;height:6px;background:var(--n2);z-index:2}
+.toftu .ticket.t1 .hd h2{color:var(--n1)} .toftu .ticket.t2 .hd h2{color:#b57cff}
+.teye{width:30px;height:30px;display:inline-block;vertical-align:-5px;margin-right:6px}
+.teye+.teye{margin-left:-14px}
+.tfig{position:absolute;right:8px;top:8px;width:70px;height:auto;opacity:.95;pointer-events:none}
+.toftu .ticket .hd{padding-right:90px}
+.loclabel{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--n1);margin-bottom:4px}
+.toftu #ewhere b{font-family:"Archivo Black",var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;color:#fff}
+.agepill{display:inline-block;margin-top:10px;border:1px solid var(--uv);padding:4px 9px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#fff}
+.toftu .ticket .hd{padding-right:16px} .toftu #kind{margin-top:6px}

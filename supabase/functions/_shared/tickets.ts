@@ -5,11 +5,11 @@ import { sha256 } from "./util.ts";
 import { SITE_URL, CONFIG } from "./config.ts";
 import { brevo as provider } from "./email/brevo.ts";   // <- swap provider here
 import { requireAdmin } from "./admin.ts";
+import { renderTicketEmail } from "./ticket_email.ts";
 
 export const FN_URL = (Deno.env.get("SUPABASE_URL") || "https://hxfuelulxsituzcgsvhg.supabase.co") + "/functions/v1";
 export const TICKET_PAGE = (token: string) => `${SITE_URL}/ticket.html?t=${token}`;
 export const QR_URL = (token: string) => `${FN_URL}/tickets?a=qr&t=${token}`;
-export const usd = (c: number) => "$" + (c / 100).toFixed(c % 100 ? 2 : 0);
 
 export interface Tier { name: string; price_cents: number; qty: number }
 export interface TicketType { id: string; slug: string; name: string; blurb: string | null; night_ids: string[]; tiers: Tier[]; door_price_cents: number | null; on_sale: boolean; sort: number }
@@ -87,54 +87,41 @@ export async function verifyStripe(raw: string, header: string | null) {
 }
 function timingSafeEq(a: string, b: string) { let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
 
-// ---------- the ticket email ----------
-const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+// ---------- the ticket email (design lives in ticket_email.ts) ----------
+const doorsText = (starts: string | null, ends: string | null) => {
+  if (!starts) return null;
+  const t = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).replace(":00", "");
+  return "Doors " + t(starts) + (ends ? " – " + t(ends) : "");
+};
 
 export async function sendTickets(orderId: string) {
-  const { data: o } = await db.from("ticket_orders").select("id,event_id,email,name,status,total_cents,emailed_at,comp_list").eq("id", orderId).maybeSingle();
+  const { data: o } = await db.from("ticket_orders").select("id,event_id,email,name,status,subtotal_cents,discount_cents,fee_cents,total_cents,emailed_at").eq("id", orderId).maybeSingle();
   if (!o || !o.email || o.emailed_at) return false;
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
-    db.from("events").select("name,venue,address,age").eq("id", o.event_id).single(),
-    db.from("tickets").select("code,token,type_id,tier,holder_name").eq("order_id", o.id).eq("status", "valid").order("created_at"),
+    db.from("events").select("slug,name,venue,address,age").eq("id", o.event_id).single(),
+    db.from("tickets").select("code,token,type_id,holder_name").eq("order_id", o.id).eq("status", "valid").order("created_at"),
     db.from("ticket_types").select("id,name,night_ids").eq("event_id", o.event_id),
-    db.from("ticket_nights").select("id,label,starts_at").eq("event_id", o.event_id).order("sort"),
+    db.from("ticket_nights").select("id,label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
   ]);
   if (!ev || !tix?.length) return false;
-  const tname = (id: string) => types?.find((t) => t.id === id)?.name || "Ticket";
-  const nightsFor = (id: string) => (types?.find((t) => t.id === id)?.night_ids || []).map((n: string) => nights?.find((x) => x.id === n)?.label).filter(Boolean).join(" + ");
-  const doors = (nights || []).map((n) => n.starts_at ? `${n.label}: doors ${new Date(n.starts_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })}` : "").filter(Boolean).join(" · ");
-
-  const cards = tix.map((t, i) => `
-<tr><td style="padding:0 0 22px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #333">
-<tr><td style="padding:18px 18px 6px;font:900 20px/1.2 ${FONT};color:#fff;text-transform:uppercase">${esc(tname(t.type_id))}${tix.length > 1 ? ` <span style="color:#777;font-size:13px">${i + 1} of ${tix.length}</span>` : ""}</td></tr>
-<tr><td style="padding:0 18px 14px;font:13px/1.5 ${FONT};color:#aaa">${esc(nightsFor(t.type_id))}${t.holder_name ? " · " + esc(t.holder_name) : ""}</td></tr>
-<tr><td align="center" bgcolor="#ffffff" style="background:#fff;padding:16px"><a href="${TICKET_PAGE(t.token)}"><img src="${QR_URL(t.token)}" width="220" height="220" alt="Ticket QR code ${t.code}" style="display:block;border:0;width:220px;height:220px"></a></td></tr>
-<tr><td align="center" style="padding:12px 18px 16px;font:700 18px/1 'Courier New',monospace;letter-spacing:.2em;color:#fff">${t.code}</td></tr>
-</table></td></tr>`).join("");
-
-  const comp = o.status === "comp";
-  const subject = comp ? `You're on the list: ${ev.name}` : `Your tickets: ${ev.name}`;
-  const html = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"></head>
-<body style="margin:0;padding:0;background:#000" bgcolor="#000000">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000"><tr><td align="center" style="padding:32px 16px 40px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;color:#e9e9e9;font:16px/1.6 ${FONT}">
-<tr><td style="padding-bottom:6px;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:#888">${comp ? "Guest list" : "Order confirmed"}</td></tr>
-<tr><td style="padding-bottom:10px;font:900 30px/1.05 ${FONT};color:#fff;text-transform:uppercase">${esc(ev.name)}</td></tr>
-<tr><td style="padding-bottom:24px;font-size:14px;color:#bbb">${esc(ev.venue || "")}${ev.address ? "<br>" + esc(ev.address) : ""}${doors ? "<br>" + esc(doors) : ""}${ev.age ? "<br>" + esc(ev.age) + " · bring ID" : ""}</td></tr>
-${cards}
-<tr><td style="font-size:14px;color:#bbb;padding-bottom:20px">Show the QR code at the door, on your phone or printed. Each code works once per night, so don't share screenshots. Tap a code to open the ticket page.</td></tr>
-${!comp && o.total_cents ? `<tr><td style="font-size:13px;color:#888;padding-bottom:6px">Total paid: ${usd(o.total_cents)}</td></tr>` : ""}
-<tr><td style="padding-top:24px;border-top:1px solid #222;font-size:12px;line-height:1.7;color:#777">Questions? Reply to this email or write ${esc(CONFIG.contactEmail)}.<br>${esc(CONFIG.mailingAddress)}</td></tr>
-</table></td></tr></table></body></html>`;
-  const text = `${comp ? "You're on the guest list" : "Your tickets"} for ${ev.name}\n${ev.venue || ""} ${ev.address || ""}\n${doors}\n\n` +
-    tix.map((t) => `${tname(t.type_id)} (${nightsFor(t.type_id)}) ${t.code}\n${TICKET_PAGE(t.token)}`).join("\n\n") +
-    `\n\nShow the QR code at the door. Each code works once per night.\n\n${CONFIG.mailingAddress}`;
-
+  const ns = nights || [];
+  const r = renderTicketEmail({
+    comp: o.status === "comp", buyerName: o.name, eventName: ev.name, venue: ev.venue, address: ev.address, age: ev.age,
+    nights: ns.map((n) => ({ label: n.label, doors: doorsText(n.starts_at, n.ends_at) })),
+    tickets: tix.map((t) => {
+      const ty = types?.find((x) => x.id === t.type_id);
+      const idx = (ty?.night_ids || []).map((id: string) => ns.findIndex((n) => n.id === id)).filter((i: number) => i >= 0);
+      const one = idx.length === 1 ? ns[idx[0]] : null;
+      return { typeName: ty?.name || "Ticket", nightIdx: idx,
+        nightLabels: one ? (doorsText(one.starts_at, one.ends_at) || one.label) : idx.map((i: number) => ns[i].label).join(" + "),
+        holder: t.holder_name, code: t.code, ticketUrl: TICKET_PAGE(t.token), qrUrl: QR_URL(t.token) };
+    }),
+    subtotalCents: o.subtotal_cents, discountCents: o.discount_cents, feeCents: o.fee_cents, totalCents: o.total_cents,
+    contactEmail: CONFIG.contactEmail, mailingAddress: CONFIG.mailingAddress, siteUrl: SITE_URL, eventUrl: `${SITE_URL}/${ev.slug === "underground" ? "underground/" : "tickets.html?e=" + ev.slug}`,
+  });
   const res = await provider.send({
-    to: { email: o.email, name: o.name }, subject, html, text, tags: ["tickets"],
-    fromName: Deno.env.get("TICKETS_FROM_NAME") || "Underground Tickets",
+    to: { email: o.email, name: o.name }, subject: r.subject, html: r.html, text: r.text, tags: ["tickets"],
+    fromName: Deno.env.get("TICKETS_FROM_NAME") || "T.O.F.T.U. Tickets",
   });
   if (res.ok) await db.from("ticket_orders").update({ emailed_at: new Date().toISOString() }).eq("id", o.id);
   else console.error("ticket email failed", o.id, res.error);
