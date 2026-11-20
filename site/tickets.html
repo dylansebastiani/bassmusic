@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="THIS ONE IS FOR THE UNDERGROUND · Jan 8 + 9 · Hangovers, Peoria">
+<meta property="og:description" content="Fri: Treegaud b2b Waylo, Fossils, DEWEY. Sat: PATCHES. Tickets here.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/tix.css">
+<!--CONFIG-->
+<title>Tickets</title>
+</head>
+<body>
+<main class="wrap tix" id="page">
+  <p class="msg" id="loading" role="status">Loading...</p>
+
+  <div id="ev" hidden>
+    <img class="poster" id="poster" alt="" hidden>
+    <h1 class="disp" id="name"></h1>
+    <p class="where2" id="where"></p>
+    <div class="meta" id="meta"></div>
+    <div class="nights" id="nights"></div>
+
+    <div id="done" hidden></div>
+
+    <section id="shop">
+      <h2 class="sec">Tickets</h2>
+      <div class="types" id="types"></div>
+      <form class="buy" id="buy" novalidate>
+        <div class="total"><span class="mono">Total</span><b id="total">$0</b></div>
+        <label for="bname">Name</label><input type="text" id="bname" autocomplete="name" maxlength="80">
+        <label for="bemail">Email (your tickets go here)</label><input type="email" id="bemail" autocomplete="email" inputmode="email" maxlength="254">
+        <details class="promo" id="promoBox"><summary>Have a code?</summary>
+          <label for="bpromo">Code</label><input type="text" id="bpromo" autocomplete="off" maxlength="30">
+        </details>
+        <button type="submit" class="btn" id="go">Checkout</button>
+        <p class="msg" id="bmsg" role="status"></p>
+        <p class="fineprint">Price shown is what you pay. Tickets are emailed right away with a QR code for the door. All sales final unless the show is cancelled.</p>
+      </form>
+      <div id="payWrap" hidden>
+        <button type="button" class="back" id="back">&larr; Change tickets</button>
+        <div id="checkout"></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="assets/stack.js"></script>
+<script src="assets/tickets.js"></script>
+</body>
+</html>

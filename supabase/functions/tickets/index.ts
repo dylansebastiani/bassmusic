@@ -1,0 +1,136 @@
+import QRCode from "npm:qrcode@1.5.4";
+import { db, setting } from "../_shared/db.ts";
+import { json, err, preflight, EMAIL_RE, clean, ipHash } from "../_shared/util.ts";
+import { SITE_URL } from "../_shared/config.ts";
+import { loadEvent, availability, stripe, TICKET_PAGE } from "../_shared/tickets.ts";
+
+// The public side of ticketing.
+//   GET  ?e=slug              the event, its nights and what's on sale right now
+//   POST {a:"checkout", ...}  hold the tickets, open a Stripe checkout, return its client secret
+//   GET  ?a=order&s=cs_...    after paying: has the order gone through, and the ticket links
+//   GET  ?a=ticket&t=token    one ticket, for the ticket page
+//   GET  ?a=qr&t=token        that ticket's QR code as a PNG (for the email)
+const SLUG = /^[a-z0-9-]{1,80}$/, TOKEN = /^[0-9a-f]{48}$/;
+
+Deno.serve(async (req) => {
+  const pf = preflight(req); if (pf) return pf;
+  const u = new URL(req.url), a = u.searchParams.get("a") || "";
+
+  if (req.method === "GET" && a === "qr") {
+    const t = u.searchParams.get("t") || "";
+    if (!TOKEN.test(t)) return err("Not found", 404);
+    const { data: tk } = await db.from("tickets").select("token").eq("token", t).maybeSingle();
+    if (!tk) return err("Not found", 404);
+    const png = await QRCode.toBuffer(TICKET_PAGE(t), { type: "png", width: 440, margin: 2, errorCorrectionLevel: "M" });
+    return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable", "Access-Control-Allow-Origin": "*" } });
+  }
+
+  if (req.method === "GET" && a === "ticket") {
+    const t = u.searchParams.get("t") || "";
+    if (!TOKEN.test(t)) return err("Not found", 404);
+    const { data: tk } = await db.from("tickets").select("id,code,token,holder_name,tier,status,is_comp,event_id,type_id").eq("token", t).maybeSingle();
+    if (!tk) return err("Not found", 404);
+    const [{ data: ev }, { data: ty }, { data: scans }] = await Promise.all([
+      db.from("events").select("slug,name,venue,address,age").eq("id", tk.event_id).single(),
+      db.from("ticket_types").select("name,night_ids").eq("id", tk.type_id).single(),
+      db.from("ticket_scans").select("night_id,scanned_at").eq("ticket_id", tk.id),
+    ]);
+    const { data: nights } = await db.from("ticket_nights").select("id,label,starts_at,ends_at").in("id", ty?.night_ids || []).order("sort");
+    return json({
+      ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp },
+      event: ev,
+      nights: (nights || []).map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, used_at: scans?.find((s) => s.night_id === n.id)?.scanned_at || null })),
+    }, 200, { "Cache-Control": "no-store" });
+  }
+
+  if (req.method === "GET" && a === "order") {
+    const s = u.searchParams.get("s") || "";
+    if (!/^cs_(test|live)_[A-Za-z0-9]{10,200}$/.test(s)) return err("Not found", 404);
+    const { data: o } = await db.from("ticket_orders").select("id,status,email,total_cents").eq("stripe_session_id", s).maybeSingle();
+    if (!o) return err("Not found", 404);
+    const { data: tix } = o.status === "paid"
+      ? await db.from("tickets").select("code,token,type_id").eq("order_id", o.id).eq("status", "valid").order("created_at")
+      : { data: [] };
+    const { data: types } = await db.from("ticket_types").select("id,name").in("id", [...new Set((tix || []).map((t) => t.type_id))]);
+    return json({
+      status: o.status, email: o.email, total_cents: o.total_cents,
+      tickets: (tix || []).map((t) => ({ code: t.code, token: t.token, type: types?.find((x) => x.id === t.type_id)?.name })),
+    }, 200, { "Cache-Control": "no-store" });
+  }
+
+  if (req.method === "GET") {
+    const slug = u.searchParams.get("e") || "";
+    if (!SLUG.test(slug)) return err("Not found", 404);
+    const x = await loadEvent(slug);
+    if (!x) return err("Not found", 404);
+    const { ev, nights, types } = x;
+    return json({
+      event: { slug: ev.slug, name: ev.name, venue: ev.venue, city: ev.city, address: ev.address, description: ev.description, age: ev.age,
+               poster_url: ev.poster_url, sales_open: ev.sales_open, max_per_order: ev.max_per_order },
+      nights: nights.map((n) => ({ id: n.id, slug: n.slug, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, lineup: n.lineup })),
+      types: await availability(types.filter((t) => t.on_sale)),
+      stripe_key: Deno.env.get("STRIPE_PUBLISHABLE_KEY") || null,
+    }, 200, { "Cache-Control": "no-store" });
+  }
+
+  if (req.method !== "POST") return err("Not allowed", 405);
+  let b: Record<string, unknown>; try { b = await req.json(); } catch { return err("Bad request"); }
+  if (b.a !== "checkout") return err("Bad request");
+
+  const ip = await ipHash(req, (await setting("ip_salt", "unset")) + "|tickets");
+  const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
+  if ((n ?? 0) > 20) return err("Too many tries. Wait a minute and try again.", 429);
+
+  const slug = clean(b.e, 80) || "", email = (clean(b.email, 254) || "").toLowerCase(), name = clean(b.name, 80);
+  if (!SLUG.test(slug)) return err("Bad request");
+  if (!EMAIL_RE.test(email)) return err("Enter the email your tickets should go to.");
+  if (!name) return err("Enter the name for the order.");
+  const x = await loadEvent(slug);
+  if (!x) return err("Not found", 404);
+  const { ev, types } = x;
+  if (!ev.sales_open) return err("Ticket sales aren't open yet.");
+
+  const want = (Array.isArray(b.items) ? b.items : []).slice(0, 10).map((i: Record<string, unknown>) => {
+    const t = types.find((t) => t.slug === i.slug);
+    const qty = Math.floor(Number(i.qty) || 0);
+    return t && qty > 0 ? { type_id: t.id, qty: Math.min(qty, 20) } : null;
+  }).filter(Boolean);
+  if (!want.length) return err("Pick at least one ticket.");
+
+  // Hold the tickets for 35 minutes (Stripe's checkout lasts 31), priced tier by tier.
+  const { data: orderId, error: holdErr } = await db.rpc("ticket_hold", {
+    p_event: ev.id, p_want: want, p_email: email, p_name: name,
+    p_promo: clean(b.promo, 40), p_ref: clean(b.ref, 80), p_minutes: 35,
+  });
+  if (holdErr || !orderId) return err(holdErr?.message || "Couldn't hold those tickets. Try again.");
+  const { data: o } = await db.from("ticket_orders").select("id,items,discount_cents").eq("id", orderId).single();
+
+  try {
+    const line_items: Record<string, unknown> = {};
+    (o!.items as { name: string; tier: string; unit_cents: number; qty: number }[]).forEach((it, i) => {
+      line_items[i] = {
+        quantity: it.qty,
+        price_data: { currency: "usd", unit_amount: it.unit_cents, product_data: { name: `${ev.name}: ${it.name}`, description: it.tier } },
+      };
+    });
+    let discounts: Record<string, unknown> | undefined;
+    if (o!.discount_cents > 0) {
+      const c = await stripe("coupons", { amount_off: o!.discount_cents, currency: "usd", duration: "once", max_redemptions: 1, name: "Promo code" });
+      discounts = { 0: { coupon: c.id } };
+    }
+    const session = await stripe("checkout/sessions", {
+      ui_mode: "embedded", mode: "payment",
+      return_url: `${SITE_URL}/tickets.html?e=${ev.slug}&s={CHECKOUT_SESSION_ID}`,
+      customer_email: email, line_items, discounts,
+      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
+      client_reference_id: o!.id,
+      metadata: { order_id: o!.id, event: ev.slug },
+      payment_intent_data: { metadata: { order_id: o!.id, event: ev.slug }, description: `${ev.name} tickets` },
+    });
+    await db.from("ticket_orders").update({ stripe_session_id: session.id }).eq("id", o!.id);
+    return json({ client_secret: session.client_secret, session_id: session.id });
+  } catch (e) {
+    await db.from("ticket_orders").update({ status: "expired", hold_until: null }).eq("id", o!.id);
+    return err((e as Error).message || "Payment setup failed. Try again.", 502);
+  }
+});

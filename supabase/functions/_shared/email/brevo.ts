@@ -7,7 +7,7 @@ export const brevo: EmailProvider = {
     const key = Deno.env.get("BREVO_API_KEY");
     if (!key) return { ok: false, status: 0, error: "BREVO_API_KEY not set", rateLimited: true };
     const body = {
-      sender: { name: Deno.env.get("FROM_NAME") || CONFIG.fromName, email: Deno.env.get("FROM_EMAIL") || CONFIG.fromEmail },
+      sender: { name: i.fromName || Deno.env.get("FROM_NAME") || CONFIG.fromName, email: Deno.env.get("FROM_EMAIL") || CONFIG.fromEmail },
       replyTo: CONFIG.replyTo ? { email: CONFIG.replyTo } : undefined,
       to: [{ email: i.to.email, name: i.to.name || undefined }],
       subject: i.subject, htmlContent: i.html, textContent: i.text,

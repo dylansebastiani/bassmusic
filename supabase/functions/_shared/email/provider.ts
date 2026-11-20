@@ -6,6 +6,7 @@ export interface SendEmailInput {
   text: string;
   headers?: Record<string, string>;
   tags?: string[];
+  fromName?: string;   // overrides FROM_NAME for this one email (e.g. ticket emails)
 }
 export type SendResult = { ok: true; id?: string } | { ok: false; status: number; error: string; rateLimited: boolean };
 export interface EmailProvider { name: string; send(input: SendEmailInput): Promise<SendResult>; }

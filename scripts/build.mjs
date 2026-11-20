@@ -36,6 +36,9 @@ writeFileSync(join(out, "_redirects"), [
   "/t /t.html 200",
   "/admin /admin.html 200",
   "/privacy /privacy.html 200",
+  "/tickets /tickets.html 200",
+  "/ticket /ticket.html 200",
+  "/door /door.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,
   `/u/:token ${fn}/unsubscribe?u=:token 302`,
   "",
@@ -45,8 +48,8 @@ writeFileSync(join(out, "_headers"), [
   "  X-Content-Type-Options: nosniff",
   "  X-Frame-Options: DENY",
   "  Referrer-Policy: strict-origin-when-cross-origin",
-  "  Permissions-Policy: camera=(), microphone=(), geolocation=()",
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"}; frame-src https://challenges.cloudflare.com; base-uri 'none'; form-action 'self'`,
+  "  Permissions-Policy: camera=(self), microphone=(), geolocation=()",
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
   "",
 ].join("\n"));
 // One page per live track at /t/<CODE>/: the same sticker page, with the song, the artist and
