@@ -59,7 +59,7 @@
       if (!d.admin) $("tabs").style.gridTemplateColumns = "1fr 1fr";
       night = pickNight(d.nights);
       $("nights").innerHTML = d.nights.map(function (n, i) {
-        return '<button type="button" class="' + (i % 2 ? "n2" : "") + '" data-n="' + n.id + '" aria-pressed="' + (n.id === night) + '">' + esc(n.label) + "</button>";
+        return '<button type="button" class="' + (i % 2 ? "n2" : "") + '" data-n="' + n.id + '" aria-pressed="' + (n.id === night) + '"><img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240">' + esc(n.label) + "</button>";
       }).join("");
       $("gtype").innerHTML = d.types.map(function (t) { return '<option value="' + t.slug + '">' + esc(t.name) + "</option>"; }).join("");
       count();

@@ -28,7 +28,7 @@
     $("meta").innerHTML = ['<span class="pill">' + esc(ev.age || "Age TBA") + "</span>"]
       .concat(data.nights.map(function (n) { return '<span class="pill">' + esc(n.label) + "</span>"; })).join("");
     $("nights").innerHTML = data.nights.map(function (n, i) {
-      return '<div class="night' + (i % 2 ? " n2" : "") + '"><h3>' + esc(n.label) + "</h3>" +
+      return '<div class="night' + (i % 2 ? " n2" : "") + '"><img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240"><h3>' + esc(n.label) + "</h3>" +
         (n.starts_at ? '<div class="when">Doors ' + time(n.starts_at) + (n.ends_at ? " – " + time(n.ends_at) : "") + "</div>" : "") +
         "<ul>" + (n.lineup || []).map(function (a) { return "<li>" + esc(a.name) + (a.note ? "<small>" + esc(a.note) + "</small>" : "") + "</li>"; }).join("") + "</ul></div>";
     }).join("");
@@ -36,6 +36,10 @@
     $("loading").hidden = true; $("ev").hidden = false;
   }
 
+  // Night one's eye is orange, night two's is violet; a pass shows both.
+  function eyes(idx) {
+    return '<span class="eyes">' + idx.map(function (i) { return '<img src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240">'; }).join("") + "</span>";
+  }
   function renderTypes() {
     var open = data.event.sales_open && data.stripe_key;
     $("types").innerHTML = data.types.map(function (t) {
@@ -46,7 +50,7 @@
       var idx = t.night_ids.map(function (id) { return data.nights.findIndex(function (x) { return x.id === id; }); });
       var tone = idx.length > 1 ? " tp" : idx[0] % 2 ? " t2" : " t1";
       return '<div class="type' + tone + (n ? " on" : "") + (t.sold_out ? " out" : "") + '">' +
-        "<div><h4>" + esc(t.name) + "</h4>" + (t.blurb ? '<div class="b">' + esc(t.blurb) + "</div>" : "") + "</div>" +
+        "<div><h4>" + eyes(idx) + esc(t.name) + "</h4>" + (t.blurb ? '<div class="b">' + esc(t.blurb) + "</div>" : "") + "</div>" +
         '<div class="price">' + (tier ? usd(tier.price_cents) : "") + "</div>" +
         '<div class="tier' + (low ? " low" : "") + '">' + line + "</div>" +
         (open && !t.sold_out ? '<div class="qty" style="grid-column:2"><button type="button" data-s="' + t.slug + '" data-d="-1" aria-label="One less"' + (n ? "" : " disabled") + '>&minus;</button><b>' + n +
