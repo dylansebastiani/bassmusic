@@ -126,6 +126,8 @@ ${summary}
 <td width="25%" valign="bottom" align="right"><img src="${IMG}figure-sat.png" width="120" alt="" style="display:block;width:120px;max-width:100%;height:auto;border:0;margin-left:auto"></td>
 </tr></table></td></tr>
 
+<tr><td align="center" style="padding:26px 0 22px"><img src="${IMG}partners.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
+
 <tr><td style="padding:26px 0 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">
 Questions or need a change? Reply to this email or write <a href="mailto:${esc(d.contactEmail)}" style="color:${LAV}">${esc(d.contactEmail)}</a>.<br>
 <a href="${d.eventUrl}" style="color:${LAV}">Event page</a> &nbsp;·&nbsp; ${esc(d.mailingAddress)}</td></tr>

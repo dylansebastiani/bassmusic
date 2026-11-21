@@ -66,6 +66,8 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
   const wm = await doc.embedPng(wmB), ftu = await doc.embedPng(ftuB);
   const eyes = [await doc.embedPng(eyeFB), await doc.embedPng(eyeSB)];
   const figs = [await doc.embedPng(figFB), await doc.embedPng(figSB)];
+  // The partner logo row (sound, crews). Optional: a ticket still renders without it.
+  const partners = await get(base + "partners.png").then((b) => doc.embedPng(b)).catch(() => null);
 
   for (const [i, t] of d.tickets.entries()) {
     const p = doc.addPage([W, H]);
@@ -125,6 +127,11 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     }
 
     // ---- perforation + stub ----
+    if (partners) {
+      const ph = 22, pw = Math.min(W - 2 * M - 60, partners.width * ph / partners.height);
+      const h2 = partners.height * pw / partners.width;
+      p.drawImage(partners, { x: (W - pw) / 2, y: T(top + mainH - 12) , width: pw, height: h2, opacity: 0.85 });
+    }
     const perf = top + mainH + 18;
     for (let x = M; x < W - M; x += 9) p.drawLine({ start: { x, y: T(perf) }, end: { x: x + 4.5, y: T(perf) }, thickness: 0.8, color: UV });
     p.drawCircle({ x: 0, y: T(perf), size: 9, color: hex("#000000") }); p.drawCircle({ x: W, y: T(perf), size: 9, color: hex("#000000") });

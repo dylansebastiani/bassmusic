@@ -145,7 +145,7 @@ html:has(.toftu){background:#050505}
 .toftu .ticket .qrbox{box-shadow:0 0 30px rgba(138,43,226,.35)}
 .toftu .msg,.toftu .fineprint{color:var(--lav)}
 .toftu .mono{color:var(--lav)}
-.toftu .tree{width:64px;height:auto;margin:30px auto 0;opacity:.6;mix-blend-mode:lighten}
+.toftu .partners{display:block;height:44px;width:auto;max-width:90%;margin:34px auto 0;opacity:.85}
 /* door: same colors, nights in their own color */
 .toftu.door .nightpick button{font-family:"Archivo Black",var(--disp);border-color:var(--uv)}
 .toftu.door .nightpick button[aria-pressed="true"]{border-color:var(--n1);background:rgba(255,90,31,.14)}
@@ -181,7 +181,7 @@ html:has(.toftu){background:#050505}
 .ftu-img{margin:16px auto 2px;width:min(100%,560px)}
 .ftu-img img{width:100%;height:auto}
 .hero img{mask-image:linear-gradient(transparent,#000 14%,#000 75%,transparent);-webkit-mask-image:linear-gradient(transparent,#000 14%,#000 75%,transparent)}
-.toftu .tree{width:84px;opacity:.75;mix-blend-mode:normal}
+.toftu .partners{height:56px}
 /* the orange energy figure under Fri, like the violet one under Sat */
 .nw{position:relative}
 .nw:nth-child(1){z-index:1} .nw:nth-child(2){z-index:2}
