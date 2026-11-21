@@ -169,6 +169,156 @@ Deno.serve(async (req) => {
     return ok({ slug, is_active: b.is_active === true });
   }
 
+  // ---- a ticketed show: lineup, set times, flyers ----
+  // The lineup is kept in lineup_full (the draft) and copied to lineup (what the public page shows)
+  // when it's revealed. Single-night ticket blurbs follow along ("Treegaud b2b Waylo, Badguy Moolah + more").
+  const showSlug = () => { const s = clean(b.e, 80) || u.searchParams.get("e") || ""; return SLUG.test(s) ? s : ""; };
+  const chiTime = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).replace(":00", "");
+  const soonBlurb = (n: { starts_at: string | null; ends_at: string | null }) =>
+    (n.starts_at ? "Doors " + chiTime(n.starts_at) + (n.ends_at ? " – " + chiTime(n.ends_at) : "") + " · " : "") + "lineup coming soon";
+  const fullBlurb = (acts: { name: string }[]) => {
+    const named = acts.filter((x) => !/special guest/i.test(x.name));
+    const top = named.slice(0, 2).map((x) => x.name);
+    return top.length ? top.join(", ") + (acts.length > top.length ? " + more" : "") : null;
+  };
+  type Act = { name: string; note?: string };
+  async function loadShow(slug: string) {
+    const { data: ev } = await db.from("events").select("id,slug,name,venue,city,starts_at,sales_open,location_secret,address_reveal_at,address,share_url,door_pin_hash,poster_url").eq("slug", slug).maybeSingle();
+    if (!ev) return null;
+    const [{ data: nights }, { data: types }] = await Promise.all([
+      db.from("ticket_nights").select("id,slug,label,starts_at,ends_at,lineup,lineup_full,flyer_url,sort").eq("event_id", ev.id).order("sort"),
+      db.from("ticket_types").select("id,slug,name,night_ids,on_sale,blurb,blurb_full").eq("event_id", ev.id).order("sort"),
+    ]);
+    return { ev, nights: nights || [], types: types || [] };
+  }
+  // Single-night ticket types (not the hidden test ticket) carry a lineup blurb.
+  const nightTypes = <T extends { slug: string; night_ids: string[] }>(types: T[], nightId: string) =>
+    types.filter((t) => t.slug !== "test" && t.night_ids.length === 1 && t.night_ids[0] === nightId);
+
+  if (a === "show") {
+    const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
+    const { ev, nights, types } = s;
+    const ns = nights.map((n) => ({ id: n.id, slug: n.slug, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at,
+      acts: (n.lineup_full ?? n.lineup ?? []) as Act[], public: ((n.lineup || []) as Act[]).length > 0, flyer_url: n.flyer_url }));
+    return ok({
+      event: { slug: ev.slug, name: ev.name, city: ev.city, starts_at: ev.starts_at, sales_open: ev.sales_open, has_pin: !!ev.door_pin_hash,
+        secret: ev.location_secret, reveal_at: ev.address_reveal_at, address_live: !!ev.address, share_url: ev.share_url,
+        page_url: `${SITE_URL}/${ev.slug === "underground" ? "underground/" : "tickets.html?e=" + ev.slug}` },
+      nights: ns, ticketed: types.length > 0,
+      types: types.map((t) => ({ slug: t.slug, name: t.name, on_sale: t.on_sale, night_ids: t.night_ids })),
+      lineup_public: ns.some((n) => n.public), share_default: `${SITE_URL}/assets/toftu/share-toftu-v3.jpg`,
+    });
+  }
+
+  if (a === "lineup-save") {
+    const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
+    const list = Array.isArray(b.nights) ? b.nights as Record<string, unknown>[] : [];
+    for (const item of list) {
+      const n = s.nights.find((x) => x.id === item.id); if (!n) continue;
+      const acts: Act[] = (Array.isArray(item.acts) ? item.acts as Record<string, unknown>[] : []).slice(0, 30)
+        .map((x) => ({ name: clean(x.name, 80) || "", note: clean(x.note, 40) || "" })).filter((x) => x.name)
+        .map((x) => (x.note ? { name: x.name, note: x.note } : { name: x.name }));
+      const isPublic = ((n.lineup || []) as Act[]).length > 0;
+      await db.from("ticket_nights").update(isPublic ? { lineup_full: acts, lineup: acts } : { lineup_full: acts }).eq("id", n.id);
+      const blurb = fullBlurb(acts);
+      for (const t of nightTypes(s.types, n.id)) {
+        await db.from("ticket_types").update(isPublic ? { blurb_full: blurb, blurb: blurb || soonBlurb(n) } : { blurb_full: blurb }).eq("id", t.id);
+      }
+    }
+    await log("lineup_save", { event: s.ev.slug });
+    return ok({ saved: true });
+  }
+
+  if (a === "lineup-publish") {
+    const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
+    const pub = b.public === true;
+    for (const n of s.nights) {
+      const acts = (n.lineup_full ?? []) as Act[];
+      await db.from("ticket_nights").update({ lineup: pub ? acts : [] }).eq("id", n.id);
+      for (const t of nightTypes(s.types, n.id)) {
+        await db.from("ticket_types").update({ blurb: pub ? (t.blurb_full || fullBlurb(acts) || soonBlurb(n)) : soonBlurb(n) }).eq("id", t.id);
+      }
+    }
+    await log(pub ? "lineup_reveal" : "lineup_hide", { event: s.ev.slug });
+    return ok({ public: pub });
+  }
+
+  // Flyers and the share image: a signed slot in the public media bucket, then save its link.
+  if (a === "media-url") {
+    const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
+    const kind = b.kind === "share" ? "share" : b.kind === "flyer" ? "flyer" : "";
+    const n = kind === "flyer" ? s.nights.find((x) => x.id === b.night) : null;
+    if (!kind || (kind === "flyer" && !n)) return no("Bad request");
+    const path = `${s.ev.slug}/${kind === "share" ? "share" : "flyer-" + n!.slug}-${Date.now()}.jpg`;
+    const { data, error } = await db.storage.from("media").createSignedUploadUrl(path);
+    if (error || !data) return no("Couldn't start the upload: " + (error?.message || ""), 500);
+    return ok({ path, url: data.signedUrl });
+  }
+  if (a === "media-save") {
+    const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
+    const path = clean(b.path, 200);
+    if (path && !new RegExp(`^${s.ev.slug}/[a-z0-9-]+\\.jpg$`).test(path)) return no("Bad request");
+    const url = path ? db.storage.from("media").getPublicUrl(path).data.publicUrl : null;
+    if (b.kind === "share") {
+      // Link previews read one fixed address (<slug>/share.jpg), so copy the new image there.
+      // Clearing it puts the built-in image back.
+      let bytes: Uint8Array | null = null;
+      if (path) { const { data: f } = await db.storage.from("media").download(path); if (f) bytes = new Uint8Array(await f.arrayBuffer()); }
+      else { const r = await fetch(`${SITE_URL}/assets/toftu/share-toftu-v3.jpg`).catch(() => null); if (r?.ok) bytes = new Uint8Array(await r.arrayBuffer()); }
+      if (bytes) await db.storage.from("media").upload(`${s.ev.slug}/share.jpg`, bytes, { contentType: "image/jpeg", upsert: true, cacheControl: "300" });
+      await db.from("events").update({ share_url: url }).eq("id", s.ev.id);
+    }
+    else if (b.kind === "flyer") {
+      const n = s.nights.find((x) => x.id === b.night); if (!n) return no("Bad request");
+      await db.from("ticket_nights").update({ flyer_url: url }).eq("id", n.id);
+    } else return no("Bad request");
+    await log("media", { event: s.ev.slug, kind: b.kind, night: b.night || null, removed: !url });
+    return ok({ url });
+  }
+
+  // Pull a track file in from a Google Drive or Dropbox share link (or any direct https file link).
+  if (a === "import-link") {
+    const slug = clean(b.slug, 80) || "", kind = clean(b.kind, 10) || "";
+    if (!SLUG.test(slug) || !["audio", "wav", "cover"].includes(kind)) return no("Bad request");
+    let src: URL; try { src = new URL(clean(b.url, 800) || ""); } catch { return no("That link doesn't look right."); }
+    const host = src.hostname.toLowerCase().replace(/^www\./, "");
+    if (src.protocol !== "https:" || /^[\d.]+$/.test(host) || host.includes(":") || host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return no("Use an https share link.");
+    if (host === "soundcloud.com" || host.endsWith(".soundcloud.com") || host === "snd.sc") return no("SoundCloud doesn't let other sites download tracks. Upload the file, or share it from Google Drive or Dropbox.");
+    let dl = src.toString();
+    if (host === "drive.google.com" || host === "docs.google.com") {
+      const id = src.pathname.match(/\/d\/([\w-]{10,})/)?.[1] || src.searchParams.get("id");
+      if (!id) return no("That Google Drive link is missing the file. Use Share → Copy link on the file itself.");
+      dl = `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`;
+    } else if (host === "dropbox.com" || host.endsWith(".dropbox.com")) {
+      src.searchParams.delete("dl"); src.searchParams.set("raw", "1"); dl = src.toString();
+    }
+    const max = kind === "cover" ? 3 : kind === "wav" ? 50 : 20;
+    let r: Response;
+    try { r = await fetch(dl, { redirect: "follow", signal: AbortSignal.timeout(100_000) }); } catch { return no("Couldn't reach that link. Try again, or upload the file."); }
+    if (!r.ok) return no(`Couldn't get the file (error ${r.status}). Set sharing to "Anyone with the link" and try again.`);
+    if ((r.headers.get("content-type") || "").includes("text/html")) return no(`That link opens a web page, not the file. Set sharing to "Anyone with the link". Google Drive files over 100 MB can't be pulled in.`);
+    if (Number(r.headers.get("content-length") || 0) > max * 1048576) return no(`That file is over ${max} MB.`);
+    const buf = new Uint8Array(await r.arrayBuffer());
+    if (buf.byteLength > max * 1048576) return no(`That file is over ${max} MB.`);
+    const at = (i: number, s: string) => [...s].every((ch, k) => buf[i + k] === ch.charCodeAt(0));
+    const isWav = at(0, "RIFF") && at(8, "WAVE"), isMp3 = at(0, "ID3") || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0), isM4a = at(4, "ftyp");
+    const isJpg = buf[0] === 0xff && buf[1] === 0xd8, isPng = at(1, "PNG");
+    let ext = "", type = "";
+    if (kind === "audio") {
+      if (isWav) return no("That's a WAV. Put it in the WAV download slot, and use an mp3 or m4a for streaming.");
+      if (isMp3) { ext = ".mp3"; type = "audio/mpeg"; } else if (isM4a) { ext = ".m4a"; type = "audio/mp4"; } else return no("The streaming file needs to be an mp3 or m4a.");
+    } else if (kind === "wav") {
+      if (!isWav) return no("That isn't a WAV file."); ext = ".wav"; type = "audio/wav";
+    } else {
+      if (isJpg) { ext = ".jpg"; type = "image/jpeg"; } else if (isPng) { ext = ".png"; type = "image/png"; } else return no("The cover needs to be a JPG or PNG.");
+    }
+    const path = `${slug}/${kind === "cover" ? "cover" : kind === "wav" ? slug + "-master" : slug}${ext}`;
+    const { error } = await db.storage.from("drops").upload(path, buf, { contentType: type, upsert: true });
+    if (error) return no("Couldn't save the file: " + error.message, 500);
+    await log("import_link", { slug, kind, host, bytes: buf.byteLength });
+    return ok({ path, bytes: buf.byteLength });
+  }
+
   // ---- Brevo ----
   if (a === "brevo-lists") return ok({ lists: await brevoLists(), list_id: await setting("brevo_list_id", null) });
   if (a === "brevo-list") {

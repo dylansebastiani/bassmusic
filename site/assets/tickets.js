@@ -82,6 +82,11 @@
     }).join("");
     // Phased release: the flyers name the lineup, so they only show once a lineup is published.
     $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; });
+    // Flyers uploaded on the staff page replace the built-in ones, night by night.
+    var up = data.nights.filter(function (n) { return n.flyer_url; });
+    if (up.length) $("flyers").innerHTML = up.map(function (n) {
+      return '<a href="' + esc(n.flyer_url) + '" target="_blank" rel="noopener"><img src="' + esc(n.flyer_url) + '" alt="' + esc(n.label) + ' flyer" loading="lazy"></a>';
+    }).join("");
     renderTypes();
     $("loading").hidden = true; $("ev").hidden = false;
   }

@@ -7,15 +7,15 @@ import { requireAdmin } from "./admin.ts";
 
 export interface Tier { name: string; price_cents: number; qty: number }
 export interface TicketType { id: string; slug: string; name: string; blurb: string | null; night_ids: string[]; tiers: Tier[]; door_price_cents: number | null; on_sale: boolean; sort: number }
-export interface Night { id: string; slug: string; label: string; starts_at: string | null; ends_at: string | null; lineup: { name: string; note?: string }[]; sort: number }
+export interface Night { id: string; slug: string; label: string; starts_at: string | null; ends_at: string | null; lineup: { name: string; note?: string }[]; flyer_url?: string | null; sort: number }
 
 export async function loadEvent(slug: string) {
   const { data: ev } = await db.from("events")
-    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,starts_at,ends_at,door_pin_hash,location_secret")
+    .select("id,slug,name,venue,city,address,description,age,poster_url,share_url,sales_open,max_per_order,starts_at,ends_at,door_pin_hash,location_secret")
     .eq("slug", slug).maybeSingle();
   if (!ev) return null;
   const [{ data: nights }, { data: types }] = await Promise.all([
-    db.from("ticket_nights").select("id,slug,label,starts_at,ends_at,lineup,sort").eq("event_id", ev.id).order("sort"),
+    db.from("ticket_nights").select("id,slug,label,starts_at,ends_at,lineup,flyer_url,sort").eq("event_id", ev.id).order("sort"),
     db.from("ticket_types").select("id,slug,name,blurb,night_ids,tiers,door_price_cents,on_sale,sort").eq("event_id", ev.id).order("sort"),
   ]);
   return { ev, nights: (nights || []) as Night[], types: (types || []) as TicketType[] };
