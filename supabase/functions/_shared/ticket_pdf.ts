@@ -12,6 +12,7 @@ export interface PdfTicket {
 export interface PdfData {
   eventName: string; venue: string | null; address: string | null; age: string | null;
   orderRef: string; tickets: PdfTicket[]; siteUrl: string;
+  revealText?: string | null; // while the address is held back
 }
 
 const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
@@ -124,6 +125,11 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
       text(p, "THE SECRET LOCATION", col, y, 7.5, mono, ORANGE, 1.5);
       text(p, (d.venue || "").toUpperCase(), col, y + 11, 13, heavy, INK);
       text(p, d.address, col, y + 29, fit(d.address, mono, 9, W - 2 * M - 36), mono, LAV);
+    } else if (d.revealText) {
+      text(p, "THE SECRET LOCATION", col, y, 7.5, mono, ORANGE, 1.5);
+      const drop = ("DROPS " + d.revealText).toUpperCase();
+      text(p, drop, col, y + 11, fit(drop, heavy, 13, W - 2 * M - 36), heavy, INK);
+      text(p, "WE'LL EMAIL YOU THE ADDRESS", col, y + 29, 9, mono, LAV, 0.6);
     }
 
     // ---- perforation + stub ----

@@ -18,6 +18,7 @@ export interface EmailData {
   venue: string | null;
   address: string | null;
   age: string | null;
+  revealText?: string | null; // set while the address is held back: "Fri Jan 1 at 12 PM"
   nights: { label: string; doors: string | null }[];
   tickets: EmailTicket[];
   subtotalCents: number;
@@ -44,8 +45,8 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   const IMG = d.siteUrl.replace(/\/$/, "") + "/assets/toftu/email/";
   const first = (d.buyerName || "").trim().split(/\s+/)[0];
   const subject = d.comp ? `You're on the list: ${d.eventName}` : `Your tickets: ${d.eventName}`;
-  const pre = d.comp ? "You're on the guest list. Your QR code and the secret location are inside."
-    : `${d.tickets.length} ticket${d.tickets.length > 1 ? "s" : ""} inside, plus the secret location.`;
+  const pre = d.comp ? (d.address ? "You're on the guest list. Your QR code and the secret location are inside." : `You're on the guest list. The location drops ${d.revealText || "before the show"}.`)
+    : `${d.tickets.length} ticket${d.tickets.length > 1 ? "s" : ""} inside${d.address ? ", plus the secret location" : `. The location drops ${d.revealText || "before the show"}`}.`;
   const maps = d.address ? "https://maps.google.com/?q=" + encodeURIComponent(d.address) : null;
 
   const nightRows = d.nights.map((n, i) => `
@@ -116,6 +117,13 @@ ${d.address ? `<tr><td style="padding:0 0 26px">
 <tr><td style="padding:0 20px 14px;font:13px/1.5 ${SANS};color:${LAV}">Keep it underground: please don't post the address.</td></tr>
 <tr><td style="padding:0 20px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${UV}">${nightRows}
 ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
+</table></td></tr>` : d.revealText ? `<tr><td style="padding:0 0 26px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
+<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE}">The secret location</td></tr>
+<tr><td style="padding:2px 20px 2px;font:400 24px/1.2 ${HEAVY};color:#FFFFFF;text-transform:uppercase">Drops ${esc(d.revealText)}</td></tr>
+<tr><td style="padding:6px 20px 14px;font:15px/1.5 ${SANS};color:#D9D2E3">We'll email the address to you one week before the show. Keep this email: your tickets are below.</td></tr>
+<tr><td style="padding:0 20px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${UV}">${nightRows}
+${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
 </table></td></tr>` : ""}
 
 ${cards}
@@ -139,7 +147,7 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
 
   const text = [
     `${d.comp ? "You're on the guest list" : "Your tickets"} for ${d.eventName}`,
-    d.address ? `\nTHE SECRET LOCATION\n${d.venue || ""}\n${d.address}\nKeep it underground: please don't post the address.` : "",
+    d.address ? `\nTHE SECRET LOCATION\n${d.venue || ""}\n${d.address}\nKeep it underground: please don't post the address.` : d.revealText ? `\nTHE SECRET LOCATION drops ${d.revealText}. We'll email it to you.` : "",
     d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"),
     d.age ? `${d.age} · Bring ID` : "",
     "",
@@ -149,5 +157,47 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
     `\nQuestions? ${d.contactEmail}${addr ? "\n" + addr : ""}`,
   ].filter((x) => x !== "").join("\n");
 
+  return { subject, html, text };
+}
+
+// Reveal day: the address, sent once to everyone who already has a ticket.
+export interface LocationData {
+  buyerName: string | null; eventName: string; venue: string | null; address: string; age: string | null;
+  nights: { label: string; doors: string | null }[]; contactEmail: string; siteUrl: string; eventUrl: string;
+}
+export function renderLocationEmail(d: LocationData): { subject: string; html: string; text: string } {
+  const IMG = d.siteUrl.replace(/\/$/, "") + "/assets/toftu/email/";
+  const first = (d.buyerName || "").trim().split(/\s+/)[0];
+  const subject = `The location is in: ${d.eventName}`;
+  const maps = "https://maps.google.com/?q=" + encodeURIComponent(d.address);
+  const rows = d.nights.map((n, i) => `<tr><td style="padding:6px 0;font:700 13px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${nightColor(i)}">${esc(n.label)}</td><td align="right" style="padding:6px 0;font:700 13px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#E7E0F0">${esc(n.doors || "")}</td></tr>`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"><title>${esc(subject)}</title></head>
+<body style="margin:0;padding:0;background:#050505" bgcolor="#050505">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#050505">The secret location for ${esc(d.eventName)}. Keep it underground.&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#050505" style="background:#050505"><tr><td align="center" style="padding:0 0 40px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px">
+<tr><td><a href="${d.eventUrl}"><img src="${IMG}hero.jpg" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0"></a></td></tr>
+<tr><td align="center" style="padding:18px 24px 0"><img src="${IMG}wordmark.png" width="300" alt="T.O.F.T.U." style="display:block;width:300px;max-width:80%;height:auto;border:0"></td></tr>
+<tr><td style="padding:30px 24px 0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE};padding-bottom:10px">One week out</td></tr>
+<tr><td style="font:400 34px/1.05 ${HEAVY};color:#FFFFFF;text-transform:uppercase;padding-bottom:12px">${first ? `Here it is, ${esc(first)}.` : "Here it is."}</td></tr>
+<tr><td style="font:15px/1.6 ${SANS};color:#D9D2E3;padding-bottom:26px">The secret location for ${esc(d.eventName)}. Your tickets are in your earlier email: show the QR code at the door.</td></tr>
+<tr><td style="padding:0 0 26px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
+<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE}">The secret location</td></tr>
+<tr><td style="padding:2px 20px 2px;font:400 26px/1.2 ${HEAVY};color:#FFFFFF;text-transform:uppercase">${esc(d.venue || "")}</td></tr>
+<tr><td style="padding:2px 20px 10px;font:16px/1.5 ${SANS}"><a href="${maps}" style="color:#E7E0F0;text-decoration:underline">${esc(d.address)}</a></td></tr>
+<tr><td style="padding:0 20px 14px;font:13px/1.5 ${SANS};color:${LAV}">Keep it underground: please don't post the address.</td></tr>
+<tr><td style="padding:0 20px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${UV}">${rows}
+${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
+</table></td></tr>
+</table></td></tr>
+<tr><td align="center" style="padding:6px 0 22px"><img src="${IMG}partners.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
+<tr><td style="padding:22px 24px 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">Questions? Reply to this email or write <a href="mailto:${esc(d.contactEmail)}" style="color:${LAV}">${esc(d.contactEmail)}</a>.</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = [`The secret location for ${d.eventName}`, "", d.venue || "", d.address, "Keep it underground: please don't post the address.", "",
+    d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"), d.age ? `${d.age} · Bring ID` : "", "",
+    "Your tickets are in your earlier email. Show the QR code at the door.", `Questions? ${d.contactEmail}`].filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
   return { subject, html, text };
 }

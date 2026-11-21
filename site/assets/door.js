@@ -90,7 +90,7 @@
     if (tab !== "scan") stopCam();
     if (tab === "sales") sales();
     if (tab === "guests") guests();
-    if (tab === "find") $("fq").focus();
+    if (tab === "find") find();
   });
 
   // ---------- the result screen: full-color, big, can't be misread across a dark doorway ----------
@@ -170,15 +170,33 @@
       "<small>" + esc(r.type || "") + " · " + esc(r.code) + (r.comp ? ' · <span class="tag">guest list' + (r.list ? ": " + esc(r.list) : "") + "</span>" : "") +
       (r.in_at ? " · in " + new Date(r.in_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "") + (r.status === "void" ? " · VOID" : "") + "</small>" + actions + "</div>";
   }
+  // Find tab: the whole list for the night (A to Z), each row clearly IN or NOT SCANNED.
+  // Typing narrows it; the filter buttons show everyone, only who's not in yet, or only who's in.
+  var fFilter = "all", fRows = [];
+  function badge(r) {
+    return r.in_at ? '<span class="badge in">&#10003; IN ' + new Date(r.in_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + "</span>"
+      : '<span class="badge out">NOT SCANNED</span>';
+  }
+  function drawFound() {
+    var nIn = fRows.filter(function (r) { return r.in_at; }).length;
+    $("fcAll").textContent = fRows.length; $("fcIn").textContent = nIn; $("fcOut").textContent = fRows.length - nIn;
+    var rows = fRows.filter(function (r) { return fFilter === "all" || (fFilter === "in" ? r.in_at : !r.in_at); });
+    $("found").innerHTML = rows.length ? rows.map(function (r) {
+      return person(r, badge(r) + (r.status === "void" ? "" : r.in_at ? '<button type="button" data-undo="' + r.ticket_id + '">Undo</button>' : '<button type="button" data-in="' + r.ticket_id + '">Check in</button>'));
+    }).join("") : '<div class="empty">' + (fRows.length ? "Nobody here." : $("fq").value.trim() ? "Nobody by that name for this night." : "No tickets for this night yet.") + "</div>";
+  }
   function find() {
     var qv = $("fq").value.trim();
-    if (qv.length < 2) { $("found").innerHTML = ""; return; }
-    call("search", null, { n: night, q: qv }).then(function (d) {
-      $("found").innerHTML = d.results.length ? d.results.map(function (r) {
-        return person(r, r.status === "void" ? "" : r.in_at ? '<button type="button" data-undo="' + r.ticket_id + '">Undo</button>' : '<button type="button" data-in="' + r.ticket_id + '">Check in</button>');
-      }).join("") : '<div class="empty">Nobody by that name for this night.</div>';
-    }).catch(function (err) { $("found").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
+    if (qv.length === 1) return;
+    call("search", null, { n: night, q: qv }).then(function (d) { fRows = d.results || []; drawFound(); })
+      .catch(function (err) { $("found").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
   }
+  $("ffilter").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    fFilter = b.getAttribute("data-f");
+    [].forEach.call(this.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+    drawFound();
+  });
   $("found").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     var id = b.getAttribute("data-in") || b.getAttribute("data-undo");

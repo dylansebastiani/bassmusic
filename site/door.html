@@ -42,7 +42,12 @@
 
     <div class="panel" id="p-find" role="tabpanel" hidden>
       <label class="sr" for="fq">Search</label>
-      <div class="unit"><input type="text" id="fq" placeholder="Name, email or code" autocomplete="off"></div>
+      <div class="unit"><input type="text" id="fq" placeholder="Search name, email or code" autocomplete="off"></div>
+      <div class="ffilter" id="ffilter" role="group" aria-label="Show">
+        <button type="button" data-f="all" aria-pressed="true">All <span id="fcAll">0</span></button>
+        <button type="button" data-f="out" aria-pressed="false">Not in <span id="fcOut">0</span></button>
+        <button type="button" data-f="in" aria-pressed="false">In <span id="fcIn">0</span></button>
+      </div>
       <div class="people" id="found"></div>
     </div>
 

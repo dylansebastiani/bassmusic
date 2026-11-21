@@ -116,20 +116,24 @@ Deno.serve(async (req) => {
   if (a === "search") {
     const n = night(u.searchParams.get("n"));
     const q = (u.searchParams.get("q") || "").trim().slice(0, 60);
-    if (!n || q.length < 2) return ok({ results: [] });
+    if (!n) return ok({ results: [] });
+    // No search text = the whole list for that night, A to Z, so the door can scroll it.
     const typeIds = types.filter((t) => t.night_ids.includes(n.id)).map((t) => t.id);
-    const like = `%${q.replace(/[%_,()]/g, "")}%`;
-    const { data: rows } = await db.from("tickets").select("id,code,holder_name,email,is_comp,status,type_id,order_id")
-      .eq("event_id", ev.id).in("type_id", typeIds).or(`holder_name.ilike.${like},email.ilike.${like},code.ilike.${like}`).order("holder_name").limit(30);
-    const ids = (rows || []).map((r) => r.id);
+    let query = db.from("tickets").select("id,code,holder_name,email,is_comp,status,type_id,order_id")
+      .eq("event_id", ev.id).in("type_id", typeIds).neq("status", "void");
+    if (q) { const like = `%${q.replace(/[%_,()]/g, "")}%`; query = query.or(`holder_name.ilike.${like},email.ilike.${like},code.ilike.${like}`); }
+    const { data: rows } = await query.order("holder_name").limit(q ? 60 : 3000);
+    // Whole-night lookups (not long id lists), so the full list stays one quick request.
     const [{ data: scans }, { data: orders }] = await Promise.all([
-      ids.length ? db.from("ticket_scans").select("ticket_id,scanned_at").eq("night_id", n.id).in("ticket_id", ids) : Promise.resolve({ data: [] as { ticket_id: string; scanned_at: string }[] }),
-      db.from("ticket_orders").select("id,comp_list").in("id", [...new Set((rows || []).map((r) => r.order_id))]),
+      db.from("ticket_scans").select("ticket_id,scanned_at").eq("night_id", n.id).limit(5000),
+      db.from("ticket_orders").select("id,comp_list").eq("event_id", ev.id).not("comp_list", "is", null).limit(5000),
     ]);
+    const inAt = new Map((scans || []).map((s) => [s.ticket_id, s.scanned_at]));
+    const lists = new Map((orders || []).map((o) => [o.id, o.comp_list]));
     return ok({ results: (rows || []).map((r) => ({
       ticket_id: r.id, code: r.code, name: r.holder_name, email: who.admin ? r.email : null, type: typeOf(r.type_id)?.name,
-      comp: r.is_comp, list: orders?.find((o) => o.id === r.order_id)?.comp_list || null, status: r.status,
-      in_at: scans?.find((s) => s.ticket_id === r.id)?.scanned_at || null,
+      comp: r.is_comp, list: lists.get(r.order_id) || null, status: r.status,
+      in_at: inAt.get(r.id) || null,
     })) });
   }
 
