@@ -30,6 +30,7 @@
 .type .tier s{color:var(--mute);text-decoration:none}
 .type.out{opacity:.5}
 .qty{display:flex;align-items:center;border:1px solid #6c6567}
+.type .qty{grid-column:2}
 .qty button{width:42px;height:42px;background:none;border:0;color:var(--fg);font-size:22px;cursor:pointer}
 .qty button:disabled{opacity:.3;cursor:default}
 .qty b{min-width:28px;text-align:center;font-family:var(--mono);font-size:16px}
@@ -212,3 +213,24 @@ html:has(.toftu){background:#050505}
 
 .toftu .night .soon{position:relative;z-index:1;font-family:"Bungee",var(--disp);font-size:20px;letter-spacing:.02em;color:#fff;margin:18px 0 6px;max-width:60%;text-shadow:0 0 14px rgba(255,90,31,.45)}
 .toftu .night.n2 .soon{text-shadow:0 0 14px rgba(138,43,226,.6)}
+
+/* Centered layout, no pills (Nov 2026) */
+.toftu .where2{text-align:center;margin:22px 0 4px}
+.toftu .where2 .dates{font-family:"Bungee",var(--disp);font-size:clamp(22px,6.4vw,34px);line-height:1.1;letter-spacing:.01em}
+.toftu .where2 .d1{color:var(--n1);text-shadow:0 0 18px rgba(255,90,31,.45)}
+.toftu .where2 .d2{color:var(--n2);text-shadow:0 0 18px rgba(138,43,226,.55)}
+.toftu .where2 .plus{color:var(--lav)}
+.toftu .where2 .infoline{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--lav);margin-top:12px}
+.toftu .where2 .addr{font-size:13px;color:#a99fb6;margin-top:6px}
+.toftu .meta{display:none}
+.toftu .sec{text-align:center}
+.toftu .night{text-align:center;padding-left:16px;padding-right:16px}
+.toftu .night .soon{max-width:none;margin:22px auto 10px}
+.toftu .night .eye{opacity:.9}
+.toftu .night .char{opacity:.55}
+.toftu .fineprint{text-align:center}
+.toftu .night .soon{border:0;background:none;padding:0;box-shadow:none}
+.toftu .type{grid-template-columns:1fr;text-align:center;justify-items:center}
+.toftu .type .tier{grid-column:auto}
+.toftu .type .qty{justify-self:center;grid-column:auto;margin-top:4px}
+.toftu .type h4{justify-content:center}

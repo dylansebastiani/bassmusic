@@ -24,11 +24,12 @@
     if (ev.poster_url) { $("poster").src = ev.poster_url; $("poster").hidden = false; }
     $("name").textContent = ev.name;
     var map = ev.address ? "https://maps.google.com/?q=" + encodeURIComponent(ev.address) : null;
-    $("where").innerHTML = ev.location_secret
-      ? "<b>Secret location</b> · " + esc(ev.city || "") + '<br><span class="fineprint" style="margin:0">The address comes with your tickets.</span>'
-      : esc(ev.venue || "") + (ev.address ? '<br><a href="' + map + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : "");
-    $("meta").innerHTML = ['<span class="pill">' + esc(ev.age || "Age TBA") + "</span>"]
-      .concat(data.nights.map(function (n) { return '<span class="pill">' + esc(n.label) + "</span>"; })).join("");
+    // Centered, flyer-style: the dates in the night colors, then one small info line.
+    var dates = data.nights.map(function (n, i) { return '<span class="d' + (i % 2 ? 2 : 1) + '">' + esc(n.label) + "</span>"; }).join(' <span class="plus">+</span> ');
+    var place = ev.location_secret ? "Secret location · " + esc(ev.city || "") : esc(ev.venue || "") + (ev.city ? " · " + esc(ev.city) : "");
+    $("where").innerHTML = '<div class="dates">' + dates + '</div><div class="infoline">' + place + (ev.age ? " · " + esc(ev.age) : "") + "</div>" +
+      (ev.location_secret ? '<div class="addr">The address comes with your tickets.</div>'
+        : (ev.address ? '<div class="addr"><a href="' + map + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a></div>" : ""));
     $("nights").innerHTML = data.nights.map(function (n, i) {
       var ch = i % 2 ? '<img class="char" src="assets/toftu/jumper.webp" alt="" width="330" height="505" loading="lazy" decoding="async">' : '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="330" height="539" loading="lazy" decoding="async">';
       return '<div class="nw"><div class="night' + (i % 2 ? " n2" : "") + '">' + ch + '<img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="160" height="160" loading="lazy" decoding="async"><h3>' + esc(n.label) + "</h3>" +
@@ -60,7 +61,7 @@
         "<div><h4>" + eyes(idx) + esc(t.name) + "</h4>" + (t.blurb ? '<div class="b">' + esc(t.blurb) + "</div>" : "") + "</div>" +
         '<div class="price">' + (tier ? usd(tier.price_cents) : "") + "</div>" +
         '<div class="tier' + (low ? " low" : "") + '">' + line + "</div>" +
-        (open && !t.sold_out ? '<div class="qty" style="grid-column:2"><button type="button" data-s="' + t.slug + '" data-d="-1" aria-label="One less"' + (n ? "" : " disabled") + '>&minus;</button><b>' + n +
+        (open && !t.sold_out ? '<div class="qty"><button type="button" data-s="' + t.slug + '" data-d="-1" aria-label="One less"' + (n ? "" : " disabled") + '>&minus;</button><b>' + n +
           '</b><button type="button" data-s="' + t.slug + '" data-d="1" aria-label="One more"' + (n >= max ? " disabled" : "") + ">+</button></div>" : "") +
         "</div>";
     }).join("");
