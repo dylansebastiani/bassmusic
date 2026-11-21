@@ -28,7 +28,14 @@ for (const f of readdirSync(out)) {
   const p = join(out, f);
   // The music bar rides along on every public page; staff pages (door, admin) stay quiet.
   const bar = /^(door|admin)\.html$/.test(f) ? "" : PLAYER;
-  writeFileSync(p, readFileSync(p, "utf8").replace("<!--CONFIG-->", inject + bar));
+  // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
+  // (otherwise a phone can pair a fresh page with a cached old script and the form breaks).
+  const html = readFileSync(p, "utf8").replace("<!--CONFIG-->", inject + bar)
+    .replace(/(src|href)="(\/?assets\/[^"?#]+\.(?:js|css))"/g, (m, attr, path) => {
+      try { return `${attr}="${path}?v=${createHash("sha256").update(readFileSync(join(out, path.replace(/^\//, "")))).digest("hex").slice(0, 10)}"`; }
+      catch { return m; }
+    });
+  writeFileSync(p, html);
 }
 // /underground/ is the event page itself (not a redirect), so link previews in iMessage,
 // Instagram and Facebook read its cover image and title. <base> keeps its asset paths working.
@@ -57,7 +64,7 @@ writeFileSync(join(out, "_headers"), [
   "  X-Frame-Options: DENY",
   "  Referrer-Policy: strict-origin-when-cross-origin",
   "  Permissions-Policy: camera=(self), microphone=(), geolocation=()",
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
   "",
 ].join("\n"));
 // One page per live track at /t/<CODE>/: the same sticker page, with the song, the artist and

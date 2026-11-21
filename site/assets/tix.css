@@ -234,3 +234,11 @@ html:has(.toftu){background:#050505}
 .toftu .type .tier{grid-column:auto}
 .toftu .type .qty{justify-self:center;grid-column:auto;margin-top:4px}
 .toftu .type h4{justify-content:center}
+
+/* live field checks */
+.toftu .buy .hint{display:block;min-height:16px;margin:4px 0 2px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--lav)}
+.toftu .buy .hint.ok{color:#7CF29A}
+.toftu .buy .hint.bad{color:#FF8A6A}
+.toftu .buy input.ok{border-color:#3fa766}
+.toftu .buy input.bad{border-color:var(--n1)}
+.toftu .buy .fixit{background:none;border:0;padding:0;color:#fff;text-decoration:underline;font:inherit;cursor:pointer}

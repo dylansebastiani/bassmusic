@@ -17,6 +17,45 @@
   // The $1 "test" ticket only shows on the private test link (?test=1).
   var TEST = q.get("test") === "1";
   function vis(d) { if (d && d.types && !TEST) d.types = d.types.filter(function (t) { return t.slug !== "test"; }); return d; }
+
+  // ---- live checks on email + phone ----
+  var EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+  var FIX = { "gmial.com": "gmail.com", "gmai.com": "gmail.com", "gmal.com": "gmail.com", "gmail.co": "gmail.com", "gmail.con": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com",
+    "yaho.com": "yahoo.com", "yahoo.co": "yahoo.com", "yahoo.con": "yahoo.com", "hotmial.com": "hotmail.com", "hotmail.co": "hotmail.com", "hotmail.con": "hotmail.com",
+    "icloud.co": "icloud.com", "icloud.con": "icloud.com", "iclod.com": "icloud.com", "outlok.com": "outlook.com", "outlook.co": "outlook.com", "outlook.con": "outlook.com" };
+  function phoneDigits(v) { return String(v || "").replace(/\D/g, ""); }
+  function phoneOk(v) { var d = phoneDigits(v); return d.length === 10 || (d.length === 11 && d[0] === "1") || (/^\s*\+/.test(v) && d.length >= 11 && d.length <= 15); }
+  function hint(input, el, cls, html) { input.classList.toggle("ok", cls === "ok"); input.classList.toggle("bad", cls === "bad"); el.className = "hint " + (cls || ""); el.innerHTML = html || ""; }
+  function checkEmail(final) {
+    var i = $("bemail"), h = $("hemail"); if (!i || !h) return true;
+    var v = i.value.trim(); if (!v) { hint(i, h, "", ""); return false; }
+    var dom = v.split("@")[1] || "", fix = FIX[dom.toLowerCase()];
+    if (fix) { hint(i, h, "bad", 'Did you mean <button type="button" class="fixit">' + esc(v.split("@")[0] + "@" + fix) + "</button>?"); return false; }
+    if (EMAIL_OK.test(v)) { hint(i, h, "ok", "&#10003; Looks good"); return true; }
+    hint(i, h, final ? "bad" : "", final ? "That email doesn't look complete." : ""); return false;
+  }
+  function checkPhone(final) {
+    var i = $("bphone"), h = $("hphone"); if (!i || !h) return true;
+    var v = i.value; if (!v.trim()) { hint(i, h, "", ""); return false; }
+    if (phoneOk(v)) { hint(i, h, "ok", "&#10003; Looks good"); return true; }
+    hint(i, h, final ? "bad" : "", final ? "Enter a 10-digit phone number." : ""); return false;
+  }
+  if ($("bphone")) $("bphone").addEventListener("input", function () {
+    var i = this, v = i.value;
+    // US numbers format themselves as (309) 555-0142; anything starting with + is left as typed.
+    if (!/^\s*\+/.test(v)) {
+      var d = phoneDigits(v); if (d.length === 11 && d[0] === "1") d = d.slice(1); d = d.slice(0, 10);
+      var f = d.length > 6 ? "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6) : d.length > 3 ? "(" + d.slice(0, 3) + ") " + d.slice(3) : d;
+      if (f !== v) i.value = f;
+    }
+    checkPhone(false);
+  });
+  if ($("bphone")) $("bphone").addEventListener("blur", function () { checkPhone(true); });
+  if ($("bemail")) { $("bemail").addEventListener("input", function () { checkEmail(false); }); $("bemail").addEventListener("blur", function () { checkEmail(true); }); }
+  if ($("hemail")) $("hemail").addEventListener("click", function (e) {
+    if (e.target.classList.contains("fixit")) { $("bemail").value = e.target.textContent; checkEmail(true); $("bphone") && $("bphone").focus(); }
+  });
+
   function load() {
     return fetch(FN + "?e=" + slug).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return vis(j); }); });
   }
@@ -113,11 +152,11 @@
   $("buy").addEventListener("submit", function (e) {
     e.preventDefault();
     var items = Object.keys(cart).filter(function (k) { return cart[k] > 0; }).map(function (k) { return { slug: k, qty: cart[k] }; });
-    var name = $("bname").value.trim(), email = $("bemail").value.trim(), phone = $("bphone").value.trim();
+    var name = $("bname").value.trim(), email = $("bemail").value.trim(), phone = $("bphone") ? $("bphone").value.trim() : "";
     if (!items.length) return;
     if (name.split(/\s+/).length < 2) { $("bmsg").textContent = "Add your full name (first and last)."; $("bname").focus(); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { $("bmsg").textContent = "Check your email address."; $("bemail").focus(); return; }
-    if (phone.replace(/\D/g, "").length < 10) { $("bmsg").textContent = "Add a phone number we can reach you at."; $("bphone").focus(); return; }
+    if (!checkEmail(true)) { $("bmsg").textContent = "Check your email address."; $("bemail").focus(); return; }
+    if (!checkPhone(true)) { $("bmsg").textContent = "Add a phone number we can reach you at."; $("bphone").focus(); return; }
     $("go").disabled = true; $("bmsg").textContent = "Holding your tickets...";
     Promise.all([
       fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" },

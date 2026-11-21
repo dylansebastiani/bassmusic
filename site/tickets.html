@@ -57,8 +57,10 @@ window.__tix=fetch((window.STACK||{}).supabaseUrl+"/functions/v1/tickets?e="+_e)
       <form class="buy" id="buy" novalidate>
         <div class="total"><span class="mono">Total <small id="feeNote" style="text-transform:none;letter-spacing:0"></small></span><b id="total">$0</b></div>
         <label for="bname">Full name</label><input type="text" id="bname" autocomplete="name" maxlength="80" required>
-        <label for="bemail">Email (your tickets go here)</label><input type="email" id="bemail" autocomplete="email" inputmode="email" maxlength="254" required>
-        <label for="bphone">Phone</label><input type="tel" id="bphone" autocomplete="tel" inputmode="tel" maxlength="20" required>
+        <label for="bemail">Email (your tickets go here)</label><input type="email" id="bemail" autocomplete="email" inputmode="email" maxlength="254" required aria-describedby="hemail" autocapitalize="off" spellcheck="false">
+        <small class="hint" id="hemail" aria-live="polite"></small>
+        <label for="bphone">Phone</label><input type="tel" id="bphone" autocomplete="tel" inputmode="tel" maxlength="20" required aria-describedby="hphone" placeholder="(309) 555-0123">
+        <small class="hint" id="hphone" aria-live="polite"></small>
         <details class="promo" id="promoBox"><summary>Have a code?</summary>
           <label for="bpromo">Code</label><input type="text" id="bpromo" autocomplete="off" maxlength="30">
         </details>
