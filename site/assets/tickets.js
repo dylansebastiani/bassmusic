@@ -14,8 +14,11 @@
   try { if (ref) sessionStorage.setItem("tix_ref", ref); else ref = sessionStorage.getItem("tix_ref") || ""; } catch (e) {}
   if (q.get("code")) { $("bpromo").value = q.get("code").slice(0, 30); $("promoBox").open = true; }
 
+  // The $1 "test" ticket only shows on the private test link (?test=1).
+  var TEST = q.get("test") === "1";
+  function vis(d) { if (d && d.types && !TEST) d.types = d.types.filter(function (t) { return t.slug !== "test"; }); return d; }
   function load() {
-    return fetch(FN + "?e=" + slug).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return j; }); });
+    return fetch(FN + "?e=" + slug).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return vis(j); }); });
   }
 
   function render() {
@@ -157,7 +160,7 @@
     })();
   }
 
-  (window.__tix || load()).then(function (d) {
+  (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
     data = d; render();
     var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid);
   }).catch(function (e) { $("loading").textContent = e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again."; });
