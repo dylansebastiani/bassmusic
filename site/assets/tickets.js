@@ -70,7 +70,7 @@
     var dates = data.nights.map(function (n, i) { return '<span class="d' + (i % 2 ? 2 : 1) + '">' + esc(n.label) + "</span>"; }).join(' <span class="plus">+</span> ');
     var place = ev.location_secret ? "Secret location · " + esc(ev.city || "") : esc(ev.venue || "") + (ev.city ? " · " + esc(ev.city) : "");
     $("where").innerHTML = '<div class="dates">' + dates + '</div><div class="infoline">' + place + (ev.age ? " · " + esc(ev.age) : "") + "</div>" +
-      (ev.location_secret ? '<div class="addr">The address comes with your tickets.</div>'
+      (ev.location_secret ? '<div class="addr">Address drops Fri Jan 1 · emailed to ticket holders.</div>'
         : (ev.address ? '<div class="addr"><a href="' + map + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a></div>" : ""));
     $("nights").innerHTML = data.nights.map(function (n, i) {
       var ch = i % 2 ? '<img class="char" src="assets/toftu/jumper.webp" alt="" width="330" height="505" loading="lazy" decoding="async">' : '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="330" height="539" loading="lazy" decoding="async">';

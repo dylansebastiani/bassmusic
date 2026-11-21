@@ -11,7 +11,7 @@
     document.title = (k.type || "Ticket") + " · " + ev.name;
     $("kind").textContent = k.comp ? "Guest list" : "Ticket";
     $("ename").textContent = ev.name;
-    $("ewhere").innerHTML = (ev.address ? '<span class="loclabel">The secret location</span><b>' + esc(ev.venue || "") + '</b><br><a href="https://maps.google.com/?q=' + encodeURIComponent(ev.address) + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : esc(ev.venue || "")) +
+    $("ewhere").innerHTML = (ev.address ? '<span class="loclabel">The secret location</span><b>' + esc(ev.venue || "") + '</b><br><a href="https://maps.google.com/?q=' + encodeURIComponent(ev.address) + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : esc(ev.venue || "") + (ev.reveal ? '<br><span class="loclabel">Location drops ' + esc(ev.reveal) + "</span>" : "")) +
       (ev.age ? '<br><span class="agepill">' + esc(ev.age) + " · bring ID</span>" : "");
     $("ttype").textContent = k.type || "Ticket";
     $("tname").textContent = k.name || "";
