@@ -36,7 +36,7 @@ window.Stack = (function () {
   function pageview(path) {
     try {
       var b = JSON.stringify({ path: path, source: attr.src || null, event_slug: attr.e || null, variant: variant() });
-      if (navigator.sendBeacon) navigator.sendBeacon(FN + "/pageview", new Blob([b], { type: "application/json" }));
+      if (navigator.sendBeacon) navigator.sendBeacon(FN + "/pageview", new Blob([b], { type: "text/plain" }));
     } catch (e) {}
   }
 
