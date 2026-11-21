@@ -33,8 +33,12 @@
       var ch = i % 2 ? '<img class="char" src="assets/toftu/jumper.webp" alt="" width="330" height="505" loading="lazy" decoding="async">' : '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="330" height="539" loading="lazy" decoding="async">';
       return '<div class="nw"><div class="night' + (i % 2 ? " n2" : "") + '">' + ch + '<img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="160" height="160" loading="lazy" decoding="async"><h3>' + esc(n.label) + "</h3>" +
         (n.starts_at ? '<div class="when">Doors ' + time(n.starts_at) + (n.ends_at ? " – " + time(n.ends_at) : "") + "</div>" : "") +
-        "<ul>" + (n.lineup || []).map(function (a) { return "<li>" + esc(a.name) + (a.note ? "<small>" + esc(a.note) + "</small>" : "") + "</li>"; }).join("") + "</ul></div></div>";
+        ((n.lineup || []).length
+          ? "<ul>" + n.lineup.map(function (a) { return "<li>" + esc(a.name) + (a.note ? "<small>" + esc(a.note) + "</small>" : "") + "</li>"; }).join("") + "</ul>"
+          : '<p class="soon">Lineup coming soon</p>') + "</div></div>";
     }).join("");
+    // Phased release: the flyers name the lineup, so they only show once a lineup is published.
+    $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; });
     renderTypes();
     $("loading").hidden = true; $("ev").hidden = false;
   }

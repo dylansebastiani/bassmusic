@@ -209,3 +209,6 @@ html:has(.toftu){background:#050505}
 .toftu #ewhere b{font-family:"Bungee",var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;color:#fff}
 .agepill{display:inline-block;margin-top:10px;border:1px solid var(--uv);padding:4px 9px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#fff}
 .toftu .ticket .hd{padding-right:16px} .toftu #kind{margin-top:6px}
+
+.toftu .night .soon{position:relative;z-index:1;font-family:"Bungee",var(--disp);font-size:20px;letter-spacing:.02em;color:#fff;margin:18px 0 6px;max-width:60%;text-shadow:0 0 14px rgba(255,90,31,.45)}
+.toftu .night.n2 .soon{text-shadow:0 0 14px rgba(138,43,226,.6)}
