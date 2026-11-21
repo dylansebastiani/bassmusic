@@ -57,7 +57,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
   const doc = await PDFDocument.create(); doc.registerFontkit(fontkit);
   doc.setTitle(`${d.eventName} tickets`); doc.setAuthor("T.O.F.T.U."); doc.setCreator("subduction.art");
   const [heavyB, monoB, wmB, ftuB, eyeFB, eyeSB, figFB, figSB] = await Promise.all([
-    get(base + "fonts/ArchivoBlack.woff"), get(base + "fonts/SpaceMono-Bold.woff"),
+    get(base + "fonts/Bungee.woff"), get(base + "fonts/SpaceMono-Bold.woff"),
     get(base + "email/wordmark.png"), get(base + "email/ftu.png"),
     get(base + "email/eye-fri.png"), get(base + "email/eye-sat.png"),
     get(base + "email/figure-fri.png"), get(base + "email/figure-sat.png"),

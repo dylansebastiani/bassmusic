@@ -39,6 +39,8 @@ const usd = (c: number) => "$" + (c / 100).toFixed(2);
 const nightColor = (i: number) => (i % 2 ? VIOLET : ORANGE);
 
 export function renderTicketEmail(d: EmailData): { subject: string; html: string; text: string } {
+  // Ticket emails are transactional, so the postal address is only shown once a real one is set.
+  const addr = /TBD/i.test(d.mailingAddress || "") ? "" : d.mailingAddress;
   const IMG = d.siteUrl.replace(/\/$/, "") + "/assets/toftu/email/";
   const first = (d.buyerName || "").trim().split(/\s+/)[0];
   const subject = d.comp ? `You're on the list: ${d.eventName}` : `Your tickets: ${d.eventName}`;
@@ -130,7 +132,7 @@ ${summary}
 
 <tr><td style="padding:26px 0 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">
 Questions or need a change? Reply to this email or write <a href="mailto:${esc(d.contactEmail)}" style="color:${LAV}">${esc(d.contactEmail)}</a>.<br>
-<a href="${d.eventUrl}" style="color:${LAV}">Event page</a> &nbsp;·&nbsp; ${esc(d.mailingAddress)}</td></tr>
+<a href="${d.eventUrl}" style="color:${LAV}">Event page</a> ${addr ? "&nbsp;·&nbsp; " + esc(addr) : ""}</td></tr>
 
 </table></td></tr></table>
 </td></tr></table></body></html>`;
@@ -144,7 +146,7 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
     ...d.tickets.map((t) => `${t.typeName} (${t.nightLabels})${t.holder ? " · " + t.holder : ""}\nCode: ${t.code}\n${t.ticketUrl}`),
     d.comp ? "" : `\nTotal paid: ${usd(d.totalCents)}${d.feeCents ? ` (incl. ${usd(d.feeCents)} card fee)` : ""}`,
     "\nShow the QR code at the door. Each code works once per night.",
-    `\nQuestions? ${d.contactEmail}\n${d.mailingAddress}`,
+    `\nQuestions? ${d.contactEmail}${addr ? "\n" + addr : ""}`,
   ].filter((x) => x !== "").join("\n");
 
   return { subject, html, text };

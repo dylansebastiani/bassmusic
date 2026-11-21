@@ -104,12 +104,12 @@
 .toftu{--bg:#050505;--fg:#f3effa;--mute:#B5A1C8;--line:#3B1760;--hot:#FF5A1F;--n1:#FF5A1F;--n2:#8A2BE2;--uv:#3B1760;--lav:#B5A1C8;
   background:#050505}
 html:has(.toftu){background:#050505}
-.toftu .btn{background:var(--n1);color:#050505;font-family:"Archivo Black",var(--disp);letter-spacing:.06em}
+.toftu .btn{background:var(--n1);color:#050505;font-family:"Bungee",var(--disp);letter-spacing:.06em}
 .toftu .btn:hover:not(:disabled),.toftu .btn:focus-visible{background:#fff}
 .toftu .btn.ghost{background:transparent;color:var(--fg);border-color:var(--lav)}
 .brand{text-align:center;padding:6px 0 4px}
 .brand .wm{width:min(80%,380px);height:auto;margin:0 auto;mix-blend-mode:lighten}
-.ftu{font-family:"Archivo Black",var(--disp);text-transform:uppercase;color:transparent;-webkit-text-stroke:1.4px #fff;
+.ftu{font-family:"Bungee",var(--disp);text-transform:uppercase;color:transparent;-webkit-text-stroke:1.4px #fff;
   font-size:clamp(18px,5.6vw,34px);letter-spacing:.03em;line-height:1.1;margin:12px 0 4px}
 .toftu h1.ftu{font-weight:400;font-size:clamp(18px,5.6vw,34px)}
 .hero{position:relative;margin:14px 0 6px;overflow:hidden}
@@ -123,22 +123,22 @@ html:has(.toftu){background:#050505}
   clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
 .toftu .night{border-left:4px solid var(--n1);box-shadow:inset 3px 0 18px -6px var(--n1)}
 .toftu .night.n2{border-left-color:var(--n2);box-shadow:inset 3px 0 18px -6px var(--n2)}
-.toftu .night h3,.toftu .type h4,.toftu .sec,.toftu .ticket .hd h2{font-family:"Archivo Black",var(--disp);letter-spacing:.02em}
+.toftu .night h3,.toftu .type h4,.toftu .sec,.toftu .ticket .hd h2{font-family:"Bungee",var(--disp);letter-spacing:.02em}
 .toftu .night h3{color:var(--n1)} .toftu .night.n2 h3{color:var(--n2)}
-.toftu .night li:first-child{font-family:"Archivo Black",var(--disp);font-size:21px}
+.toftu .night li:first-child{font-family:"Bungee",var(--disp);font-size:21px}
 .toftu .when,.toftu .night li small{color:var(--lav)}
 .toftu .sec{color:transparent;-webkit-text-stroke:1.2px #fff;letter-spacing:.08em}
 .toftu .type.t1{border-color:rgba(255,90,31,.5)} .toftu .type.t2{border-color:rgba(138,43,226,.6)}
 .toftu .type.tp{border-color:var(--lav);background:linear-gradient(120deg,rgba(255,90,31,.16),rgba(138,43,226,.22))}
 .toftu .type.on{border-color:#fff;box-shadow:0 0 0 1px #fff inset}
 .toftu .type.t1 .price{color:var(--n1)} .toftu .type.t2 .price{color:#b57cff} .toftu .type.tp .price{color:#fff}
-.toftu .type .price{font-family:"Archivo Black",var(--disp);font-size:26px}
+.toftu .type .price{font-family:"Bungee",var(--disp);font-size:26px}
 .toftu .type .tier{color:var(--lav)} .toftu .type .tier.low{color:var(--n1)}
 .toftu .qty{border-color:var(--lav)}
 .toftu .buy input,.toftu .manual,.toftu .unit{border-color:var(--uv)}
 .toftu .buy input:focus{border-color:var(--lav)}
-.toftu .total b{font-family:"Archivo Black",var(--disp);color:#fff}
-.toftu .done{border-color:var(--n1)} .toftu .done h2{color:var(--n1);font-family:"Archivo Black",var(--disp)}
+.toftu .total b{font-family:"Bungee",var(--disp);color:#fff}
+.toftu .done{border-color:var(--n1)} .toftu .done h2{color:var(--n1);font-family:"Bungee",var(--disp)}
 .toftu .tlinks a{border-color:var(--uv)}
 .toftu .ticket .cd{color:#fff;border-color:var(--uv)}
 .toftu .ticket .hd,.toftu .ticket .row{border-color:var(--uv)}
@@ -147,7 +147,7 @@ html:has(.toftu){background:#050505}
 .toftu .mono{color:var(--lav)}
 .toftu .partners{display:block;height:44px;width:auto;max-width:90%;margin:34px auto 0;opacity:.85}
 /* door: same colors, nights in their own color */
-.toftu.door .nightpick button{font-family:"Archivo Black",var(--disp);border-color:var(--uv)}
+.toftu.door .nightpick button{font-family:"Bungee",var(--disp);border-color:var(--uv)}
 .toftu.door .nightpick button[aria-pressed="true"]{border-color:var(--n1);background:rgba(255,90,31,.14)}
 .toftu.door .nightpick button.n2[aria-pressed="true"]{border-color:var(--n2);background:rgba(138,43,226,.18)}
 .toftu .tabs{background:#050505;border-top-color:var(--uv)}
@@ -206,6 +206,6 @@ html:has(.toftu){background:#050505}
 .tfig{position:absolute;right:8px;top:8px;width:70px;height:auto;opacity:.95;pointer-events:none}
 .toftu .ticket .hd{padding-right:90px}
 .loclabel{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--n1);margin-bottom:4px}
-.toftu #ewhere b{font-family:"Archivo Black",var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;color:#fff}
+.toftu #ewhere b{font-family:"Bungee",var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;color:#fff}
 .agepill{display:inline-block;margin-top:10px;border:1px solid var(--uv);padding:4px 9px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#fff}
 .toftu .ticket .hd{padding-right:16px} .toftu #kind{margin-top:6px}
