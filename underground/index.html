@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<base href="/">
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="T.O.F.T.U.">
+<meta property="og:url" content="https://subduction.art/underground/">
+<meta property="og:title" content="T.O.F.T.U. · For The Underground · Jan 8 + 9 · Peoria, IL">
+<meta property="og:description" content="Fri: Treegaud b2b Waylo, Badguy Moolah + more. Sat: PATCHES, Cache Stack + more. Secret location. Get tickets.">
+<meta property="og:image" content="https://subduction.art/assets/toftu/share.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="T.O.F.T.U. For The Underground, Fri Jan 8 + Sat Jan 9, secret location, Peoria IL">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="T.O.F.T.U. · For The Underground · Jan 8 + 9 · Peoria, IL">
+<meta name="twitter:description" content="Fri: Treegaud b2b Waylo, Badguy Moolah + more. Sat: PATCHES, Cache Stack + more. Secret location.">
+<meta name="twitter:image" content="https://subduction.art/assets/toftu/share.jpg">
+<meta name="description" content="T.O.F.T.U. For The Underground: two nights of bass, Jan 8 + 9, secret location in Peoria, IL. Tickets here.">
+<meta name="theme-color" content="#050505">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bungee&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/tix.css">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"PO Box TBD, Bloomington, IL 61701","social":{"instagram":"subduction.wav","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction is a new bass music label, and the community around it. Members get unreleased tracks for free, before anyone else, and first word on shows. Look for us at shows.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script><script src="/assets/player.js" defer></script>
+<title>T.O.F.T.U. · For The Underground · Tickets</title>
+</head>
+<body class="toftu">
+<main class="wrap tix toftu" id="page">
+  <p class="msg" id="loading" role="status">Loading...</p>
+
+  <div id="ev" hidden>
+    <div class="brand"><img class="wm" src="assets/toftu/wordmark.webp" alt="T.O.F.T.U." width="1400" height="373">
+      <h1 class="ftu-img"><img src="assets/toftu/ftu.webp" alt="" width="1736" height="112"><span class="sr" id="name">This one is for the underground</span></h1></div>
+    <div class="hero"><img src="assets/toftu/hero.webp" alt="" width="1200" height="670"></div>
+    <img class="poster" id="poster" alt="" hidden>
+    <p class="where2" id="where"></p>
+    <div class="meta" id="meta"></div>
+    <div class="flyers">
+      <a href="assets/toftu/poster-fri.webp" target="_blank" rel="noopener"><img src="assets/toftu/poster-fri-sm.webp" alt="Fri Jan 8 flyer: Treegaud b2b Waylo, Badguy Moolah, DEWEY, B3RMVDA, EKIM, GEEZ" width="480" height="600" loading="lazy"></a>
+      <a href="assets/toftu/poster-sat.webp" target="_blank" rel="noopener"><img src="assets/toftu/poster-sat-sm.webp" alt="Sat Jan 9 flyer: PATCHES, Cache Stack, Synth Sirena, Neuroversal, Dr. Lee, Garfunkel" width="480" height="600" loading="lazy"></a>
+    </div>
+    <div class="nights" id="nights"></div>
+
+    <div id="done" hidden></div>
+
+    <section id="shop">
+      <h2 class="sec">Tickets</h2>
+      <div class="types" id="types"></div>
+      <form class="buy" id="buy" novalidate>
+        <div class="total"><span class="mono">Total <small id="feeNote" style="text-transform:none;letter-spacing:0"></small></span><b id="total">$0</b></div>
+        <label for="bname">Name</label><input type="text" id="bname" autocomplete="name" maxlength="80">
+        <label for="bemail">Email (your tickets go here)</label><input type="email" id="bemail" autocomplete="email" inputmode="email" maxlength="254">
+        <details class="promo" id="promoBox"><summary>Have a code?</summary>
+          <label for="bpromo">Code</label><input type="text" id="bpromo" autocomplete="off" maxlength="30">
+        </details>
+        <button type="submit" class="btn" id="go">Checkout</button>
+        <p class="msg" id="bmsg" role="status"></p>
+        <p class="fineprint">21+ with ID. Ticket prices plus a small card processing fee, shown before you pay. Tickets are emailed right away with a QR code for the door. All sales final unless the show is cancelled.</p>
+      </form>
+      <div id="payWrap" hidden>
+        <button type="button" class="back" id="back">&larr; Change tickets</button>
+        <div id="checkout"></div>
+      </div>
+    </section>
+    <img class="partners" src="assets/toftu/partners.png" alt="Event partners">
+  </div>
+</main>
+<script src="assets/stack.js"></script>
+<script src="assets/tickets.js"></script>
+</body>
+</html>
