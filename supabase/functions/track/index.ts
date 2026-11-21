@@ -24,6 +24,24 @@ Deno.serve(async (req) => {
       }));
       return json({ tracks: out }, 200, { "Cache-Control": "public, max-age=300" });
     }
+    // ?player=1: the site-wide music bar. Anyone can stream (1-hour links); the download
+    // stays behind the signup, so this never returns a download link, only the QR code
+    // the bar sends people to (/t?c=CODE) to unlock it.
+    if (u.searchParams.get("player") === "1") {
+      const { data } = await db.from("drops").select("qr_code,slug,title,artist,audio_path,artwork_path,download_path")
+        .eq("qr_active", true).not("qr_code", "is", null).not("audio_path", "is", null).order("created_at", { ascending: false }).limit(50);
+      const rows = data ?? [];
+      const paths = [...new Set(rows.flatMap((d) => [d.audio_path, d.artwork_path]).filter((x): x is string => !!x))];
+      const signed = new Map<string, string>();
+      if (paths.length) {
+        const { data: s } = await db.storage.from("drops").createSignedUrls(paths, 3600);
+        (s ?? []).forEach((x) => { if (x.path && x.signedUrl) signed.set(x.path, x.signedUrl); });
+      }
+      const tracks = rows.map((d) => ({ code: d.qr_code, slug: d.slug, title: d.title, artist: d.artist,
+        audio_url: signed.get(d.audio_path!) ?? null, artwork_url: d.artwork_path ? signed.get(d.artwork_path) ?? null : null,
+        downloadable: !!d.download_path })).filter((t) => t.audio_url);
+      return json({ tracks }, 200, { "Cache-Control": "public, max-age=300" });
+    }
     const drop = await dropByQr(u.searchParams.get("c"));
     if (!drop) return err("Not found", 404);
     // Which show's sticker: ?e=slug on the printed code.

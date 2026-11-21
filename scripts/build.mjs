@@ -21,11 +21,14 @@ mkdirSync(out, { recursive: true });
 cpSync(join(root, "site"), out, { recursive: true });
 
 const inject = `<script>window.STACK=${JSON.stringify({ ...cfg, ...pub })};</script>`;
+const PLAYER = '<script src="/assets/player.js" defer></script>';
 const rawT = readFileSync(join(out, "t.html"), "utf8");
 for (const f of readdirSync(out)) {
   if (!f.endsWith(".html")) continue;
   const p = join(out, f);
-  writeFileSync(p, readFileSync(p, "utf8").replace("<!--CONFIG-->", inject));
+  // The music bar rides along on every public page; staff pages (door, admin) stay quiet.
+  const bar = /^(door|admin)\.html$/.test(f) ? "" : PLAYER;
+  writeFileSync(p, readFileSync(p, "utf8").replace("<!--CONFIG-->", inject + bar));
 }
 // /underground/ is the event page itself (not a redirect), so link previews in iMessage,
 // Instagram and Facebook read its cover image and title. <base> keeps its asset paths working.
@@ -109,7 +112,7 @@ async function trackPages() {
       .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${esc(desc)}">`)
       .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${esc(image)}">`)
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
-      .replace("<!--CONFIG-->", `<script>window.__QR=${JSON.stringify(t.code)};</script>` + inject);
+      .replace("<!--CONFIG-->", `<script>window.__QR=${JSON.stringify(t.code)};</script>` + inject + PLAYER);
     mkdirSync(join(out, "t", t.code), { recursive: true });
     writeFileSync(join(out, "t", t.code, "index.html"), html);
     n++;
