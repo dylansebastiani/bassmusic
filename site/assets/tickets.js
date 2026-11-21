@@ -30,8 +30,8 @@
     $("meta").innerHTML = ['<span class="pill">' + esc(ev.age || "Age TBA") + "</span>"]
       .concat(data.nights.map(function (n) { return '<span class="pill">' + esc(n.label) + "</span>"; })).join("");
     $("nights").innerHTML = data.nights.map(function (n, i) {
-      var ch = i % 2 ? '<img class="char" src="assets/toftu/jumper.webp" alt="" width="520" height="796">' : '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="520" height="849">';
-      return '<div class="nw"><div class="night' + (i % 2 ? " n2" : "") + '">' + ch + '<img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240"><h3>' + esc(n.label) + "</h3>" +
+      var ch = i % 2 ? '<img class="char" src="assets/toftu/jumper.webp" alt="" width="330" height="505" loading="lazy" decoding="async">' : '<img class="char" src="assets/toftu/energy-orange.webp" alt="" width="330" height="539" loading="lazy" decoding="async">';
+      return '<div class="nw"><div class="night' + (i % 2 ? " n2" : "") + '">' + ch + '<img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="160" height="160" loading="lazy" decoding="async"><h3>' + esc(n.label) + "</h3>" +
         (n.starts_at ? '<div class="when">Doors ' + time(n.starts_at) + (n.ends_at ? " – " + time(n.ends_at) : "") + "</div>" : "") +
         "<ul>" + (n.lineup || []).map(function (a) { return "<li>" + esc(a.name) + (a.note ? "<small>" + esc(a.note) + "</small>" : "") + "</li>"; }).join("") + "</ul></div></div>";
     }).join("");
@@ -41,7 +41,7 @@
 
   // Night one's eye is orange, night two's is violet; a pass shows both.
   function eyes(idx) {
-    return '<span class="eyes">' + idx.map(function (i) { return '<img src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240">'; }).join("") + "</span>";
+    return '<span class="eyes">' + idx.map(function (i) { return '<img src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="160" height="160" loading="lazy" decoding="async">'; }).join("") + "</span>";
   }
   function renderTypes() {
     var open = data.event.sales_open && data.stripe_key;
@@ -151,7 +151,7 @@
     })();
   }
 
-  load().then(function (d) {
+  (window.__tix || load()).then(function (d) {
     data = d; render();
     var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid);
   }).catch(function (e) { $("loading").textContent = e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again."; });

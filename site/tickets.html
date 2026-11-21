@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="icon" type="image/png" href="assets/favicon.png">
@@ -21,24 +21,27 @@
 <meta name="twitter:image" content="https://subduction.art/assets/toftu/share.jpg">
 <meta name="description" content="T.O.F.T.U. For The Underground: two nights of bass, Jan 8 + 9, secret location in Peoria, IL. Tickets here.">
 <meta name="theme-color" content="#050505">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Archivo:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preload" href="assets/fonts/bungee-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://hxfuelulxsituzcgsvhg.supabase.co" crossorigin>
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="preload" as="image" href="assets/toftu/hero.webp" imagesrcset="assets/toftu/hero-sm.webp 720w, assets/toftu/hero.webp 1200w" imagesizes="(max-width:760px) 100vw, 760px" fetchpriority="high">
 <link rel="stylesheet" href="assets/app.css">
 <link rel="stylesheet" href="assets/tix.css">
 <!--CONFIG-->
+<script>/* Ask for the show and tickets while the rest of the page is still loading. */
+try{var _e=(new URLSearchParams(location.search).get("e")||"underground").replace(/[^a-z0-9-]/gi,"").toLowerCase();
+window.__tix=fetch((window.STACK||{}).supabaseUrl+"/functions/v1/tickets?e="+_e).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||"Not found");return j})});window.__tix.catch(function(){})}catch(e){}</script>
 <title>T.O.F.T.U. · For The Underground · Tickets</title>
 </head>
 <body class="toftu">
 <main class="wrap tix toftu" id="page">
-  <p class="msg" id="loading" role="status">Loading...</p>
-
-  <div id="ev" hidden>
+  <div id="ev">
     <div class="brand"><img class="wm" src="assets/toftu/wordmark.webp" alt="T.O.F.T.U." width="1400" height="373">
       <h1 class="ftu-img"><img src="assets/toftu/ftu.webp" alt="" width="1736" height="112"><span class="sr" id="name">This one is for the underground</span></h1></div>
-    <div class="hero"><img src="assets/toftu/hero.webp" alt="" width="1200" height="670"></div>
+    <div class="hero"><img src="assets/toftu/hero.webp" srcset="assets/toftu/hero-sm.webp 720w, assets/toftu/hero.webp 1200w" sizes="(max-width:760px) 100vw, 760px" alt="" width="1200" height="670" fetchpriority="high"></div>
     <img class="poster" id="poster" alt="" hidden>
-    <p class="where2" id="where"></p>
-    <div class="meta" id="meta"></div>
+    <p class="where2" id="where"><b>Secret location</b> · Peoria, IL<br><span class="fineprint" style="margin:0">The address comes with your tickets.</span></p>
+    <div class="meta" id="meta"><span class="pill">21+</span><span class="pill">Fri Jan 8</span><span class="pill">Sat Jan 9</span></div>
     <div class="flyers">
       <a href="assets/toftu/poster-fri.webp" target="_blank" rel="noopener"><img src="assets/toftu/poster-fri-sm.webp" alt="Fri Jan 8 flyer: Treegaud b2b Waylo, Badguy Moolah, DEWEY, B3RMVDA, EKIM, GEEZ" width="480" height="600" loading="lazy"></a>
       <a href="assets/toftu/poster-sat.webp" target="_blank" rel="noopener"><img src="assets/toftu/poster-sat-sm.webp" alt="Sat Jan 9 flyer: PATCHES., Cache Stack, Synth Sirena, Neuroversal, Dr. Lee, Garfunkel" width="480" height="600" loading="lazy"></a>
@@ -49,6 +52,7 @@
 
     <section id="shop">
       <h2 class="sec">Tickets</h2>
+      <p class="msg" id="loading" role="status">Loading tickets...</p>
       <div class="types" id="types"></div>
       <form class="buy" id="buy" novalidate>
         <div class="total"><span class="mono">Total <small id="feeNote" style="text-transform:none;letter-spacing:0"></small></span><b id="total">$0</b></div>
@@ -66,7 +70,7 @@
         <div id="checkout"></div>
       </div>
     </section>
-    <img class="partners" src="assets/toftu/partners.webp" alt="Event partners">
+    <img class="partners" src="assets/toftu/partners.webp" alt="Event partners" width="785" height="140" loading="lazy">
   </div>
 </main>
 <script src="assets/stack.js"></script>
