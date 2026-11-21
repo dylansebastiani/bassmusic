@@ -99,7 +99,11 @@ Deno.serve(async (req) => {
   const slug = clean(b.e, 80) || "", email = (clean(b.email, 254) || "").toLowerCase(), name = clean(b.name, 80);
   if (!SLUG.test(slug)) return err("Bad request");
   if (!EMAIL_RE.test(email)) return err("Enter the email your tickets should go to.");
-  if (!name) return err("Enter the name for the order.");
+  if (!name || name.trim().split(/\s+/).length < 2) return err("Enter your full name (first and last).");
+  // Phone for the order: digits only, US numbers get +1, anything else must already carry its country code.
+  const digits = String(b.phone ?? "").replace(/\D/g, "");
+  const phone = digits.length === 10 ? "+1" + digits : digits.length === 11 && digits[0] === "1" ? "+" + digits : digits.length >= 11 && digits.length <= 15 ? "+" + digits : "";
+  if (!phone) return err("Enter a phone number we can reach you at.");
   const x = await loadEvent(slug);
   if (!x) return err("Not found", 404);
   const { ev, types } = x;
@@ -128,7 +132,7 @@ Deno.serve(async (req) => {
   // so that what's left is the full ticket price.
   const net = o!.subtotal_cents - o!.discount_cents;
   const fee = net > 0 ? Math.ceil((net + 30) / (1 - 0.029)) - net : 0;
-  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee, ip_hash: ip }).eq("id", o!.id);
+  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee, ip_hash: ip, phone }).eq("id", o!.id);
 
   try {
     const line_items: Record<string, unknown> = {};

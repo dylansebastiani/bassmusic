@@ -110,14 +110,15 @@
   $("buy").addEventListener("submit", function (e) {
     e.preventDefault();
     var items = Object.keys(cart).filter(function (k) { return cart[k] > 0; }).map(function (k) { return { slug: k, qty: cart[k] }; });
-    var name = $("bname").value.trim(), email = $("bemail").value.trim();
+    var name = $("bname").value.trim(), email = $("bemail").value.trim(), phone = $("bphone").value.trim();
     if (!items.length) return;
-    if (!name) { $("bmsg").textContent = "Add your name."; $("bname").focus(); return; }
+    if (name.split(/\s+/).length < 2) { $("bmsg").textContent = "Add your full name (first and last)."; $("bname").focus(); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { $("bmsg").textContent = "Check your email address."; $("bemail").focus(); return; }
+    if (phone.replace(/\D/g, "").length < 10) { $("bmsg").textContent = "Add a phone number we can reach you at."; $("bphone").focus(); return; }
     $("go").disabled = true; $("bmsg").textContent = "Holding your tickets...";
     Promise.all([
       fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, promo: $("bpromo").value.trim() || null, ref: ref || null }) })
+        body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, phone: phone, promo: $("bpromo").value.trim() || null, ref: ref || null }) })
         .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; }); }),
       loadStripe(),
     ]).then(function (res) {
