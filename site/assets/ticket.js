@@ -16,6 +16,8 @@
     $("ttype").textContent = k.type || "Ticket";
     $("tname").textContent = k.name || "";
     $("qr").src = FN + "?a=qr&t=" + t;
+    $("pdf").href = FN + "?a=pdf&t=" + t;
+    if (k.status !== "valid") $("pdf").hidden = true;
     $("tcode").textContent = k.code;
     if (k.status !== "valid") { $("card").classList.add("void"); $("tcode").textContent = "VOID"; }
     $("rows").innerHTML = d.nights.map(function (n) {

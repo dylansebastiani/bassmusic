@@ -3,6 +3,7 @@ import { db, setting } from "../_shared/db.ts";
 import { json, err, preflight, EMAIL_RE, clean, ipHash } from "../_shared/util.ts";
 import { SITE_URL } from "../_shared/config.ts";
 import { loadEvent, availability, stripe, TICKET_PAGE } from "../_shared/tickets.ts";
+import { ticketsPdf } from "../_shared/send.ts";
 
 // The public side of ticketing.
 //   GET  ?e=slug              the event, its nights and what's on sale right now
@@ -23,6 +24,18 @@ Deno.serve(async (req) => {
     if (!tk) return err("Not found", 404);
     const png = await QRCode.toBuffer(TICKET_PAGE(t), { type: "png", width: 440, margin: 2, errorCorrectionLevel: "M" });
     return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable", "Access-Control-Allow-Origin": "*" } });
+  }
+
+  // One ticket as a PDF, for the "Download PDF" button on the ticket page.
+  if (req.method === "GET" && a === "pdf") {
+    const t = u.searchParams.get("t") || "";
+    if (!TOKEN.test(t)) return err("Not found", 404);
+    const { data: tk } = await db.from("tickets").select("order_id,code,status").eq("token", t).maybeSingle();
+    if (!tk || tk.status !== "valid") return err("Not found", 404);
+    const pdf = await ticketsPdf(tk.order_id, t);
+    if (!pdf) return err("Not found", 404);
+    return new Response(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="TOFTU-ticket-${tk.code}.pdf"`,
+      "Cache-Control": "private, no-store", "Access-Control-Allow-Origin": "*" } });
   }
 
   if (req.method === "GET" && a === "ticket") {
@@ -99,6 +112,11 @@ Deno.serve(async (req) => {
   }).filter(Boolean);
   if (!want.length) return err("Pick at least one ticket.");
 
+  // One connection can have at most two checkouts open at once, so nobody can tie up the room.
+  const { count: open } = await db.from("ticket_orders").select("id", { count: "exact", head: true })
+    .eq("ip_hash", ip).eq("status", "pending").gt("hold_until", new Date().toISOString());
+  if ((open ?? 0) >= 2) return err("You already have a checkout open. Finish it, or wait a few minutes and try again.", 429);
+
   // Hold the tickets for 35 minutes (Stripe's checkout lasts 31), priced tier by tier.
   const { data: orderId, error: holdErr } = await db.rpc("ticket_hold", {
     p_event: ev.id, p_want: want, p_email: email, p_name: name,
@@ -110,7 +128,7 @@ Deno.serve(async (req) => {
   // so that what's left is the full ticket price.
   const net = o!.subtotal_cents - o!.discount_cents;
   const fee = net > 0 ? Math.ceil((net + 30) / (1 - 0.029)) - net : 0;
-  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee }).eq("id", o!.id);
+  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee, ip_hash: ip }).eq("id", o!.id);
 
   try {
     const line_items: Record<string, unknown> = {};

@@ -27,7 +27,15 @@ Deno.serve(async (req) => {
     if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
     const pin = (clean(b.pin, 12) || "").replace(/\D/g, "");
     if (!ev.door_pin_hash) return no("No door PIN is set for this show yet.");
-    if (pin.length < 4 || (await pinHash(ev.id, pin)) !== ev.door_pin_hash) return no("Wrong PIN.");
+    // Show-wide: more than 60 wrong tries in an hour, from anywhere, pauses PIN sign-in.
+    // Phones already signed in stay signed in, and staff sign-in on /admin is unaffected.
+    const failKey = "doorfail|" + ev.id;
+    const { data: fails } = await db.from("rate_limits").select("count").eq("ip_hash", failKey).gt("window_start", new Date(Date.now() - 3600_000).toISOString());
+    if ((fails || []).reduce((n, r) => n + (r.count as number), 0) >= 60) return no("Too many wrong PINs. Door sign-in is paused; try again later or sign in as staff.", 429);
+    if (pin.length < 4 || (await pinHash(ev.id, pin)) !== ev.door_pin_hash) {
+      await db.rpc("bump_rate_limit", { p_ip_hash: failKey });
+      return no("Wrong PIN.");
+    }
     return ok({ token: await newDoorSession(ev.id) });
   }
 

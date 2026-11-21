@@ -17,9 +17,14 @@ Deno.serve(async (req) => {
   if (ev.type === "checkout.session.completed" || ev.type === "checkout.session.async_payment_succeeded") {
     if (obj.payment_status !== "paid") return new Response("waiting for payment", { status: 200 });
     const orderId = obj.metadata?.order_id || obj.client_reference_id;
-    const { data: o } = await db.from("ticket_orders").select("id,status").eq("id", orderId).maybeSingle();
+    const { data: o } = await db.from("ticket_orders").select("id,status,total_cents").eq("id", orderId).maybeSingle();
     if (!o) { console.error("webhook: no order for session", obj.id); return new Response("no order", { status: 200 }); }
     if (o.status === "refunded") return new Response("refunded", { status: 200 });
+    // Belt and braces: tickets only for a payment that covers the whole order.
+    if (typeof obj.amount_total === "number" && obj.amount_total < o.total_cents) {
+      console.error("webhook: paid less than the order total", o.id, obj.amount_total, o.total_cents);
+      return new Response("amount mismatch", { status: 200 });
+    }
     await db.from("ticket_orders").update({ stripe_payment_intent: obj.payment_intent || null, stripe_session_id: obj.id }).eq("id", o.id);
     const { error } = await db.rpc("ticket_issue", { p_order: o.id, p_status: "paid" });
     if (error) { console.error("webhook: issue failed", o.id, error.message); return new Response("retry", { status: 500 }); }

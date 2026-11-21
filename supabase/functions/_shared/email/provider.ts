@@ -7,6 +7,7 @@ export interface SendEmailInput {
   headers?: Record<string, string>;
   tags?: string[];
   fromName?: string;   // overrides FROM_NAME for this one email (e.g. ticket emails)
+  attachments?: { name: string; content: string }[];   // content is base64
 }
 export type SendResult = { ok: true; id?: string } | { ok: false; status: number; error: string; rateLimited: boolean };
 export interface EmailProvider { name: string; send(input: SendEmailInput): Promise<SendResult>; }

@@ -12,6 +12,7 @@ export const brevo: EmailProvider = {
       to: [{ email: i.to.email, name: i.to.name || undefined }],
       subject: i.subject, htmlContent: i.html, textContent: i.text,
       headers: i.headers, tags: i.tags,
+      attachment: i.attachments?.length ? i.attachments : undefined,
     };
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST", headers: { "api-key": key, "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify(body),
