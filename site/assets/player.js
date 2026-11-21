@@ -19,7 +19,7 @@
     ".sbx-time{font:11px 'Space Mono','Courier New',monospace;color:#8E84A0;flex:none;width:76px;text-align:right}" +
     ".sbx button{background:none;border:0;color:#fff;cursor:pointer;padding:6px;line-height:0;flex:none}.sbx button:focus-visible,.sbx a:focus-visible{outline:2px solid #AA6EFF;outline-offset:2px}" +
     ".sbx .sbx-play{width:40px;height:40px;border-radius:50%;background:#FF5A1F;color:#050505;display:flex;align-items:center;justify-content:center;padding:0}" +
-    ".sbx-dl{flex:none;background:#fff;color:#050505;text-decoration:none;font:700 11px/1 'Archivo Black','Arial Black',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:10px 12px;white-space:nowrap}" +
+    ".sbx-dl{flex:none;background:#fff;color:#050505;text-decoration:none;font:400 11px/1 'Bungee','Arial Black',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:10px 12px;white-space:nowrap}" +
     ".sbx-dl:hover{background:#FF5A1F}.sbx-min{color:#8E84A0!important}" +
     ".sbx.mini .sbx-meta,.sbx.mini .sbx-time,.sbx.mini .sbx-skip,.sbx.mini .sbx-dl{display:none}.sbx.mini{left:auto;right:12px;bottom:12px;border:1px solid #2D1052;padding:6px}" +
     "@media (max-width:560px){.sbx-time,.sbx-prev{display:none}.sbx-dl{padding:9px 9px;font-size:10px}.sbx-art{width:38px;height:38px}}";
@@ -42,7 +42,12 @@
     var k = tracks[i];
     $(".sbx-t").textContent = k.title;
     $(".sbx-a").textContent = (k.artist || "Subduction") + "  ·  " + (i + 1) + "/" + tracks.length;
-    $(".sbx-art").style.backgroundImage = k.artwork_url ? 'url("' + k.artwork_url.replace(/"/g, "%22") + '")' : "";
+    // A 96px thumbnail ships with the site; the full-size cover from storage is only the fallback.
+    var art = $(".sbx-art"), thumb = "/assets/covers/" + encodeURIComponent(k.slug || "") + ".webp";
+    var probe = new Image();
+    probe.onload = function () { art.style.backgroundImage = 'url("' + thumb + '")'; };
+    probe.onerror = function () { art.style.backgroundImage = k.artwork_url ? 'url("' + k.artwork_url.replace(/"/g, "%22") + '")' : ""; };
+    if (k.slug) probe.src = thumb; else probe.onerror();
     var dl = $(".sbx-dl");
     dl.hidden = !k.downloadable;
     dl.href = "/t?c=" + encodeURIComponent(k.code);
