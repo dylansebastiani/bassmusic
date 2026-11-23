@@ -291,9 +291,9 @@
   $("af").addEventListener("submit", function (e) {
     e.preventDefault(); say("amsg", "Saving...");
     var body = { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0,
-      full_name: $("afull").value.trim(), email: $("aemail").value.trim().toLowerCase(), phone: $("aphone").value.trim() };
+      full_name: $("artfull").value.trim(), email: $("artemail").value.trim().toLowerCase(), phone: $("artphone").value.trim() };
     (pre = {}, req)(ART, body).then(function (r) {
-      ["aname", "afull", "aemail", "aphone"].forEach(function (id) { $(id).value = ""; }); $("aspots").value = "2";
+      ["aname", "artfull", "artemail", "artphone"].forEach(function (id) { $(id).value = ""; }); $("aspots").value = "2";
       var lead = r.pass_sent === true ? "Pass sent to " + body.email + ". Link copied too, in case you want to text it."
         : r.pass_sent === false ? "Invite made, but the pass email didn't go out. Use Resend on the Door List. Link copied."
         : "Invite made and link copied. Text it to the artist.";
