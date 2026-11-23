@@ -74,9 +74,12 @@
         <div class="row1"><h2>Your tracks</h2><span class="spots" id="tcount"></span></div>
         <p class="lead">Add your music to this show's playlist. It goes straight into the mix on the show's page.</p>
         <div class="glist" id="tlist"></div>
+        <input id="tartpick" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
         <form id="tf" class="aform" novalidate>
           <label for="tfile">Add a track</label><input id="tfile" type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4">
           <div class="hint">MP3, WAV or M4A, up to 40 MB.</div>
+          <label for="tart">Cover art <span class="opt">(optional)</span></label><input id="tart" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <div class="hint">Square JPG, PNG or WebP, up to 5 MB. It shows in the player while your track plays.</div>
           <label for="ttitle">Track title</label><input id="ttitle" type="text" autocomplete="off" maxlength="80" placeholder="Track title">
           <label class="check" for="tfree" style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:15px;color:inherit"><input id="tfree" type="checkbox" style="width:20px;height:20px;flex:none"> Let fans download it free</label>
           <button class="btn gold" type="submit" id="tgo">Add to the playlist</button>

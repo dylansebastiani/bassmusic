@@ -42,3 +42,11 @@
 .artistpg .empty{border-color:var(--uv);color:var(--lav)}
 .artistpg .fineprint{margin-top:14px}
 @media (min-width:700px){.artistpg.wrap{max-width:600px}}
+/* artist tracks: cover thumbnail, title, actions */
+.guest.trk{flex-wrap:wrap;justify-content:flex-start}
+.trk .tart{width:52px;height:52px;flex:none;border:1px solid var(--uv);background:#0d0716}
+.trk .tart img{width:100%;height:100%;object-fit:cover;display:block}
+.trk .tinfo{flex:1;min-width:0}
+.trk .tbtns{flex:1 0 100%;display:flex;gap:8px;flex-wrap:wrap}
+.trk button[data-art]:hover{border-color:var(--gold,#F2C14E);color:var(--gold,#F2C14E)}
+label .opt{text-transform:none;letter-spacing:0;color:var(--lav);font-weight:400}

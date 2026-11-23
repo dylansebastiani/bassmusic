@@ -109,18 +109,43 @@
     var o = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ a: a, k: k }, body)) } : {};
     return fetch(PL + (body ? "" : "?a=" + a + "&k=" + k), o).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
   }
+  // Upload one file to a one-time link; the cover or the track itself.
+  function put(r, f, label) {
+    return new Promise(function (ok, no) {
+      var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
+      x.upload.onprogress = function (ev) { if (ev.lengthComputable && label) $("tmsg").textContent = label + Math.round(ev.loaded / ev.total * 100) + "%"; };
+      x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); }; x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
+      x.send(f);
+    });
+  }
+  function artExt(f) { var e = (f.name.split(".").pop() || "").toLowerCase(); return e === "jpeg" ? "jpg" : e; }
+  function artCheck(f) {
+    if (["jpg", "png", "webp"].indexOf(artExt(f)) < 0) return "Use a JPG, PNG or WebP for the cover.";
+    if (f.size > 5 * 1048576) return "That cover is over 5 MB. Use a smaller image.";
+    return "";
+  }
+  function uploadArt(f) { return pl("artist-upload-url", { kind: "art", ext: artExt(f) }).then(function (r) { return put(r, f, "Uploading cover… "); }); }
+  var artFor = null;
+  $("tartpick").addEventListener("change", function () {
+    var f = $("tartpick").files[0], id = artFor; $("tartpick").value = ""; if (!f || !id) return;
+    var bad = artCheck(f); if (bad) { $("tmsg").textContent = bad; return; }
+    uploadArt(f).then(function (path) { return pl("artist-art", { id: id, art_path: path }); })
+      .then(function (d) { $("tmsg").textContent = "Cover added."; drawTracks(d); })
+      .catch(function (err) { $("tmsg").textContent = err.message; });
+  });
   function drawTracks(d) {
     var full = d.tracks.length >= d.max;
     $("tcount").textContent = d.tracks.length + " of " + d.max;
     $("tf").hidden = full; $("tfull").hidden = !full;
     $("tlist").innerHTML = d.tracks.length ? d.tracks.map(function (t) {
-      return '<div class="guest" style="flex-wrap:wrap;gap:8px"><div style="flex:1 0 100%"><b>' + esc(t.title) + "</b><span>In the mix · free download " + (t.free_download ? "on" : "off") + "</span></div>" +
-        '<button type="button" data-free="' + esc(t.id) + '" data-on="' + (t.free_download ? "1" : "") + '">' + (t.free_download ? "Turn off download" : "Make it free") + '</button><button type="button" data-trm="' + esc(t.id) + '">Remove</button></div>';
+      return '<div class="guest trk"><div class="tart">' + (t.art_url ? '<img src="' + esc(t.art_url) + '" alt="">' : "") + '</div><div class="tinfo"><b>' + esc(t.title) + "</b><span>In the mix · free download " + (t.free_download ? "on" : "off") + "</span></div>" +
+        '<div class="tbtns"><button type="button" data-art="' + esc(t.id) + '">' + (t.art_url ? "Change cover" : "Add cover") + '</button><button type="button" data-free="' + esc(t.id) + '" data-on="' + (t.free_download ? "1" : "") + '">' + (t.free_download ? "Turn off download" : "Make it free") + '</button><button type="button" data-trm="' + esc(t.id) + '">Remove</button></div></div>';
     }).join("") : '<div class="empty">No tracks yet.</div>';
   }
   $("tfile").addEventListener("change", function () { var f = $("tfile").files[0]; if (f && !$("ttitle").value) $("ttitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80); });
   $("tlist").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
+    if (b.hasAttribute("data-art")) { artFor = b.getAttribute("data-art"); $("tartpick").click(); return; }
     var job = b.hasAttribute("data-trm") ? pl("artist-remove", { id: b.getAttribute("data-trm") }) : b.hasAttribute("data-free") ? pl("artist-set", { id: b.getAttribute("data-free"), free_download: !b.getAttribute("data-on") }) : null;
     if (!job) return; b.disabled = true;
     job.then(drawTracks).catch(function (err) { $("tmsg").textContent = err.message; b.disabled = false; });
@@ -132,15 +157,14 @@
     if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { $("tmsg").textContent = "Use an MP3, WAV or M4A."; return; }
     if (f.size > 40 * 1048576) { $("tmsg").textContent = "That track is over 40 MB. Export an MP3 instead."; return; }
     if (!title) { $("tmsg").textContent = "Give it a title."; $("ttitle").focus(); return; }
+    var cover = $("tart").files[0], bad = cover ? artCheck(cover) : "";
+    if (bad) { $("tmsg").textContent = bad; return; }
     $("tgo").disabled = true; $("tmsg").textContent = "Uploading… 0%";
-    pl("artist-upload-url", { ext: ext }).then(function (r) {
-      return new Promise(function (ok, no) {
-        var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
-        x.upload.onprogress = function (ev) { if (ev.lengthComputable) $("tmsg").textContent = "Uploading… " + Math.round(ev.loaded / ev.total * 100) + "%"; };
-        x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); }; x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
-        x.send(f);
-      });
-    }).then(function (path) { return pl("artist-add", { path: path, title: title, free_download: $("tfree").checked }); })
+    var artPath = null;
+    (cover ? uploadArt(cover).then(function (p) { artPath = p; }) : Promise.resolve())
+      .then(function () { return pl("artist-upload-url", { ext: ext }); })
+      .then(function (r) { return put(r, f, "Uploading… "); })
+      .then(function (path) { return pl("artist-add", { path: path, title: title, free_download: $("tfree").checked, art_path: artPath }); })
       .then(function (d) { $("tf").reset(); $("tgo").disabled = false; $("tmsg").textContent = "Added. It's in the mix."; drawTracks(d); })
       .catch(function (err) { $("tgo").disabled = false; $("tmsg").textContent = err.message; });
   });
