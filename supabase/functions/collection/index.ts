@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       .eq("subscriber_id", m.id).order("unlocked_at", { ascending: false }).limit(200),
     db.from("coupons").select("code,title,description,url,min_tracks,starts_at,expires_at,artist_slug,event:events(slug,name)")
       .eq("is_active", true).order("min_tracks", { ascending: true }),
-    db.from("events").select("slug,name,kind,venue,city,address,starts_at,ends_at,description,ticket_url,prize")
+    db.from("events").select("slug,name,kind,venue,city,address,starts_at,ends_at,description,ticket_url,prize,location_secret")
       .eq("is_active", true).eq("is_public", true).order("starts_at", { ascending: true, nullsFirst: false }).limit(60),
     db.from("giveaway_entries").select("event:events(slug)").eq("subscriber_id", m.id),
   ]);
@@ -103,7 +103,8 @@ Deno.serve(async (req) => {
   const cutoff = now.getTime() - 86400000;
   const upcoming = (events ?? []).filter((e) => {
     const end = e.ends_at ?? e.starts_at; return !end || new Date(end).getTime() >= cutoff;
-  });
+  // A secret-location show never sends its venue or address here; ticket holders get it on their ticket.
+  }).map(({ location_secret, ...e }) => location_secret ? { ...e, venue: "Secret location", address: null } : e);
 
   // The light key (a QR scan with a known email) gets the tracks and the events, nothing personal.
   const personal = m.full

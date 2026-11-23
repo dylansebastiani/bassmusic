@@ -70,7 +70,9 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
   // The partner logo row (sound, crews). Optional: a ticket still renders without it.
   const partners = await get(base + "partners-v3.png").then((b) => doc.embedPng(b)).catch(() => null);
   // Gold figure for the artist pass (falls back to the night figure if it can't load).
-  const goldFig = d.tickets.some((t) => t.artist) ? await get(base + "email/figure-gold.png").then((b) => doc.embedPng(b)).catch(() => null) : null;
+  const anyArtist = d.tickets.some((t) => t.artist);
+  const goldFig = anyArtist ? await get(base + "email/figure-gold.png").then((b) => doc.embedPng(b)).catch(() => null) : null;
+  const goldWm = anyArtist ? await get(base + "email/wordmark-gold.png").then((b) => doc.embedPng(b)).catch(() => null) : null;
 
   for (const [i, t] of d.tickets.entries()) {
     const p = doc.addPage([W, H]);
@@ -78,6 +80,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     const accent = t.artist ? GOLD : pass ? INK : n0 % 2 ? VIOLET : ORANGE;
     const accentText = t.artist ? GOLD : pass ? INK : n0 % 2 ? VIOLET_TEXT : ORANGE;
     p.drawRectangle({ x: 0, y: 0, width: W, height: H, color: VOID });
+    const logo = (t.artist && goldWm) || wm;   // gold logo only ever on an artist pass
 
     // ---- main ticket ----
     const top = M, mainH = 592;
@@ -91,7 +94,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     } else p.drawRectangle({ x: M + CUT, y: T(top) - 5, width: 140, height: 5, color: accent });
 
     let y = top + 26;
-    y += img(p, wm, (W - 200) / 2, y, 200) + 10;
+    y += img(p, logo, (W - 200) / 2, y, 200) + 10;
     y += img(p, ftu, (W - 220) / 2, y, 220) + 22;
 
     // the night's figure on the right, the ticket name on the left
@@ -150,7 +153,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     text(p, t.typeName.toUpperCase(), M + 16, sTop + 30, fit(t.typeName.toUpperCase(), heavy, 22, 200), heavy, accentText);
     text(p, t.code, M + 16, sTop + 64, 12, mono, INK, 3);
     text(p, (d.age ? d.age + " · BRING ID" : "BRING ID"), M + 16, sTop + 84, 8, mono, LAV, 1.4);
-    const sw = 120; img(p, wm, W - M - sw - 14, sTop + 22, sw);
+    const sw = 120; img(p, logo, W - M - sw - 14, sTop + 22, sw);
     text(p, "ONE SCAN PER NIGHT · DON'T SHARE", W - M - 14 - mono.widthOfTextAtSize("ONE SCAN PER NIGHT · DON'T SHARE", 6.5) - 7, sTop + 84, 6.5, mono, MUTE, 0.2);
   }
   return await doc.save();

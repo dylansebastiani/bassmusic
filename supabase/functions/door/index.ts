@@ -12,6 +12,7 @@ const CORS_DOOR = { "Access-Control-Allow-Headers": "content-type, x-admin-token
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_DOOR } }); }
   const u = new URL(req.url), a = u.searchParams.get("a") || "", slug = u.searchParams.get("e") || "";
+  if (a === "ping") return new Response("ok", { headers: { "Access-Control-Allow-Origin": "*" } });   // the staff page wakes this up early
   const ok = (body: unknown) => json(body, 200, { "Cache-Control": "no-store", ...CORS_DOOR });
   const no = (m: string, s = 400) => json({ error: m }, s, CORS_DOOR);
   let b: Record<string, unknown> = {};

@@ -4,6 +4,9 @@ export const CORS = {
   "Access-Control-Allow-Origin": ORIGIN,
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "content-type",
+  // Browsers remember the permission check for a day (Chrome caps it at 2 hours), so the staff
+  // page doesn't pay an extra round trip before every request.
+  "Access-Control-Max-Age": "86400",
   "Vary": "Origin",
 };
 export const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>

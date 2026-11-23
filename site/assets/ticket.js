@@ -10,7 +10,7 @@
     var k = d.ticket, ev = d.event;
     document.title = (k.type || "Ticket") + " · " + ev.name;
     $("kind").textContent = k.artist ? "Artist pass · All access" : k.comp ? "Guest list" : "Ticket";
-    if (k.artist) { document.body.classList.add("artistpass"); $("card").classList.add("ta"); }
+    if (k.artist) { document.body.classList.add("artistpass"); $("card").classList.add("ta"); var wm = document.querySelector(".brand .wm"); if (wm) wm.src = "assets/toftu/wordmark-gold.webp"; }
     $("ename").textContent = ev.name;
     $("ewhere").innerHTML = (ev.address ? '<span class="loclabel">The secret location</span><b>' + esc(ev.venue || "") + '</b><br><a href="https://maps.google.com/?q=' + encodeURIComponent(ev.address) + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : esc(ev.venue || "") + (ev.reveal ? '<br><span class="loclabel">Location drops ' + esc(ev.reveal) + "</span>" : "")) +
       (ev.age ? '<br><span class="agepill">' + esc(ev.age) + " · bring ID</span>" : "");
