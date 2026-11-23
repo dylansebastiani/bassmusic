@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
 
   if (a === "comp") {
     // Guest list is always the both-nights pass when the show has one (the staff page sends no type).
-    const t = types.find((t) => t.slug === b.type) || types.find((t) => t.slug !== "test" && t.night_ids.length > 1);
+    const t = types.find((t) => t.slug === b.type) || types.find((t) => t.slug !== "test" && t.slug !== "artist" && t.night_ids.length > 1);
     if (!t) return no("Pick which night.");
     const list = clean(b.list, 40);
     const phoneOf = (v: unknown) => { const d = String(v ?? "").replace(/\D/g, ""); return d.length === 10 ? "+1" + d : d.length === 11 && d[0] === "1" ? "+" + d : d.length >= 11 && d.length <= 15 ? "+" + d : null; };
