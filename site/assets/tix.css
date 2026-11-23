@@ -254,3 +254,5 @@ html:has(.toftu){background:#050505}
 .person .badge.out{background:none;color:#8E84A0;border:1px dashed #4a3f5c}
 .person button{grid-column:3}
 .person.in{border-color:#1f7a45;background:rgba(31,122,69,.12)}
+/* all-in price label (FTC: the price shown includes every mandatory fee) */
+.type .price small{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--lav,#b5a1c8);margin-top:4px;opacity:.85}

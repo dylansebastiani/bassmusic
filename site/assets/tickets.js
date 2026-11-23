@@ -95,18 +95,22 @@
   function eyes(idx) {
     return '<span class="eyes">' + idx.map(function (i) { return '<img src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="160" height="160" loading="lazy" decoding="async">'; }).join("") + "</span>";
   }
+  // All-in price: every price on the page includes the card fee (FTC fee rule), using the same
+  // formula as checkout, so what fans see is what they pay.
+  var cardFee = function (c) { return c > 0 ? Math.ceil((c + 30) / (1 - 0.029)) - c : 0; };
+  var allIn = function (c) { return c + cardFee(c); };
   function renderTypes() {
     var open = data.event.sales_open && data.stripe_key;
     $("types").innerHTML = data.types.map(function (t) {
       var n = cart[t.slug] || 0, tier = t.tier, max = Math.min(t.left, data.event.max_per_order);
       var line = !open ? "On sale soon" : t.sold_out ? "Sold out" :
-        (t.tier_count > 1 ? esc(tier.name) + " · " + tier.left + " left at this price" + (t.next_tier ? " <s>then " + usd(t.next_tier.price_cents) + "</s>" : "") : t.left + " left");
+        (t.tier_count > 1 ? esc(tier.name) + " · " + tier.left + " left at this price" + (t.next_tier ? " <s>then " + usd(allIn(t.next_tier.price_cents)) + "</s>" : "") : t.left + " left");
       var low = open && tier && tier.left <= 10;
       var idx = t.night_ids.map(function (id) { return data.nights.findIndex(function (x) { return x.id === id; }); });
       var tone = idx.length > 1 ? " tp" : idx[0] % 2 ? " t2" : " t1";
       return '<div class="type' + tone + (n ? " on" : "") + (t.sold_out ? " out" : "") + '">' +
         "<div><h4>" + eyes(idx) + esc(t.name) + "</h4>" + (t.blurb ? '<div class="b">' + esc(t.blurb) + "</div>" : "") + "</div>" +
-        '<div class="price">' + (tier ? usd(tier.price_cents) : "") + "</div>" +
+        '<div class="price">' + (tier ? usd(allIn(tier.price_cents)) + '<small>fees incl.</small>' : "") + "</div>" +
         '<div class="tier' + (low ? " low" : "") + '">' + line + "</div>" +
         (open && !t.sold_out ? '<div class="qty"><button type="button" data-s="' + t.slug + '" data-d="-1" aria-label="One less"' + (n ? "" : " disabled") + '>&minus;</button><b>' + n +
           '</b><button type="button" data-s="' + t.slug + '" data-d="1" aria-label="One more"' + (n >= max ? " disabled" : "") + ">+</button></div>" : "") +
@@ -119,17 +123,16 @@
   // Estimate only: the server prices each ticket by its place in line, so a cart that
   // crosses into the next tier is shown with the exact split before paying.
   function updateTotal() {
-    var total = 0, count = 0;
+    var total = 0, fee = 0, count = 0;
     data.types.forEach(function (t) {
       var n = cart[t.slug] || 0; if (!n || !t.tier) return;
-      var atTier = Math.min(n, t.tier.left), rest = n - atTier;
-      total += atTier * t.tier.price_cents + rest * (t.next_tier ? t.next_tier.price_cents : t.tier.price_cents);
+      var atTier = Math.min(n, t.tier.left), rest = n - atTier, next = t.next_tier ? t.next_tier.price_cents : t.tier.price_cents;
+      total += atTier * t.tier.price_cents + rest * next;
+      fee += atTier * cardFee(t.tier.price_cents) + rest * cardFee(next);
       count += n;
     });
-    // Card fee is added at checkout so the show keeps the full ticket price (Stripe: 2.9% + 30c).
-    var fee = total > 0 ? Math.ceil((total + 30) / (1 - 0.029)) - total : 0;
     $("total").textContent = usd(total + fee);
-    $("feeNote").textContent = fee ? "incl. " + usd(fee) + " card fee" : "";
+    $("feeNote").textContent = fee ? "All-in. Includes " + usd(fee) + " card processing fee" : "";
     $("go").disabled = !count;
     $("go").textContent = count ? "Checkout · " + count + " ticket" + (count > 1 ? "s" : "") : "Pick tickets";
   }

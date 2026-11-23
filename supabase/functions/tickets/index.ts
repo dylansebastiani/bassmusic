@@ -5,6 +5,10 @@ import { SITE_URL } from "../_shared/config.ts";
 import { loadEvent, availability, stripe, TICKET_PAGE } from "../_shared/tickets.ts";
 import { ticketsPdf, sendLocation, revealLabel } from "../_shared/send.ts";
 
+// Card fee for an amount so the show still nets the full amount after Stripe's 2.9% + 30c.
+// tickets.js uses the same formula to show all-in prices.
+const cardFee = (cents: number) => (cents > 0 ? Math.ceil((cents + 30) / (1 - 0.029)) - cents : 0);
+
 // The public side of ticketing.
 //   GET  ?e=slug              the event, its nights and what's on sale right now
 //   POST {a:"checkout", ...}  hold the tickets, open a Stripe checkout, return its client secret
@@ -143,10 +147,13 @@ Deno.serve(async (req) => {
   });
   if (holdErr || !orderId) return err(holdErr?.message || "Couldn't hold those tickets. Try again.");
   const { data: o } = await db.from("ticket_orders").select("id,items,subtotal_cents,discount_cents").eq("id", orderId).single();
-  // The buyer covers the card fee: Stripe takes 2.9% + 30c of the total, so the fee is set
-  // so that what's left is the full ticket price.
+  // The buyer covers the card fee (Stripe: 2.9% + 30c), and the ticket page shows each ticket's
+  // all-in price up front (FTC fee rule). So the fee is worked out per ticket, the same way the
+  // page does it, and a buyer never pays more than the all-in prices they saw. With a promo code
+  // the fee is figured on the discounted order instead, which only ever comes out lower.
   const net = o!.subtotal_cents - o!.discount_cents;
-  const fee = net > 0 ? Math.ceil((net + 30) / (1 - 0.029)) - net : 0;
+  const perTicket = (o!.items as { unit_cents: number; qty: number }[]).reduce((s, it) => s + it.qty * cardFee(it.unit_cents), 0);
+  const fee = net <= 0 ? 0 : o!.discount_cents > 0 ? Math.min(cardFee(net), perTicket) : perTicket;
   await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee, ip_hash: ip, phone }).eq("id", o!.id);
 
   try {
