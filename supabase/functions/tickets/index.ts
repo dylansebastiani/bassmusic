@@ -3,7 +3,7 @@ import { db, setting } from "../_shared/db.ts";
 import { json, err, preflight, EMAIL_RE, clean, ipHash } from "../_shared/util.ts";
 import { SITE_URL } from "../_shared/config.ts";
 import { loadEvent, availability, stripe, TICKET_PAGE } from "../_shared/tickets.ts";
-import { ticketsPdf, sendLocation, revealLabel } from "../_shared/send.ts";
+import { ticketsPdf, sendLocation, revealLabel, artistLocation } from "../_shared/send.ts";
 
 // Card fee for an amount so the show still nets the full amount after Stripe's 2.9% + 30c.
 // tickets.js uses the same formula to show all-in prices.
@@ -48,15 +48,17 @@ Deno.serve(async (req) => {
     const { data: tk } = await db.from("tickets").select("id,code,token,holder_name,tier,status,is_comp,event_id,type_id").eq("token", t).maybeSingle();
     if (!tk) return err("Not found", 404);
     const [{ data: ev }, { data: ty }, { data: scans }] = await Promise.all([
-      db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at").eq("id", tk.event_id).single(),
+      db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at,address_full,venue_full").eq("id", tk.event_id).single(),
       db.from("ticket_types").select("slug,name,night_ids").eq("id", tk.type_id).single(),
       db.from("ticket_scans").select("night_id,scanned_at").eq("ticket_id", tk.id),
     ]);
+    // An artist pass shows the address now, marked secret until the reveal; every other ticket waits.
+    const loc = ev ? (ty?.slug === "artist" ? artistLocation(ev) : { address: ev.address, venue: ev.venue, revealText: !ev.address && ev.location_secret ? revealLabel(ev.address_reveal_at) : null, secretUntil: null }) : null;
     const { data: nights } = await db.from("ticket_nights").select("id,label,starts_at,ends_at").in("id", ty?.night_ids || []).order("sort");
     return json({
       ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp, artist: ty?.slug === "artist" },
-      event: ev ? { slug: ev.slug, name: ev.name, venue: ev.venue, address: ev.address, age: ev.age,
-        reveal: !ev.address && ev.location_secret ? revealLabel(ev.address_reveal_at) : null } : null,
+      event: ev && loc ? { slug: ev.slug, name: ev.name, venue: loc.venue, address: loc.address, age: ev.age,
+        reveal: loc.revealText, secret_until: loc.secretUntil } : null,
       nights: (nights || []).map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, used_at: scans?.find((s) => s.night_id === n.id)?.scanned_at || null })),
     }, 200, { "Cache-Control": "no-store" });
   }

@@ -13,6 +13,7 @@ export interface PdfData {
   eventName: string; venue: string | null; address: string | null; age: string | null;
   orderRef: string; tickets: PdfTicket[]; siteUrl: string;
   revealText?: string | null; // while the address is held back
+  secretUntil?: string | null; // an artist pass with the address early: secret until this time
 }
 
 const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
@@ -126,11 +127,12 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     text(p, (t.holder || "-").toUpperCase(), col, y + 11, fit((t.holder || "-").toUpperCase(), heavy, 12, 150), heavy, INK);
     text(p, "ORDER", col + 190, y, 7.5, mono, MUTE, 1.5);
     text(p, `${d.orderRef} · ${i + 1}/${d.tickets.length}`, col + 190, y + 11, 10, mono, INK);
-    y += 40;
+    y += d.secretUntil ? 34 : 40;   // the artist's secret-until line needs a little more room
     if (d.address) {
       text(p, "THE SECRET LOCATION", col, y, 7.5, mono, t.artist ? GOLD : ORANGE, 1.5);
       text(p, (d.venue || "").toUpperCase(), col, y + 11, 13, heavy, INK);
       text(p, d.address, col, y + 29, fit(d.address, mono, 9, W - 2 * M - 36), mono, LAV);
+      if (d.secretUntil) { const s = ("Secret until " + d.secretUntil + " \u00b7 don't share").toUpperCase(); text(p, s, col, y + 41, fit(s, mono, 7.5, W - 2 * M - 36), mono, GOLD, 0.6); }
     } else if (d.revealText) {
       text(p, "THE SECRET LOCATION", col, y, 7.5, mono, t.artist ? GOLD : ORANGE, 1.5);
       const drop = ("DROPS " + d.revealText).toUpperCase();
@@ -142,7 +144,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     if (partners) {
       const ph = 22, pw = Math.min(W - 2 * M - 60, partners.width * ph / partners.height);
       const h2 = partners.height * pw / partners.width;
-      p.drawImage(partners, { x: (W - pw) / 2, y: T(top + mainH - 12) , width: pw, height: h2, opacity: 0.85 });
+      p.drawImage(partners, { x: (W - pw) / 2, y: T(top + mainH - (d.secretUntil ? 6 : 12)), width: pw, height: h2, opacity: 0.85 });
     }
     const perf = top + mainH + 18;
     for (let x = M; x < W - M; x += 9) p.drawLine({ start: { x, y: T(perf) }, end: { x: x + 4.5, y: T(perf) }, thickness: 0.8, color: t.artist ? GOLD : UV });

@@ -20,6 +20,7 @@ export interface EmailData {
   address: string | null;
   age: string | null;
   revealText?: string | null; // set while the address is held back: "Fri Jan 1 at 12 PM"
+  secretUntil?: string | null; // an artist got the address early: keep it quiet until this time
   nights: { label: string; doors: string | null }[];
   tickets: EmailTicket[];
   subtotalCents: number;
@@ -140,7 +141,7 @@ ${d.address ? `<tr><td style="padding:0 0 26px">
 <tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${artist ? GOLD : ORANGE}">The secret location</td></tr>
 <tr><td style="padding:2px 20px 2px;font:400 24px/1.2 ${HEAVY};color:#FFFFFF;text-transform:uppercase">${esc(d.venue || "")}</td></tr>
 <tr><td style="padding:2px 20px 10px;font:15px/1.5 ${SANS}"><a href="${maps}" style="color:#E7E0F0;text-decoration:underline">${esc(d.address)}</a></td></tr>
-<tr><td style="padding:0 20px 14px;font:13px/1.5 ${SANS};color:${LAV}">Keep it underground: please don't post the address.</td></tr>
+<tr><td style="padding:0 20px 14px;font:13px/1.5 ${SANS};color:${d.secretUntil ? GOLD : LAV}">${d.secretUntil ? `Artists get it first. It stays secret until ${esc(d.secretUntil)}, when it goes out to ticket holders, so please don't share or post it before then.` : "Keep it underground: please don't post the address."}</td></tr>
 <tr><td style="padding:0 20px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${UV}">${nightRows}
 ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
 </table></td></tr>` : d.revealText ? `<tr><td style="padding:0 0 26px">
@@ -184,7 +185,7 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
   const text = [
     `${artist ? "Your artist pass" : d.comp ? "You're on the guest list" : "Your tickets"} for ${d.eventName}`,
     artist ? `\nYOUR GUEST LIST: add your people here (until doors open): ${d.artistUrl}` : "",
-    d.address ? `\nTHE SECRET LOCATION\n${d.venue || ""}\n${d.address}\nKeep it underground: please don't post the address.` : d.revealText ? `\nTHE SECRET LOCATION drops ${d.revealText}. We'll email it to you.` : "",
+    d.address ? `\nTHE SECRET LOCATION\n${d.venue || ""}\n${d.address}\n${d.secretUntil ? `Artists get it first. It stays secret until ${d.secretUntil}, so please don't share or post it before then.` : "Keep it underground: please don't post the address."}` : d.revealText ? `\nTHE SECRET LOCATION drops ${d.revealText}. We'll email it to you.` : "",
     d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"),
     d.age ? `${d.age} · Bring ID` : "",
     "",

@@ -25,6 +25,14 @@ export const revealLabel = (iso: string | null | undefined) => {
 // Until the reveal time passes, the address stays off tickets and emails (events.address is empty then).
 const heldBack = (ev: { address: string | null; location_secret?: boolean; address_reveal_at?: string | null }) =>
   !ev.address && !!ev.location_secret && !!ev.address_reveal_at ? revealLabel(ev.address_reveal_at) : null;
+// Artists get the address right away, with a note that it stays secret until the reveal.
+type Ev = { address: string | null; venue: string | null; location_secret?: boolean; address_reveal_at?: string | null; address_full?: string | null; venue_full?: string | null };
+export function artistLocation(ev: Ev) {
+  const until = heldBack(ev);
+  return until && ev.address_full
+    ? { address: ev.address_full, venue: ev.venue_full || ev.venue, revealText: null, secretUntil: until }
+    : { address: ev.address, venue: ev.venue, revealText: until, secretUntil: null };
+}
 
 export const orderRef = (id: string) => "TOFTU-" + id.replace(/-/g, "").slice(0, 4).toUpperCase();
 export function b64(bytes: Uint8Array) {
@@ -37,7 +45,7 @@ export async function ticketsPdf(orderId: string, onlyToken?: string) {
   const { data: o } = await db.from("ticket_orders").select("id,event_id,status").eq("id", orderId).maybeSingle();
   if (!o) return null;
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
-    db.from("events").select("name,venue,address,age,location_secret,address_reveal_at").eq("id", o.event_id).single(),
+    db.from("events").select("name,venue,address,age,location_secret,address_reveal_at,address_full,venue_full").eq("id", o.event_id).single(),
     db.from("tickets").select("code,token,type_id,holder_name,tier,is_comp").eq("order_id", o.id).eq("status", "valid").order("created_at"),
     db.from("ticket_types").select("id,slug,name,night_ids").eq("event_id", o.event_id),
     db.from("ticket_nights").select("id,label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
@@ -54,7 +62,9 @@ export async function ticketsPdf(orderId: string, onlyToken?: string) {
       doors: one ? doorsText(one.starts_at, one.ends_at) : (ns[0] ? doorsText(ns[0].starts_at, ns[0].ends_at) + " both nights" : null),
       holder: t.holder_name, code: t.code, tier: t.tier, ticketUrl: TICKET_PAGE(t.token), comp: t.is_comp, artist: ty?.slug === "artist" };
   });
-  return await renderTicketPdf({ eventName: ev.name, venue: ev.venue, address: ev.address, age: ev.age, orderRef: orderRef(o.id), tickets, siteUrl: SITE_URL, revealText: heldBack(ev) });
+  // A PDF of nothing but artist passes carries the address early; any other ticket waits for the reveal.
+  const loc = tickets.every((t) => t.artist) ? artistLocation(ev) : { address: ev.address, venue: ev.venue, revealText: heldBack(ev), secretUntil: null };
+  return await renderTicketPdf({ eventName: ev.name, age: ev.age, orderRef: orderRef(o.id), tickets, siteUrl: SITE_URL, ...loc });
 }
 
 export async function sendTickets(orderId: string) {
@@ -68,15 +78,17 @@ export async function sendTickets(orderId: string) {
     if (inv && inv.order_id === o.id) { artistUrl = `${SITE_URL}/artist.html?k=${inv.token}`; greet = inv.name; }
   }
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
-    db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at").eq("id", o.event_id).single(),
+    db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at,address_full,venue_full").eq("id", o.event_id).single(),
     db.from("tickets").select("code,token,type_id,holder_name").eq("order_id", o.id).eq("status", "valid").order("created_at"),
     db.from("ticket_types").select("id,slug,name,night_ids").eq("event_id", o.event_id),
     db.from("ticket_nights").select("id,label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
   ]);
   if (!ev || !tix?.length) return false;
   const ns = nights || [];
+  // Only an artist's own pass gets the address early.
+  const loc = artistUrl ? artistLocation(ev) : { address: ev.address, venue: ev.venue, revealText: heldBack(ev), secretUntil: null };
   const r = renderTicketEmail({
-    comp: o.status === "comp", buyerName: greet, eventName: ev.name, venue: ev.venue, address: ev.address, age: ev.age, revealText: heldBack(ev),
+    comp: o.status === "comp", buyerName: greet, eventName: ev.name, age: ev.age, ...loc,
     nights: ns.map((n) => ({ label: n.label, doors: doorsText(n.starts_at, n.ends_at) })),
     tickets: tix.map((t) => {
       const ty = types?.find((x) => x.id === t.type_id);
