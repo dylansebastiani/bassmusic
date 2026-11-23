@@ -285,9 +285,21 @@
       (has && !a.revoked ? '<button type="button" class="mini" data-hide="' + esc(a.id) + '" data-h="' + (p.hidden ? "" : "1") + '">' + (p.hidden ? "Show on lineup" : "Hide from lineup") + "</button>" : "") +
       "</div></div>";
   }
+  // Fans who downloaded artists' tracks at this show, grouped by artist for the cards below.
+  var DLS = {};
+  function dlCsv(rows, name) {
+    var cols = ["name", "email", "phone", "zip", "track_title", "created_at"], head = ["Name", "Email", "Phone", "ZIP", "Track", "Downloaded"];
+    var q = function (v) { v = v == null ? "" : String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var blob = new Blob([[head.join(",")].concat(rows.map(function (x) { return cols.map(function (c) { return q(x[c]); }).join(","); })).join("\n")], { type: "text/csv" });
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = String(name).replace(/[^\w -]+/g, "") + " - fans.csv";
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
   function artists() {
     $("artists").innerHTML = '<div class="empty">Loading...</div>';
-    artGet().then(function (d) {
+    var dl = req(BASE + "playlist?a=downloads&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
+      DLS = {}; (d.downloads || []).forEach(function (x) { (DLS[x.invite_id] = DLS[x.invite_id] || []).push(x); });
+    }).catch(function () { DLS = {}; });
+    Promise.all([artGet(), dl]).then(function (x) { return x[0]; }).then(function (d) {
       $("artists").innerHTML = d.artists.length ? d.artists.map(function (a) {
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
         return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
@@ -295,6 +307,7 @@
           '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used</div>" +
           (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
           aprofile(a) +
+          (DLS[a.id] && DLS[a.id].length ? '<div class="mono asub">' + DLS[a.id].length + " track download" + (DLS[a.id].length === 1 ? "" : "s") + ' · <button type="button" class="mini" data-fans="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Download fan list</button></div>' : "") +
           (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy link</button>' +
             '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
             '<span class="spin"><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + Math.max(0, a.spots - 1) + '" aria-label="Fewer spots">−</button><span>' + a.spots + ' spots</span><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + (a.spots + 1) + '" aria-label="More spots">+</button></span>' +
@@ -317,6 +330,8 @@
   });
   $("artists").addEventListener("click", function (e) {
     var c = e.target.closest("[data-copy]"), sp = e.target.closest("[data-spots]"), rv = e.target.closest("[data-revoke]"), hd = e.target.closest("[data-hide]");
+    var fx = e.target.closest("[data-fans]");
+    if (fx) { dlCsv(DLS[fx.getAttribute("data-fans")] || [], fx.getAttribute("data-name")); return; }
     if (hd) { hd.disabled = true; (pre = {}, req)(ART, { a: "update", id: hd.getAttribute("data-hide"), profile_hidden: !!hd.getAttribute("data-h") }).then(artists).catch(function (err) { alert(err.message); }); }
     if (c) { var t = c.getAttribute("data-copy"); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { c.textContent = "Copied ✓"; }).catch(function () { prompt("Copy this link:", t); }); }
     if (sp) { sp.disabled = true; (pre = {}, req)(ART, { a: "update", id: sp.getAttribute("data-spots"), spots: Number(sp.getAttribute("data-n")) }).then(artists).catch(function (err) { alert(err.message); }); }

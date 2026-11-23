@@ -171,7 +171,31 @@
       .then(function (d) { $("tmsg").textContent = "Cover added."; drawTracks(d); })
       .catch(function (err) { $("tmsg").textContent = err.message; });
   });
+  // Fans who downloaded: newest first, everything exportable in one tap.
+  var FANS = [];
+  function drawFans(list) {
+    FANS = list || [];
+    $("fans").hidden = !FANS.length;
+    if (!FANS.length) return;
+    var people = {}; FANS.forEach(function (f) { people[f.email] = 1; });
+    var n = Object.keys(people).length;
+    $("fcount").textContent = n + (n === 1 ? " fan" : " fans") + " · " + FANS.length + (FANS.length === 1 ? " download" : " downloads");
+    $("flist").innerHTML = FANS.slice(0, 50).map(function (f) {
+      return '<div class="guest"><div><b>' + esc(f.name) + "</b><span>" + esc(f.email) + " · " + esc(f.phone || "") + (f.zip ? " · " + esc(f.zip) : "") + "<br>" + esc(f.track_title || "") + " · " + new Date(f.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "</span></div></div>";
+    }).join("") + (FANS.length > 50 ? '<div class="empty">Showing the newest 50. The CSV has all ' + FANS.length + ".</div>" : "");
+  }
+  function csv(rows) {
+    var cols = ["name", "email", "phone", "zip", "track_title", "created_at"], head = ["Name", "Email", "Phone", "ZIP", "Track", "Downloaded"];
+    var q = function (v) { v = v == null ? "" : String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    return [head.join(",")].concat(rows.map(function (r) { return cols.map(function (c) { return q(r[c]); }).join(","); })).join("\n");
+  }
+  $("fexport").addEventListener("click", function () {
+    var blob = new Blob([csv(FANS)], { type: "text/csv" }), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = ((S && S.artist && S.artist.name) || "fans").replace(/[^\w -]+/g, "") + " - fans.csv";
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
   function drawTracks(d) {
+    drawFans(d.downloads);
     var full = d.tracks.length >= d.max;
     $("tcount").textContent = d.tracks.length + " of " + d.max;
     $("tf").hidden = full; $("tfull").hidden = !full;
