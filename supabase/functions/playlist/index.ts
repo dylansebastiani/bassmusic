@@ -15,8 +15,8 @@
 //   POST {a:"artist-remove", k, id}
 // Fans:
 //   GET  ?a=meta&id=<track>                     the track page (/t?d=): title, artist, cover, follow links
-//   POST {a:"member-dl", id, t}                 a member downloads an artist's free track (same flow as every track:
-//                                               email first, then first name / phone / ZIP once). Goes on the artist's fan list.
+//   POST {a:"member-dl", id, t}                 a member unlocks an artist's free track into their collection (same flow as
+//                                               every track: email first, then first name / phone / ZIP in the collection). Goes on the artist's fan list.
 //   GET  ?a=dl&id=<track>&t=<member key>       (older) a download link for members
 // Staff:
 //   GET  ?a=downloads&e=<slug>                 everyone who downloaded an artist's track at this show
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     return json({ title: tr.title, artist: tr.artist, artwork_url: (tr.art_path && art.get(tr.art_path)) || null, links }, 200, { "Cache-Control": "public, max-age=60" });
   }
 
-  // ---- a member downloads an artist's free track: same rules as every track (name, phone, ZIP once) ----
+  // ---- a member unlocks an artist's free track into their collection: same rules as every track ----
   if (a === "member-dl" && req.method === "POST") {
     const id = String(b.id || ""), t = String(b.t || "");
     if (!UUID_RE.test(id)) return json({ error: "Which track?" }, 400);
@@ -153,7 +153,6 @@ Deno.serve(async (req) => {
     if (!m || m.status === "deleted") return json({ error: "Join first." }, 401);
     const { data: tr } = await db.from("playlist_tracks").select("id,path,title,artist,free_download,invite_id,event_id").eq("id", id).maybeSingle();
     if (!tr || !tr.free_download) return json({ error: "This track isn't a free download right now." }, 404);
-    if (!(m.first_name && m.phone && m.zip)) return json({ need_profile: true }, 200, { "Cache-Control": "no-store" });
     const { data: salt } = await db.from("settings").select("value").eq("key", "ip_salt").maybeSingle();
     const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
     const ipHash = await sha256(ip + "|" + String(salt?.value ?? "unset") + "|dl");
@@ -165,10 +164,8 @@ Deno.serve(async (req) => {
       await db.from("track_downloads").insert({ track_id: tr.id, invite_id: tr.invite_id, event_id: tr.event_id, track_title: tr.title, subscriber_id: m.id, name: m.first_name, email: m.email, phone: m.phone, zip: m.zip, ip_hash: ipHash });
       await db.from("engagement_events").insert({ subscriber_id: m.id, type: "show_track_download", meta: { track: tr.id } });
     }
-    const file = ((tr.artist ? tr.artist + " - " : "") + tr.title).replace(/[^\w .()&'-]+/g, "").slice(0, 100) + "." + tr.path.split(".").pop();
-    const { data: link } = await db.storage.from("playlists").createSignedUrl(tr.path, 600, { download: file });
-    if (!link?.signedUrl) return json({ error: "Couldn't get the file. Try again." }, 500);
-    return json({ url: link.signedUrl }, 200, { "Cache-Control": "no-store" });
+    // Into their collection, like every other track. The collection asks for first name / phone / ZIP before it plays or downloads.
+    return json({ slug: "show-" + tr.id }, 200, { "Cache-Control": "no-store" });
   }
 
   // ---- fans: download a track the artist made free. Members only (email first, like every other track). ----

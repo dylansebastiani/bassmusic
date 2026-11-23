@@ -31,6 +31,10 @@ Deno.serve(async (req) => {
       .eq("is_active", true).eq("is_public", true).order("starts_at", { ascending: true, nullsFirst: false }).limit(60),
     db.from("giveaway_entries").select("event:events(slug)").eq("subscriber_id", m.id),
   ]);
+  // Artists' free tracks from a show page land here too, same as the label's own tracks.
+  const { data: fromShows } = await db.from("track_downloads")
+    .select("created_at, tr:playlist_tracks(id,title,artist,path,art_path,free_download)")
+    .eq("subscriber_id", m.id).order("created_at", { ascending: false }).limit(200);
 
   type D = { slug: string; title: string; artist: string | null; artist_slug: string | null; description: string | null;
     audio_path: string | null; artwork_path: string | null; download_path: string | null };
@@ -62,18 +66,53 @@ Deno.serve(async (req) => {
     sign(rows.map((r) => r.d.artwork_path)),
     profileDone ? signDownloads() : none,
   ]);
-  const tracks = rows.map(({ at, d }) => ({
+  // Show-page tracks live in the playlists bucket; signed the same way (play + download only once the wall is done).
+  type P = { id: string; title: string; artist: string | null; path: string; art_path: string | null; free_download: boolean };
+  const showRows = (fromShows ?? []).map((x) => ({ at: x.created_at as string, p: x.tr as unknown as P | null }))
+    .filter((r): r is { at: string; p: P } => !!r.p && !!r.p.free_download);
+  const pSign = async (paths: (string | null)[]) => {
+    const want = [...new Set(paths.filter((p): p is string => !!p))];
+    const out = new Map<string, string>();
+    if (!want.length) return out;
+    const { data } = await db.storage.from("playlists").createSignedUrls(want, 600);
+    (data ?? []).forEach((x) => { if (x.path && x.signedUrl) out.set(x.path, x.signedUrl); });
+    return out;
+  };
+  const pDownloads = async () => {
+    const out = new Map<string, string>();
+    await Promise.all(showRows.map(async ({ p }) => {
+      const name = `${p.artist ? p.artist + " - " : ""}${p.title}${p.path.slice(p.path.lastIndexOf("."))}`.replace(/[\\/:*?"<>|]/g, "");
+      const { data } = await db.storage.from("playlists").createSignedUrl(p.path, 600, { download: name });
+      if (data?.signedUrl) out.set(p.path, data.signedUrl);
+    }));
+    return out;
+  };
+  const [pAudio, pArt, pDl] = await Promise.all([
+    profileDone ? pSign(showRows.map((r) => r.p.path)) : none,
+    pSign(showRows.map((r) => r.p.art_path)),
+    profileDone ? pDownloads() : none,
+  ]);
+  const showTracks = showRows.map(({ at, p }) => ({
+    slug: "show-" + p.id, title: p.title, artist: p.artist, artist_slug: null, description: null, unlocked_at: at,
+    audio_url: pAudio.get(p.path) ?? null,
+    artwork_url: p.art_path ? pArt.get(p.art_path) ?? null : null,
+    download_url: pDl.get(p.path) ?? null,
+    download_label: "Download " + p.path.slice(p.path.lastIndexOf(".") + 1).toUpperCase(),
+    locked: !profileDone,
+  }));
+  const labelTracks = rows.map(({ at, d }) => ({
     slug: d.slug, title: d.title, artist: d.artist, artist_slug: d.artist_slug, description: d.description, unlocked_at: at,
     audio_url: d.audio_path ? audio.get(d.audio_path) ?? null : null,
     artwork_url: d.artwork_path ? art.get(d.artwork_path) ?? null : null,
     download_url: d.download_path ? dl.get(d.download_path) ?? null : null,
     locked: !profileDone,
   }));
+  const tracks = [...labelTracks, ...showTracks].sort((a, b) => String(b.unlocked_at).localeCompare(String(a.unlocked_at)));
 
   // Coupon rules: each one optional, all must hold. Shows they've been to come from scans
   // tagged with a show and from typing their email at the door.
-  const have = tracks.length;
-  const artists = new Set(tracks.map((k) => k.artist_slug).filter(Boolean));
+  const have = labelTracks.length;
+  const artists = new Set(labelTracks.map((k) => k.artist_slug).filter(Boolean));
   const shows = new Set((been ?? []).map((b) => (b.event as unknown as { slug: string } | null)?.slug).filter(Boolean));
   // "You're entered": the show they just scanned (?e=), if they're in its giveaway.
   const eSlug = u.searchParams.get("e");

@@ -43,7 +43,7 @@
       "<div>" + (big ? '<span class="chip">' + (k.audio_url ? "Unlocked" : "Yours once you fill this in") + '</span> ' : "") + "<h3>" + esc(k.title) + "</h3>" +
       (k.artist ? '<div class="by">' + esc(k.artist) + "</div>" : "") + "</div>" +
       (k.audio_url ? player(k) : "") +
-      (k.download_url ? '<a class="btn ghost dl" href="' + esc(k.download_url) + '" rel="noopener">Download WAV</a>' : "") +
+      (k.download_url ? '<a class="btn ghost dl" href="' + esc(k.download_url) + '" rel="noopener">' + esc(k.download_label || "Download WAV") + "</a>" : "") +
       "</article>";
   }
   var consentText = S.fill ? S.fill(C.smsConsentText, { LABEL_NAME: C.labelName }) : String(C.smsConsentText || "").replace("{{LABEL_NAME}}", C.labelName || "");
