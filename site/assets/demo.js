@@ -79,6 +79,8 @@
   // Coming back from the email link (or a refresh): pick up at the ticket.
   var t = (new URLSearchParams(location.search).get("t") || "").toLowerCase();
   claimKey = (new URLSearchParams(location.search).get("k") || "").replace(/[^0-9a-f]/gi, "").slice(0, 60);
+  // Remember the one-tap key from the email on this phone, so coming back later still signs them straight in (no code to type).
+  try { if (claimKey) localStorage.setItem(KEY + "_k", claimKey); else claimKey = localStorage.getItem(KEY + "_k") || ""; } catch (e) {}
   if (!/^[0-9a-f]{32}$/.test(t)) { try { t = localStorage.getItem(KEY) || ""; } catch (e) { t = ""; } }
   if (/^[0-9a-f]{32}$/.test(t)) {
     fetch(FN + "?t=" + t).then(function (r) { return r.ok ? r.json() : null; }).then(function (l) {

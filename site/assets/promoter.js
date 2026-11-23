@@ -25,11 +25,11 @@
   function signin() {
     app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Your email, then the 6-digit code we send you. No passwords.</p><p class=note>New here? <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off><button class=btn type=submit>Send my code</button></form>' +
-      '<form id=f2 novalidate hidden><label for=cd>6-digit code</label><input type=text id=cd inputmode=numeric autocomplete=one-time-code maxlength=6><button class=btn type=submit>Sign in</button></form><p class=msg role=status></p>';
+      '<form id=f2 novalidate hidden><label for=cd>6-digit code from the newest email</label><input type=text id=cd inputmode=numeric autocomplete=one-time-code maxlength=6><button class=btn type=submit>Sign in</button></form><p class=msg role=status></p>';
     var em = document.getElementById("em");
     document.getElementById("f1").onsubmit = function (e) {
       e.preventDefault(); say("Sending…");
-      call("login", { email: em.value.trim() }).then(function () { document.getElementById("f1").hidden = true; document.getElementById("f2").hidden = false; document.getElementById("cd").focus(); say("We sent a 6-digit code to " + em.value.trim() + ". Type it in above."); var nt = app.querySelector(".note"); if (nt) nt.hidden = true; })
+      call("login", { email: em.value.trim() }).then(function () { document.getElementById("f1").hidden = true; document.getElementById("f2").hidden = false; document.getElementById("cd").focus(); say("We sent a 6-digit code to " + em.value.trim() + ". Use the newest email: each new code cancels the one before."); var nt = app.querySelector(".note"); if (nt) nt.hidden = true; })
         .catch(function (x) { say(x.message, true); });
     };
     document.getElementById("f2").onsubmit = function (e) {
