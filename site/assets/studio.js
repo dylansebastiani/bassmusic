@@ -68,8 +68,8 @@
   function color(key, label, val) { return '<div class="color"><label>' + esc(label) + '</label><input type="color" data-c="' + key + '" value="' + esc(val) + '"><input type="text" data-c="' + key + '" value="' + esc(val) + '" maxlength="7"></div>'; }
   function drawTheme() {
     var t = page.theme, c = t.colors;
-    $("theme").innerHTML = '<div class="colors">' + color("bg", "Background", c.bg) + color("text", "Text", c.text) + color("muted", "Small text", c.muted) + color("line", "Borders", c.line) + color("accent", "Buttons", c.accent) + "</div>" +
-      '<p class="hint">Night colors</p><div class="colors">' + c.nights.map(function (n, i) { return color("n" + i, "Night " + (i + 1), n); }).join("") + "</div>" +
+    $("theme").innerHTML = '<div class="colors">' + color("bg", "Page", c.bg) + color("text", "Text", c.text) + color("muted", "Small text", c.muted) + color("line", "Borders", c.line) + color("accent", "Buttons", c.accent) + "</div>" +
+      '<p class="shint">Night colors</p><div class="colors">' + c.nights.map(function (n, i) { return color("n" + i, "Night " + (i + 1), n); }).join("") + "</div>" +
       '<div class="row"><button type="button" class="ghostbtn" id="addNight">+ night color</button>' + (c.nights.length > 1 ? '<button type="button" class="ghostbtn" id="rmNight">− night color</button>' : "") + "</div>" +
       '<div class="field"><label>Headline font</label>' + sel(opts.fonts.display, t.fonts.display, 'data-t="display"') + "</div>" +
       '<div class="field"><label>Body font</label>' + sel(opts.fonts.body, t.fonts.body, 'data-t="body"') + "</div>" +

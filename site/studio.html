@@ -13,7 +13,7 @@
 <title>Page studio · Subduction</title>
 </head>
 <body class="studio">
-<header class="bar">
+<header class="sbar">
   <span class="mono brand">Page studio</span>
   <label class="sr" for="show">Show</label><select id="show"><option value="">Pick a show…</option></select>
   <span class="status mono" id="status" role="status"></span>
@@ -29,25 +29,25 @@
 <main class="split" id="app" hidden>
   <section class="stage"><div class="frame" id="frameWrap"><iframe id="preview" title="Page preview"></iframe></div></section>
   <aside class="panel" id="panel">
-    <p class="hint" id="empty">Pick a show at the top. You'll see its page here, and every change shows up in the preview as you make it.</p>
+    <p class="shint" id="empty">Pick a show at the top. You'll see its page here, and every change shows up in the preview as you make it.</p>
     <div id="editor" hidden>
       <details open><summary>Sections <small>(page order)</small></summary>
         <div id="sections"></div>
         <div class="row"><label class="sr" for="addType">Add a section</label><select id="addType"></select><button type="button" class="ghostbtn" id="addBtn">Add section</button></div>
       </details>
       <details open><summary>Colors &amp; fonts</summary><div id="theme"></div></details>
-      <details><summary>Art</summary><p class="hint">Paste links to the show's art (from the asset uploads or the site's assets folder). Anything from elsewhere is ignored.</p><div id="art"></div></details>
+      <details><summary>Art</summary><p class="shint">Paste links to the show's art (from the asset uploads or the site's assets folder). Anything from elsewhere is ignored.</p><div id="art"></div></details>
       <details><summary>Custom styling <small>(this show only)</small></summary>
-        <p class="hint">For the last few percent the sections can't do. Can't load anything from outside.</p>
+        <p class="shint">For the last few percent the sections can't do. Can't load anything from outside.</p>
         <label class="sr" for="css">Custom CSS</label><textarea id="css" spellcheck="false" rows="8"></textarea></details>
       <details><summary>Start from another show's style</summary>
-        <p class="hint">Copies the look (colors, fonts, frames, section order). Not the art or words.</p>
+        <p class="shint">Copies the look (colors, fonts, frames, section order). Not the art or words.</p>
         <div class="row"><label class="sr" for="fromShow">Show to copy</label><select id="fromShow"></select><button type="button" class="ghostbtn" id="fromBtn">Copy style</button></div></details>
       <details><summary>Page description <small>(advanced)</small></summary>
-        <p class="hint">The whole page as text. This is what Claude reads and writes. Paste a new one and press Apply.</p>
+        <p class="shint">The whole page as text. This is what Claude reads and writes. Paste a new one and press Apply.</p>
         <label class="sr" for="raw">Page description</label><textarea id="raw" spellcheck="false" rows="14"></textarea>
         <button type="button" class="ghostbtn" id="applyRaw">Apply</button></details>
-      <p class="hint" id="pubinfo"></p>
+      <p class="shint" id="pubinfo"></p>
     </div>
   </aside>
 </main>
