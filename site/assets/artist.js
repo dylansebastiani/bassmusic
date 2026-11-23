@@ -45,7 +45,7 @@
     $("aname").textContent = d.artist.name;
     $("adates").textContent = d.event.nights.map(function (n) { return day(n.starts_at); }).join(" + ") + (d.event.city ? " · " + d.event.city : "") + (d.event.age ? " · " + d.event.age : "");
     $("claim").hidden = d.artist.claimed; $("dash").hidden = !d.artist.claimed;
-    if (!d.artist.claimed) { if (!$("cname").value) $("cname").value = d.artist.name; return; }
+    if (!d.artist.claimed) return;
     $("passline").innerHTML = "Sent to <b>" + esc(d.artist.email || "") + "</b>. Good both nights" + (d.event.nights[0] ? ", doors " + time(d.event.nights[0].starts_at) : "") + ". Show the QR at the door.";
     if (d.pass) $("openpass").href = d.pass.url;
     var left = Math.max(0, d.artist.spots - d.artist.used);
