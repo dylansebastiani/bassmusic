@@ -2,7 +2,7 @@
    The description format is documented in docs/PAGE_SPEC.md; the server cleans it before it gets here.
    Show facts (dates, lineup, tiers, venue) always come from the show itself, never the description. */
 (function () {
-  var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/tickets";
+  var C = window.STACK || {}, BASE = (C.supabaseUrl || "") + "/functions/v1", FN = BASE + "/tickets";   // FN switches to the second lane for promoters on their own Stripe
   var $ = function (id) { return document.getElementById(id); };
   var q = new URLSearchParams(location.search);
   var slug = (window.__SHOW_SLUG || q.get("e") || "").replace(/[^a-z0-9-]/gi, "").toLowerCase();   // ?e=<slug> or subduction.art/<slug>
@@ -21,8 +21,10 @@
   function load() {
     var h = PREVIEW && staffToken() ? { "x-admin-token": staffToken() } : {};
     // The show itself is fetched like any visitor would (no staff header), so this works with any ticket backend.
-    var show = fetch(FN + "?e=" + slug)
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return vis(j); }); });
+    var get = function (fn) { return fetch(BASE + "/" + fn + "?e=" + slug).then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || "Not found"); e.status = r.status; throw e; } return vis(j); }); }); };
+    // Promoters on their own Stripe are served by the second lane; everything else by the original one.
+    // Only a clear "not on this lane" answer falls through, so a hiccup can never send a sale down the wrong lane.
+    var show = get("checkout").catch(function (e) { if (e.status !== 404) throw e; return get("tickets"); });
     if (!PREVIEW || !staffToken()) return show;
     // Preview: the working draft (and the fee) come from the studio's own backend, so previews work
     // whichever version of the ticket backend is running.
@@ -227,9 +229,12 @@
           .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; }); }),
         loadStripe(),
       ]).then(function (res) {
-        var secret = res[0].client_secret, stripe = window.Stripe(data.stripe_key);
+        if (res[0].free) { $("shop").hidden = true; $("done").hidden = false; $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Your tickets are on their way to ' + esc(email) + ".</p></div>"; return null; }
+        var acct = res[0].stripe_account || data.stripe_account;
+        var secret = res[0].client_secret, stripe = acct ? window.Stripe(data.stripe_key, { stripeAccount: acct }) : window.Stripe(data.stripe_key);
         return stripe.initEmbeddedCheckout({ fetchClientSecret: function () { return Promise.resolve(secret); } });
       }).then(function (c) {
+        if (!c) return;
         checkout = c; $("buy").hidden = true; $("types").hidden = true; $("payWrap").hidden = false; $("bmsg").textContent = "";
         c.mount("#checkout"); $("payWrap").scrollIntoView({ behavior: "smooth" });
       }).catch(function (err) {
@@ -252,7 +257,7 @@
       fetch(FN + "?a=order&s=" + encodeURIComponent(sid)).then(function (r) { return r.json(); }).then(function (o) {
         if (o.status === "paid" && o.tickets && o.tickets.length) {
           $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Tickets sent to ' + esc(o.email) + '. Save them now, or open them from the email at the door.</p>' +
-            '<div class="tlinks">' + o.tickets.map(function (t) { return '<a href="ticket.html?t=' + esc(t.token) + '"><span>' + esc(t.type) + "</span><b>" + esc(t.code) + "</b></a>"; }).join("") + "</div></div>";
+            '<div class="tlinks">' + o.tickets.map(function (t) { return '<a href="' + (o.lane === 2 ? "pass" : "ticket") + '.html?t=' + esc(t.token) + '"><span>' + esc(t.type) + "</span><b>" + esc(t.code) + "</b></a>"; }).join("") + "</div></div>";
           try { history.replaceState(null, "", location.pathname + "?e=" + slug); } catch (e) {}
         } else if (++tries < 30) setTimeout(poll, 2000);
         else $("done").innerHTML = '<div class="done card"><h2>Payment received?</h2><p class="lead">Your tickets are on their way by email. If nothing arrives in 10 minutes, reply to any of our emails and we\'ll sort it.</p></div>';
@@ -278,7 +283,7 @@
 
   if (!slug) { $("page").innerHTML = '<p class="msg">No show picked.</p>'; return; }
   (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
-    data = d;
+    data = d; if (d.lane === 2) FN = BASE + "/checkout";
     // The first show keeps its own original tickets page, exactly as before.
     if (!d.page && !PREVIEW && slug === "underground") { location.replace("tickets.html?e=" + encodeURIComponent(slug)); return; }
     // A brand-new show in the studio: wait for the studio to send its first draft.
