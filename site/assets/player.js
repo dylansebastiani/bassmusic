@@ -43,14 +43,14 @@
     $(".sbx-t").textContent = k.title;
     $(".sbx-a").textContent = (k.artist || "Subduction") + "  ·  " + (i + 1) + "/" + tracks.length;
     // A 96px thumbnail ships with the site; the full-size cover from storage is only the fallback.
-    var art = $(".sbx-art"), thumb = "/assets/covers/" + encodeURIComponent(k.slug || "") + ".webp";
+    var art = $(".sbx-art"), own = /^show:/.test(k.slug || ""), thumb = "/assets/covers/" + encodeURIComponent(k.slug || "") + ".webp";
     var probe = new Image();
     probe.onload = function () { art.style.backgroundImage = 'url("' + thumb + '")'; };
     probe.onerror = function () { art.style.backgroundImage = k.artwork_url ? 'url("' + k.artwork_url.replace(/"/g, "%22") + '")' : ""; };
-    if (k.slug) probe.src = thumb; else probe.onerror();
+    if (k.slug && !own) probe.src = thumb; else probe.onerror();
     var dl = $(".sbx-dl");
-    dl.hidden = !k.downloadable;
-    dl.href = "/t?c=" + encodeURIComponent(k.code);
+    dl.hidden = !k.downloadable || !k.code;
+    dl.href = "/t?c=" + encodeURIComponent(k.code || "");
     dl.setAttribute("aria-label", "Download " + k.title + " free");
   }
   function load(n, at, autoplay) {
@@ -115,7 +115,8 @@
       // Stream links last an hour; a tab left open longer gets fresh ones once.
       if (refetched) return; refetched = true;
       var at = audio.currentTime, was = !audio.paused || st.playing;
-      fetchList().then(function (list) { if (list.length) { tracks = list; load(Math.min(i, list.length - 1), at, was); } });
+      var cur = tracks[i] && tracks[i].slug;
+      fetchList().then(function (list) { if (!list.length) return; var n = 0; for (var k = 0; k < list.length; k++) if (list[k].slug === cur) n = k; tracks = list; load(n, at, was); });
     });
     // Another player on the page (the collection's track cards) pauses this one.
     document.addEventListener("play", function (e) { if (e.target !== audio && e.target.tagName === "AUDIO") audio.pause(); }, true);
@@ -129,8 +130,17 @@
       });
     }
   }
+  // A show's page plays that show's own playlist when its promoter uploaded one; everywhere else
+  // (and on shows without one) it plays Subduction's tracks. Either way the order is a fresh shuffle.
+  var showSlug = /(^|\/)show(\.html)?$/.test(location.pathname) ? (new URLSearchParams(location.search).get("e") || "").replace(/[^a-z0-9-]/gi, "").toLowerCase() : "";
+  function getTracks(url) { return fetch(url).then(function (r) { return r.ok ? r.json() : { tracks: [] }; }).then(function (j) { return j.tracks || []; }).catch(function () { return []; }); }
+  function shuffle(list) {
+    for (var a = list.length - 1; a > 0; a--) { var b = Math.floor(Math.random() * (a + 1)), t = list[a]; list[a] = list[b]; list[b] = t; }
+    return list;
+  }
   function fetchList() {
-    return fetch(FN + "/track?player=1").then(function (r) { return r.ok ? r.json() : { tracks: [] }; }).then(function (j) { return j.tracks || []; }).catch(function () { return []; });
+    var own = showSlug ? getTracks(FN + "/playlist?show=" + encodeURIComponent(showSlug)) : Promise.resolve([]);
+    return own.then(function (list) { return list.length ? list : getTracks(FN + "/track?player=1"); }).then(shuffle);
   }
 
   fetchList().then(function (list) {

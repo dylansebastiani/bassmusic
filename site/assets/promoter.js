@@ -58,6 +58,7 @@
       "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
+      (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "") +
       (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
       (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
         '<label for=ie>Their email</label><input type=email id=ie autocapitalize=off inputmode=email value="' + esc(co.contact_email || "") + '"><button class=btn type=button id=inv>' + (co.contact_email ? "Send invite again" : "Send invite") + "</button>" : "") +
@@ -254,6 +255,50 @@
     draw();
   }
 
+  // ---------- show music: what the music bar plays on this show's page ----------
+  var PL = (C.supabaseUrl || "") + "/functions/v1/playlist";
+  function music(id) {
+    var s = showById(id); if (!s) return go(homeHref());
+    var pl = null;
+    function draw() {
+      var own = pl.mode === "upload", full = pl.tracks.length >= (pl.max || 20);
+      app.innerHTML = top(homeHref()) + "<h1>Show music</h1><p class=lead>What plays on the page for <b>" + esc(s.name) + "</b>. It always plays in a random order.</p>" +
+        '<div class=choice><button type=button data-mode=subduction aria-pressed="' + !own + '">Subduction tracks</button><button type=button data-mode=upload aria-pressed="' + own + '">My own tracks</button></div>' +
+        (own ? pl.tracks.map(function (t, i) { return '<div class=card><label for=tt' + i + '>Track ' + (i + 1) + ' title</label><input type=text id=tt' + i + ' maxlength=80 value="' + esc(t.title) + '"><label for=ta' + i + '>Artist</label><input type=text id=ta' + i + ' maxlength=80 value="' + esc(t.artist || "") + '"><button type=button class=linkbtn data-rm="' + i + '">Remove</button></div>'; }).join("") +
+          (full ? "<p class=note>That's the most a show can have.</p>" : '<div class=drop id=d-track><span class=thumb></span><span><b>Add a track</b><small>MP3, WAV or M4A, up to 40 MB</small><small class=st>Tap to add</small><div class=bar2></div></span><input type=file accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Add a track"></div>') +
+          "<p class=note>Only upload music you have the right to share.</p>"
+          : "<p class=note>Your page plays a random mix of Subduction's tracks. Nothing to upload.</p>") +
+        '<button class=btn type=button id=save>Save music</button><p class=msg role=status></p>';
+      wireTop();
+      app.querySelectorAll("[data-mode]").forEach(function (b) { b.onclick = function () { keep(); pl.mode = b.getAttribute("data-mode"); draw(); }; });
+      app.querySelectorAll("[data-rm]").forEach(function (b) { b.onclick = function () { keep(); pl.tracks.splice(+b.getAttribute("data-rm"), 1); draw(); }; });
+      var inp = app.querySelector("#d-track input"); if (inp) inp.onchange = function () { add(inp); };
+      document.getElementById("save").onclick = function () {
+        keep(); say("Saving…");
+        api(PL, { a: "save", show: s.id, mode: pl.mode, tracks: pl.tracks }).then(function (r) { pl.mode = r.mode; pl.tracks = r.tracks; flash = "Music saved."; go(homeHref()); }).catch(function (x) { say(x.message, true); });
+      };
+    }
+    function keep() { pl.tracks.forEach(function (t, i) { var a = document.getElementById("tt" + i), b = document.getElementById("ta" + i); if (a) t.title = a.value.trim(); if (b) t.artist = b.value.trim(); }); }
+    function add(input) {
+      var f = input.files[0]; if (!f) return;
+      var box = input.closest(".drop"), st = box.querySelector(".st"), bar = box.querySelector(".bar2"), ext = (f.name.split(".").pop() || "").toLowerCase();
+      if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { st.textContent = "Use an MP3, WAV or M4A."; st.className = "st warn"; return; }
+      if (f.size > 40 * 1048576) { st.textContent = "That track is over 40 MB. Export an MP3 instead."; st.className = "st warn"; return; }
+      st.textContent = "Uploading…"; st.className = "st"; keep();
+      api(PL, { a: "upload-url", show: s.id, ext: ext }).then(function (r) {
+        return new Promise(function (ok, no) {
+          var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
+          x.upload.onprogress = function (e) { if (e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + "%"; };
+          x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); }; x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
+          x.send(f);
+        });
+      }).then(function (path) { pl.tracks.push({ path: path, title: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80), artist: "" }); draw(); say("Added. Check the title, then Save music."); })
+        .catch(function (e) { st.textContent = e.message; st.className = "st warn"; });
+    }
+    app.innerHTML = top(homeHref()) + "<h1>Show music</h1><p class=msg role=status>Loading…</p>"; wireTop();
+    api(PL + "?a=get&show=" + s.id).then(function (r) { pl = r; draw(); }).catch(function (x) { say(x.message, true); });
+  }
+
   // ---------- get paid ----------
   function paid() {
     var co = company();
@@ -292,6 +337,7 @@
     if (h[0] === "brand") return brand();
     if (h[0] === "show") return question(h[1] || "new", h[2]);
     if (h[0] === "art") return art(h[1]);
+    if (h[0] === "music") return music(h[1]);
     if (h[0] === "paid") return paid();
     if (h[0] === "send") return send(h[1]);
     home();
