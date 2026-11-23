@@ -186,3 +186,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .form .hint{font-size:13px;color:var(--mute);min-height:0}
 .form .hint.bad{color:#ff7a7a}
 .form .hint:empty{display:none}
+
+/* artists */
+.artists{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.acard2{border:1px solid var(--line);border-left:4px solid #F2C14E;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.acard2.off{opacity:.5;border-left-color:#555}
+.acard2 .ah{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.acard2 .ah b{font-family:var(--disp);font-weight:400;font-size:22px;text-transform:uppercase}
+.asub{font-size:11px;letter-spacing:.04em;color:var(--mute)}
+.aguests{display:flex;flex-wrap:wrap;gap:6px}
+.aguests span{font-size:12px;border:1px solid var(--line);padding:3px 7px;color:#cfc9c5}
+.atools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.atools a.mini{text-decoration:none}
+.spin{display:inline-flex;align-items:center;gap:6px}
+.spin span{font-family:var(--mono);font-size:11px;color:#cfc9c5}
+.mini.danger:hover{border-color:#ff5a5a;color:#ff5a5a}
+.chip.gold{background:#F2C14E;color:#000}
+@media (max-width:420px){.seg button{font-size:9.5px;padding:13px 4px 12px}}

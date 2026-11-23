@@ -10,6 +10,7 @@ export interface EmailTicket {
   code: string;
   ticketUrl: string;
   qrUrl: string;
+  artist?: boolean;          // the gold Artist Pass
 }
 export interface EmailData {
   comp: boolean;
@@ -29,9 +30,10 @@ export interface EmailData {
   mailingAddress: string;
   siteUrl: string;           // https://subduction.art (images live under /assets/toftu/email/)
   eventUrl: string;          // public event page
+  artistUrl?: string | null; // set on an artist's own pass: their private guest-list page
 }
 
-const ORANGE = "#FF5A1F", VIOLET = "#AA6EFF", UV = "#2D1052", LAV = "#B5A1C8", CARD = "#0D0716";
+const GOLD = "#F2C14E", ORANGE = "#FF5A1F", VIOLET = "#AA6EFF", UV = "#2D1052", LAV = "#B5A1C8", CARD = "#0D0716";
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
 const HEAVY = "'Archivo Black','Arial Black',Arial,Helvetica,sans-serif";
 const MONO = "'Space Mono','Courier New',Courier,monospace";
@@ -49,7 +51,7 @@ u + .body .gs{background:#000;mix-blend-mode:screen;display:block}
 u + .body .gd{background:#000;mix-blend-mode:difference;display:block}
 u + .body .gsi{background:#000;mix-blend-mode:screen;display:inline-block}
 u + .body .gdi{background:#000;mix-blend-mode:difference;display:inline-block}</style>`;
-const LIGHT_BG = /bgcolor="#(FF5A1F|FFFFFF|8A2BE2|AA6EFF)"/i;
+const LIGHT_BG = /bgcolor="#(FF5A1F|FFFFFF|8A2BE2|AA6EFF|F2C14E)"/i;
 export function gmailSafe(html: string) {
   html = html.replace("</head>", GMAIL_CSS + "</head>").replace(/<body /, '<body class="body" ');
   // backgrounds: add the same color as an image so Gmail keeps it
@@ -66,8 +68,9 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   const addr = /TBD/i.test(d.mailingAddress || "") ? "" : d.mailingAddress;
   const IMG = d.siteUrl.replace(/\/$/, "") + "/assets/toftu/email/";
   const first = (d.buyerName || "").trim().split(/\s+/)[0];
-  const subject = d.comp ? `You're on the list: ${d.eventName}` : `Your tickets: ${d.eventName}`;
-  const pre = d.comp ? (d.address ? "You're on the guest list. Your QR code and the secret location are inside." : `You're on the guest list. The location drops ${d.revealText || "before the show"}.`)
+  const artist = !!d.artistUrl;
+  const subject = artist ? `Your artist pass: ${d.eventName}` : d.comp ? `You're on the list: ${d.eventName}` : `Your tickets: ${d.eventName}`;
+  const pre = artist ? "Your artist pass and your guest list link are inside." : d.comp ? (d.address ? "You're on the guest list. Your QR code and the secret location are inside." : `You're on the guest list. The location drops ${d.revealText || "before the show"}.`)
     : `${d.tickets.length} ticket${d.tickets.length > 1 ? "s" : ""} inside${d.address ? ", plus the secret location" : `. The location drops ${d.revealText || "before the show"}`}.`;
   const maps = d.address ? "https://maps.google.com/?q=" + encodeURIComponent(d.address) : null;
 
@@ -77,8 +80,8 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
 
   const cards = d.tickets.map((t, i) => {
     const pass = t.nightIdx.length > 1;
-    const color = pass ? "#FFFFFF" : nightColor(t.nightIdx[0] ?? 0);
-    const bar = pass
+    const color = t.artist ? GOLD : pass ? "#FFFFFF" : nightColor(t.nightIdx[0] ?? 0);
+    const bar = t.artist ? `<td height="6" colspan="2" bgcolor="${GOLD}" style="background:${GOLD};font-size:0;line-height:0">&nbsp;</td>` : pass
       ? `<td height="6" width="50%" bgcolor="${ORANGE}" style="background:${ORANGE};font-size:0;line-height:0">&nbsp;</td><td height="6" width="50%" bgcolor="#8A2BE2" style="background:#8A2BE2;font-size:0;line-height:0">&nbsp;</td>`
       : `<td height="6" colspan="2" bgcolor="${color}" style="background:${color};font-size:0;line-height:0">&nbsp;</td>`;
     const eyes = t.nightIdx.map((n) => `<img src="${IMG}eye-${n % 2 ? "sat" : "fri"}.png" width="30" height="30" alt="" style="display:inline-block;vertical-align:middle;border:0;margin-right:4px">`).join("");
@@ -90,7 +93,7 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   ${eyes}<span class="gsi" style="vertical-align:middle"><span class="gdi"><span style="font:400 22px/1.2 ${HEAVY};color:${color};text-transform:uppercase;vertical-align:middle">${esc(t.typeName)}</span></span></span>
   ${d.tickets.length > 1 ? `<span style="font:700 12px ${MONO};color:${LAV};vertical-align:middle;margin-left:6px">${i + 1}/${d.tickets.length}</span>` : ""}
 </td></tr>
-<tr><td colspan="2" style="padding:2px 20px 16px;font:700 12px/1.6 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${LAV}">${esc(t.nightLabels)}${t.holder ? " &nbsp;·&nbsp; " + esc(t.holder) : ""}${d.comp ? " &nbsp;·&nbsp; GUEST LIST" : ""}</td></tr>
+<tr><td colspan="2" style="padding:2px 20px 16px;font:700 12px/1.6 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${LAV}">${esc(t.nightLabels)}${t.holder ? " &nbsp;·&nbsp; " + esc(t.holder) : ""}${t.artist ? ` &nbsp;·&nbsp; <span style="color:${GOLD}">ARTIST · ALL ACCESS</span>` : d.comp ? " &nbsp;·&nbsp; GUEST LIST" : ""}</td></tr>
 <tr><td colspan="2" align="center" style="padding:0 20px">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF"><tr><td style="padding:14px">
   <a href="${t.ticketUrl}"><img src="${t.qrUrl}" width="232" height="232" alt="Ticket QR code ${esc(t.code)}" style="display:block;border:0;width:232px;height:232px"></a>
@@ -127,9 +130,9 @@ ${d.feeCents ? `<tr><td style="padding:4px 0;font:13px ${SANS};color:${LAV}">Car
 
 <tr><td style="padding:30px 24px 0;color:#E7E0F0;font:16px/1.6 ${SANS}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr><td style="font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE};padding-bottom:10px">${d.comp ? "Guest list" : "Order confirmed"}</td></tr>
+<tr><td style="font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${artist ? GOLD : ORANGE};padding-bottom:10px">${artist ? "Artist pass" : d.comp ? "Guest list" : "Order confirmed"}</td></tr>
 <tr><td style="font:400 34px/1.05 ${HEAVY};color:#FFFFFF;text-transform:uppercase;padding-bottom:12px">${first ? `You're in, ${esc(first)}.` : "You're in."}</td></tr>
-<tr><td style="font:15px/1.6 ${SANS};color:#D9D2E3;padding-bottom:26px">${d.comp ? "You're on the guest list. Your ticket is below: show the QR code at the door." : "Your tickets are below. Show the QR code at the door, on your phone or printed."} Each code works once per night, so don't share screenshots.</td></tr>
+<tr><td style="font:15px/1.6 ${SANS};color:#D9D2E3;padding-bottom:26px">${artist ? "You're on the bill. Your artist pass is below: show the QR code at the door, both nights." : d.comp ? "You're on the guest list. Your ticket is below: show the QR code at the door." : "Your tickets are below. Show the QR code at the door, on your phone or printed."} Each code works once per night, so don't share screenshots.</td></tr>
 
 ${d.address ? `<tr><td style="padding:0 0 26px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
@@ -148,6 +151,15 @@ ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};le
 ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
 </table></td></tr>` : ""}
 
+${artist ? `<tr><td style="padding:0 0 26px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${GOLD}">
+<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${GOLD}">Your guest list</td></tr>
+<tr><td style="padding:2px 20px 14px;font:15px/1.5 ${SANS};color:#D9D2E3">Put your people on the list from your own page: name, email and phone. Each one gets a real ticket by email. You can add or remove guests until doors open.</td></tr>
+<tr><td style="padding:0 20px 20px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${GOLD}" style="background:${GOLD}">
+<a href="${d.artistUrl}" style="display:inline-block;padding:14px 26px;font:400 14px/1 ${HEAVY};letter-spacing:.12em;text-transform:uppercase;color:#050505;text-decoration:none">Manage my guest list</a>
+</td></tr></table></td></tr>
+<tr><td style="padding:0 20px 18px;font:12px/1.5 ${SANS};color:${LAV}">This link is yours only. Don't share it publicly.</td></tr>
+</table></td></tr>` : ""}
 ${cards}
 ${summary}
 
@@ -169,7 +181,8 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
 </td></tr></table></body></html>`;
 
   const text = [
-    `${d.comp ? "You're on the guest list" : "Your tickets"} for ${d.eventName}`,
+    `${artist ? "Your artist pass" : d.comp ? "You're on the guest list" : "Your tickets"} for ${d.eventName}`,
+    artist ? `\nYOUR GUEST LIST: add your people here (until doors open): ${d.artistUrl}` : "",
     d.address ? `\nTHE SECRET LOCATION\n${d.venue || ""}\n${d.address}\nKeep it underground: please don't post the address.` : d.revealText ? `\nTHE SECRET LOCATION drops ${d.revealText}. We'll email it to you.` : "",
     d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"),
     d.age ? `${d.age} · Bring ID` : "",

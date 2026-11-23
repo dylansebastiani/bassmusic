@@ -68,7 +68,7 @@
   $("shows").addEventListener("click", function (e) { var b = e.target.closest("[data-open]"); if (b) openShow(b.getAttribute("data-open")); });
 
   // ================= SHOWS: one show =================
-  var SEGS = [["lineup", "Lineup"], ["sales", "Sales"], ["guests", "Guests"], ["codes", "Codes"], ["images", "Images"], ["details", "Details"]];
+  var SEGS = [["lineup", "Lineup"], ["sales", "Sales"], ["guests", "Guests"], ["artists", "Artists"], ["codes", "Codes"], ["images", "Images"], ["details", "Details"]];
   function openShow(slug, keepTab) {
     $("showList").hidden = true; $("showView").hidden = false; scrollTo(0, 0);
     $("svName").textContent = "Loading..."; $("svWhen").textContent = ""; $("svLinks").innerHTML = ""; $("seg").innerHTML = "";
@@ -93,7 +93,7 @@
     curTab = name;
     SEGS.forEach(function (s) { $("sv-" + s[0]).hidden = s[0] !== name; });
     [].forEach.call($("seg").children, function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-seg") === name ? "true" : "false"); });
-    ({ lineup: drawLineup, sales: sales, guests: guests, codes: codes, images: drawImages, details: drawDetails })[name]();
+    ({ lineup: drawLineup, sales: sales, guests: guests, artists: artists, codes: codes, images: drawImages, details: drawDetails })[name]();
   }
   function refreshShow() { return openShow(cur.event.slug, true); }
 
@@ -157,7 +157,7 @@
       var sold = d.by_type.reduce(function (s, t) { return s + t.sold; }, 0), comps = d.by_type.reduce(function (s, t) { return s + t.comps; }, 0);
       $("sstats").innerHTML = [["Gross", usd(d.gross_cents)], ["Tickets sold", sold], ["Guest list", comps], ["Orders", d.orders]]
         .map(function (x) { return '<div class="stat"><b>' + x[1] + "</b><span>" + x[0] + "</span></div>"; }).join("");
-      $("stypes").innerHTML = d.by_type.filter(function (t) { return !/test/i.test(t.name) || t.sold; }).map(function (t) {
+      $("stypes").innerHTML = d.by_type.filter(function (t) { return t.tiers.length && (!/test/i.test(t.name) || t.sold); }).map(function (t) {
         var tot = t.tiers.reduce(function (s, r) { return s + r.qty; }, 0), pct = tot ? Math.min(100, Math.round(100 * t.sold / tot)) : 0;
         return '<div class="ttype"><div class="tt"><b>' + esc(t.name) + '</b><span class="mono">' + t.sold + " / " + tot + " sold" + (t.comps ? " · " + t.comps + " guest list" : "") +
           (t.now && t.now.tier ? " · now " + esc(t.now.tier.name) + " " + usd(t.now.tier.price_cents) + " (" + t.now.tier.left + " left)" : t.now && t.now.sold_out ? " · SOLD OUT" : "") + "</span></div>" +
@@ -182,7 +182,7 @@
   // ---------- guest list ----------
   function guests() {
     // Guest list: the 2-Day Pass first (the default), then each single night. Never the hidden test ticket.
-    var gt = cur.types.filter(function (t) { return t.slug !== "test"; }).sort(function (a, b) { return (b.night_ids || []).length - (a.night_ids || []).length; });
+    var gt = cur.types.filter(function (t) { return t.slug !== "test" && t.slug !== "artist"; }).sort(function (a, b) { return (b.night_ids || []).length - (a.night_ids || []).length; });
     if (!$("gtype").options.length || $("gtype").getAttribute("data-show") !== cur.event.slug) {
       $("gtype").innerHTML = gt.map(function (t) { return '<option value="' + esc(t.slug) + '">' + esc(t.name) + ((t.night_ids || []).length > 1 ? " (both nights)" : " only") + "</option>"; }).join("");
       $("gtype").setAttribute("data-show", cur.event.slug);
@@ -230,6 +230,42 @@
     var v = e.target.closest("[data-void]"), r = e.target.closest("[data-resend]");
     if (v) { if (!confirm("Take this person off the list? Their ticket stops working.")) return; door("void", { ticket_id: v.getAttribute("data-void") }).then(guests).catch(function (err) { say("gmsg", err.message); }); }
     if (r) { r.disabled = true; door("resend", { ticket_id: r.getAttribute("data-resend") }).then(function (x) { r.textContent = x.sent ? "Sent ✓" : "Failed"; }).catch(function (err) { r.disabled = false; say("gmsg", err.message); }); }
+  });
+
+  // ---------- artists ----------
+  var ART = BASE + "artist";
+  function artists() {
+    $("artists").innerHTML = '<div class="empty">Loading...</div>';
+    req(ART + "?a=list&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
+      $("artists").innerHTML = d.artists.length ? d.artists.map(function (a) {
+        var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
+        return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
+          '<div class="mono asub">' + (a.email ? esc(a.email) + " · " : "") + a.guests.length + " of " + a.spots + " guest spots used</div>" +
+          (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
+          (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy link</button>' +
+            '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
+            '<span class="spin"><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + Math.max(0, a.spots - 1) + '" aria-label="Fewer spots">−</button><span>' + a.spots + ' spots</span><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + (a.spots + 1) + '" aria-label="More spots">+</button></span>' +
+            '<button type="button" class="mini danger" data-revoke="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Cancel artist</button></div>') + "</div>";
+      }).join("") : '<div class="empty">No artists yet. Create one above.</div>';
+    }).catch(function (err) { $("artists").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
+  }
+  $("af").addEventListener("submit", function (e) {
+    e.preventDefault(); say("amsg", "Saving...");
+    req(ART, { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0 }).then(function (r) {
+      $("aname").value = ""; $("aspots").value = "2";
+      var copied = function () { say("amsg", "Invite made and link copied. Text it to the artist."); };
+      (navigator.clipboard ? navigator.clipboard.writeText(r.link) : Promise.reject()).then(copied).catch(function () { say("amsg", "Invite made. Link: " + r.link); });
+      artists();
+    }).catch(function (err) { say("amsg", err.message); });
+  });
+  $("artists").addEventListener("click", function (e) {
+    var c = e.target.closest("[data-copy]"), sp = e.target.closest("[data-spots]"), rv = e.target.closest("[data-revoke]");
+    if (c) { var t = c.getAttribute("data-copy"); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { c.textContent = "Copied ✓"; }).catch(function () { prompt("Copy this link:", t); }); }
+    if (sp) { sp.disabled = true; req(ART, { a: "update", id: sp.getAttribute("data-spots"), spots: Number(sp.getAttribute("data-n")) }).then(artists).catch(function (err) { alert(err.message); }); }
+    if (rv) {
+      if (!confirm("Cancel " + rv.getAttribute("data-name") + "? Their link stops working, and their artist pass and every guest ticket they added are cancelled.")) return;
+      req(ART, { a: "revoke", id: rv.getAttribute("data-revoke") }).then(artists).catch(function (err) { alert(err.message); });
+    }
   });
 
   // ---------- promo codes ----------

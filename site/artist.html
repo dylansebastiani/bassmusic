@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#050505">
+<link rel="preload" href="assets/fonts/bungee-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/tix.css">
+<link rel="stylesheet" href="assets/artist.css">
+<!--CONFIG-->
+<title>Artist pass</title>
+</head>
+<body class="toftu">
+<main class="wrap tix toftu artistpg">
+  <div class="brand"><img class="wm" src="assets/toftu/wordmark.webp" alt="T.O.F.T.U." width="1400" height="373" style="width:min(60%,260px)"></div>
+  <p class="msg" id="msg" role="status">Loading...</p>
+
+  <section id="view" hidden>
+    <div class="goldtag">Artist · All access</div>
+    <h1 class="aname" id="aname"></h1>
+    <p class="adates" id="adates"></p>
+
+    <!-- step 1: claim the pass -->
+    <div class="acard" id="claim" hidden>
+      <h2>Get your artist pass</h2>
+      <p class="lead">Add your info and your pass lands in your email: a QR code that gets you in both nights. Then you can put your people on the list right here.</p>
+      <form id="cf" class="aform" novalidate>
+        <label for="cname">Full name</label><input id="cname" type="text" autocomplete="name" maxlength="80" placeholder="First and last name">
+        <label for="cemail">Email</label><input id="cemail" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="Where your pass goes">
+        <div class="hint" id="cemailh"></div>
+        <label for="cphone">Phone</label><input id="cphone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="(309) 555-0123">
+        <div class="hint" id="cphoneh"></div>
+        <button class="btn gold" type="submit" id="cgo">Get my pass</button>
+        <p class="msg" id="cmsg" role="status"></p>
+      </form>
+      <p class="fineprint">Your pass also makes you a Subduction member: unreleased tracks and first word on shows, by email. Unsubscribe anytime.</p>
+    </div>
+
+    <!-- step 2: the pass + guest list -->
+    <div id="dash" hidden>
+      <div class="acard pass">
+        <div class="row1"><h2>Your pass</h2><span class="ok">✓ Emailed</span></div>
+        <p class="lead" id="passline"></p>
+        <div class="btnrow"><a class="btn gold" id="openpass" href="#" target="_blank" rel="noopener">Open my pass</a><button class="btn ghost" type="button" id="resend">Resend email</button></div>
+        <p class="msg" id="pmsg" role="status"></p>
+      </div>
+
+      <div class="acard">
+        <div class="row1"><h2>Your guest list</h2><span class="spots" id="spots"></span></div>
+        <div class="meter"><i id="meter"></i></div>
+        <form id="gf" class="aform" novalidate>
+          <label>Ticket</label>
+          <div class="seg3" id="gtypes"></div>
+          <label for="gname">Full name</label><input id="gname" type="text" autocomplete="off" maxlength="80" placeholder="First and last name">
+          <label for="gemail">Email</label><input id="gemail" type="email" autocomplete="off" inputmode="email" maxlength="254" placeholder="Where their ticket goes">
+          <div class="hint" id="gemailh"></div>
+          <label for="gphone">Phone</label><input id="gphone" type="tel" autocomplete="off" inputmode="tel" maxlength="20" placeholder="(309) 555-0123">
+          <div class="hint" id="gphoneh"></div>
+          <button class="btn gold" type="submit" id="ggo">Add to my list</button>
+          <p class="msg" id="gmsg" role="status"></p>
+        </form>
+        <div class="full" id="full" hidden>Your list is full. Remove someone to add someone else, or ask the promoter for more spots.</div>
+        <div class="glist" id="glist"></div>
+        <p class="fineprint">Each guest gets a real ticket by email with their own QR code. You can add or remove people until doors open for their night.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="assets/artist.js"></script>
+</body>
+</html>

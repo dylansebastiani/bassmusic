@@ -7,7 +7,7 @@ import QRCode from "npm:qrcode@1.5.4";
 
 export interface PdfTicket {
   typeName: string; nightIdx: number[]; nightLabels: string; doors: string | null;
-  holder: string | null; code: string; tier: string | null; ticketUrl: string; comp: boolean;
+  holder: string | null; code: string; tier: string | null; ticketUrl: string; comp: boolean; artist?: boolean;
 }
 export interface PdfData {
   eventName: string; venue: string | null; address: string | null; age: string | null;
@@ -17,7 +17,7 @@ export interface PdfData {
 
 const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
 const VOID = hex("#050505"), UV = hex("#2D1052"), LAV = hex("#B5A1C8"), INK = hex("#FFFFFF");
-const ORANGE = hex("#FF5A1F"), VIOLET = hex("#8A2BE2"), VIOLET_TEXT = hex("#AA6EFF"), MUTE = hex("#8E84A0");
+const GOLD = hex("#F2C14E"), ORANGE = hex("#FF5A1F"), VIOLET = hex("#8A2BE2"), VIOLET_TEXT = hex("#AA6EFF"), MUTE = hex("#8E84A0");
 const W = 400, H = 760, M = 18, CUT = 18;
 
 async function get(url: string) {
@@ -73,16 +73,17 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
   for (const [i, t] of d.tickets.entries()) {
     const p = doc.addPage([W, H]);
     const pass = t.nightIdx.length > 1, n0 = t.nightIdx[0] ?? 0;
-    const accent = pass ? INK : n0 % 2 ? VIOLET : ORANGE;
-    const accentText = pass ? INK : n0 % 2 ? VIOLET_TEXT : ORANGE;
+    const accent = t.artist ? GOLD : pass ? INK : n0 % 2 ? VIOLET : ORANGE;
+    const accentText = t.artist ? GOLD : pass ? INK : n0 % 2 ? VIOLET_TEXT : ORANGE;
     p.drawRectangle({ x: 0, y: 0, width: W, height: H, color: VOID });
 
     // ---- main ticket ----
     const top = M, mainH = 592;
     frame(p, M, top, W - 2 * M, mainH, CUT, UV, 1, VOID);
-    halftone(p, W - M - 10, top + 10, 9, 7, 9, pass ? VIOLET : accent);
+    halftone(p, W - M - 10, top + 10, 9, 7, 9, t.artist ? GOLD : pass ? VIOLET : accent);
     // night accent bar across the top-left, like the board's frame tabs
-    if (pass) {
+    if (t.artist) p.drawRectangle({ x: M + CUT, y: T(top) - 5, width: 140, height: 5, color: GOLD });
+    else if (pass) {
       p.drawRectangle({ x: M + CUT, y: T(top) - 5, width: 70, height: 5, color: ORANGE });
       p.drawRectangle({ x: M + CUT + 70, y: T(top) - 5, width: 70, height: 5, color: VIOLET });
     } else p.drawRectangle({ x: M + CUT, y: T(top) - 5, width: 140, height: 5, color: accent });
@@ -98,7 +99,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     for (const n of t.nightIdx) { p.drawImage(eyes[n % 2], { x: ex, y: T(y) - 26, width: 26, height: 26 }); ex += 20; }
     const nameSize = fit(t.typeName.toUpperCase(), heavy, 30, W - 2 * M - figW - 40);
     text(p, t.typeName.toUpperCase(), M + 18, y + 30, nameSize, heavy, accentText);
-    text(p, (t.comp ? "GUEST LIST" : (t.tier || "ADMIT ONE")).toUpperCase(), M + 18, y + 34 + nameSize + 6, 9, mono, LAV, 1.4);
+    text(p, (t.artist ? "ARTIST · ALL ACCESS" : t.comp ? "GUEST LIST" : (t.tier || "ADMIT ONE")).toUpperCase(), M + 18, y + 34 + nameSize + 6, 9, mono, t.artist ? GOLD : LAV, 1.4);
     y += 34 + nameSize + 26;
     text(p, t.nightLabels.toUpperCase(), M + 18, y, 10, mono, INK, 1.2);
     if (t.doors) text(p, t.doors.toUpperCase(), M + 18, y + 15, 10, mono, LAV, 1.2);

@@ -43,7 +43,7 @@ const eyebrow = (t: string) => `<div style="font-size:11px;letter-spacing:.32em;
 
 // The current free track, for the welcome email. Cover art is public (site/assets/drops/<slug>.jpg);
 // the audio itself stays private behind the member page.
-export interface DropInfo { slug: string; title: string; artist: string | null; artwork_url?: string | null; }
+export interface DropInfo { slug: string; title: string; artist: string | null; artwork_url?: string | null; description?: string | null; }
 const coverUrl = (d: DropInfo) => d.artwork_url || `${SITE_URL}/assets/drops/${d.slug}.jpg`;
 
 type Tpl = (m: Member, extra?: Record<string, unknown>) => Rendered;
@@ -57,7 +57,8 @@ export const TEMPLATES: Record<string, Tpl> = {
     const track = d ? `${d.title}${d.artist ? " by " + d.artist : ""}` : "";
     const cover = d ? `<a href="${play}" style="display:block;text-decoration:none"><img src="${coverUrl(d)}" width="480" alt="${track}" style="display:block;width:100%;max-width:480px;height:auto;border:1px solid #222"></a>
 <div style="margin-top:16px;font:900 20px/1.2 ${FONT};letter-spacing:.04em;text-transform:uppercase;color:#fff">${d.title}</div>
-<div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#888;margin-top:4px">${d.artist || ""}</div>` : "";
+<div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#888;margin-top:4px">${d.artist || ""}</div>${d.description ? `
+<div style="font-size:14px;color:#bdbdbd;margin-top:8px">${d.description}</div>` : ""}` : "";
     const html = `${eyebrow(M)}${big("You're in.")}
 <p style="margin:0 0 26px;color:#bdbdbd">${d ? "Your first unreleased track is waiting. Nobody outside this list has it." : "You're on the list. Unreleased tracks and show news land here first."}</p>
 ${cover}
@@ -65,7 +66,7 @@ ${btn(play, d ? "&#9654;&nbsp; Play it now" : "Open my page")}
 <p style="margin:0 0 8px;color:#bdbdbd">Next up: more unreleased tracks, and first word on shows.</p>
 ${m.referral_code ? `<p style="margin:26px 0 0;padding:18px;border:1px dashed #333;font-size:14px;color:#bdbdbd">Know someone who'd want in? Your link:<br><a href="${refUrl(m)}" style="color:#fff;word-break:break-all">${refUrl(m)}</a></p>` : ""}
 <p style="margin:26px 0 0;color:#bdbdbd">See you down there.<br>Dylan</p>`;
-    const text = `You're in.\n\n${d ? `Your first unreleased track is waiting: ${track}. Nobody outside this list has it.\n\nPlay it now: ${play}` : `You're on the list. Open your page: ${play}`}\n\nNext up: more unreleased tracks, and first word on shows.\n${m.referral_code ? `\nKnow someone who'd want in? Your link: ${refUrl(m)}\n` : ""}\nSee you down there.\nDylan`;
+    const text = `You're in.\n\n${d ? `Your first unreleased track is waiting: ${track}${d.description ? " (" + d.description + ")" : ""}. Nobody outside this list has it.\n\nPlay it now: ${play}` : `You're on the list. Open your page: ${play}`}\n\nNext up: more unreleased tracks, and first word on shows.\n${m.referral_code ? `\nKnow someone who'd want in? Your link: ${refUrl(m)}\n` : ""}\nSee you down there.\nDylan`;
     return { subject: d ? `you're in. ${d.title.toLowerCase()} is waiting` : `you're in`, ...wrap(m, html, text, d ? `${track}. Unreleased. Play it or grab the WAV.` : "Unreleased tracks land here first.") };
   },
   // +2 days, only if the track is still locked (no name, phone or ZIP yet). The runner

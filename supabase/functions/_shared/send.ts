@@ -39,7 +39,7 @@ export async function ticketsPdf(orderId: string, onlyToken?: string) {
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
     db.from("events").select("name,venue,address,age,location_secret,address_reveal_at").eq("id", o.event_id).single(),
     db.from("tickets").select("code,token,type_id,holder_name,tier,is_comp").eq("order_id", o.id).eq("status", "valid").order("created_at"),
-    db.from("ticket_types").select("id,name,night_ids").eq("event_id", o.event_id),
+    db.from("ticket_types").select("id,slug,name,night_ids").eq("event_id", o.event_id),
     db.from("ticket_nights").select("id,label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
   ]);
   if (!ev || !tix?.length) return null;
@@ -52,18 +52,24 @@ export async function ticketsPdf(orderId: string, onlyToken?: string) {
     const one = idx.length === 1 ? ns[idx[0]] : null;
     return { typeName: ty?.name || "Ticket", nightIdx: idx, nightLabels: idx.map((i: number) => ns[i].label).join(" + "),
       doors: one ? doorsText(one.starts_at, one.ends_at) : (ns[0] ? doorsText(ns[0].starts_at, ns[0].ends_at) + " both nights" : null),
-      holder: t.holder_name, code: t.code, tier: t.tier, ticketUrl: TICKET_PAGE(t.token), comp: t.is_comp };
+      holder: t.holder_name, code: t.code, tier: t.tier, ticketUrl: TICKET_PAGE(t.token), comp: t.is_comp, artist: ty?.slug === "artist" };
   });
   return await renderTicketPdf({ eventName: ev.name, venue: ev.venue, address: ev.address, age: ev.age, orderRef: orderRef(o.id), tickets, siteUrl: SITE_URL, revealText: heldBack(ev) });
 }
 
 export async function sendTickets(orderId: string) {
-  const { data: o } = await db.from("ticket_orders").select("id,event_id,email,name,status,subtotal_cents,discount_cents,fee_cents,total_cents,emailed_at").eq("id", orderId).maybeSingle();
+  const { data: o } = await db.from("ticket_orders").select("id,event_id,email,name,status,subtotal_cents,discount_cents,fee_cents,total_cents,emailed_at,artist_invite_id").eq("id", orderId).maybeSingle();
   if (!o || !o.email || o.emailed_at) return false;
+  // An artist's own pass carries the link to their private guest-list page.
+  let artistUrl: string | null = null;
+  if (o.artist_invite_id) {
+    const { data: inv } = await db.from("artist_invites").select("token,order_id").eq("id", o.artist_invite_id).maybeSingle();
+    if (inv && inv.order_id === o.id) artistUrl = `${SITE_URL}/artist.html?k=${inv.token}`;
+  }
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
     db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at").eq("id", o.event_id).single(),
     db.from("tickets").select("code,token,type_id,holder_name").eq("order_id", o.id).eq("status", "valid").order("created_at"),
-    db.from("ticket_types").select("id,name,night_ids").eq("event_id", o.event_id),
+    db.from("ticket_types").select("id,slug,name,night_ids").eq("event_id", o.event_id),
     db.from("ticket_nights").select("id,label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
   ]);
   if (!ev || !tix?.length) return false;
@@ -77,10 +83,10 @@ export async function sendTickets(orderId: string) {
       const one = idx.length === 1 ? ns[idx[0]] : null;
       return { typeName: ty?.name || "Ticket", nightIdx: idx,
         nightLabels: one ? (doorsText(one.starts_at, one.ends_at) || one.label) : idx.map((i: number) => ns[i].label).join(" + "),
-        holder: t.holder_name, code: t.code, ticketUrl: TICKET_PAGE(t.token), qrUrl: QR_URL(t.token) };
+        holder: t.holder_name, code: t.code, ticketUrl: TICKET_PAGE(t.token), qrUrl: QR_URL(t.token), artist: ty?.slug === "artist" };
     }),
     subtotalCents: o.subtotal_cents, discountCents: o.discount_cents, feeCents: o.fee_cents, totalCents: o.total_cents,
-    contactEmail: CONFIG.contactEmail, mailingAddress: CONFIG.mailingAddress, siteUrl: SITE_URL, eventUrl: `${SITE_URL}/${ev.slug === "underground" ? "underground/" : "tickets.html?e=" + ev.slug}`,
+    contactEmail: CONFIG.contactEmail, mailingAddress: CONFIG.mailingAddress, siteUrl: SITE_URL, eventUrl: `${SITE_URL}/${ev.slug === "underground" ? "underground/" : "tickets.html?e=" + ev.slug}`, artistUrl,
   });
   // The PDF rides along when it builds; if it doesn't, the email still goes (the QR codes are in it either way).
   let attachments: { name: string; content: string }[] | undefined;
