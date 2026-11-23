@@ -39,6 +39,28 @@ const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&
 const usd = (c: number) => "$" + (c / 100).toFixed(2);
 const nightColor = (i: number) => (i % 2 ? VIOLET : ORANGE);
 
+// Gmail on iPhone repaints emails in dark mode: it flips dark backgrounds light and light text dark,
+// which turns this all-black email white. Two standard fixes, applied to the finished HTML:
+//  1. every background is also set as a gradient image, which Gmail leaves alone;
+//  2. text cells are wrapped in two blend layers (screen, then difference) that flip Gmail's
+//     repaint back. The "u + .body" selector only matches inside Gmail, so other apps never see it.
+const GMAIL_CSS = `<style>:root{color-scheme:dark;supported-color-schemes:dark}
+u + .body .gs{background:#000;mix-blend-mode:screen;display:block}
+u + .body .gd{background:#000;mix-blend-mode:difference;display:block}
+u + .body .gsi{background:#000;mix-blend-mode:screen;display:inline-block}
+u + .body .gdi{background:#000;mix-blend-mode:difference;display:inline-block}</style>`;
+const LIGHT_BG = /bgcolor="#(FF5A1F|FFFFFF|8A2BE2|AA6EFF)"/i;
+export function gmailSafe(html: string) {
+  html = html.replace("</head>", GMAIL_CSS + "</head>").replace(/<body /, '<body class="body" ');
+  // backgrounds: add the same color as an image so Gmail keeps it
+  html = html.replace(/background:(#[0-9A-Fa-f]{6})(;|")/g, (_, c, end) => `background:${c};background-image:linear-gradient(${c},${c})${end}`);
+  // text cells (no nested tables or images, not the orange/white/violet blocks): wrap for the blend fix
+  return html.replace(/<td([^>]*)>((?:(?!<td|<\/td>|<table|<img)[\s\S])*?)<\/td>/g, (m, attrs, inner) => {
+    if (LIGHT_BG.test(attrs) || !inner.replace(/<[^>]+>|&nbsp;|\s/g, "")) return m;
+    return `<td${attrs}><div class="gs"><div class="gd">${inner}</div></div></td>`;
+  });
+}
+
 export function renderTicketEmail(d: EmailData): { subject: string; html: string; text: string } {
   // Ticket emails are transactional, so the postal address is only shown once a real one is set.
   const addr = /TBD/i.test(d.mailingAddress || "") ? "" : d.mailingAddress;
@@ -65,7 +87,7 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
 <tr>${bar}</tr>
 <tr><td colspan="2" style="padding:18px 20px 4px">
-  ${eyes}<span style="font:400 22px/1.2 ${HEAVY};color:${color};text-transform:uppercase;vertical-align:middle">${esc(t.typeName)}</span>
+  ${eyes}<span class="gsi" style="vertical-align:middle"><span class="gdi"><span style="font:400 22px/1.2 ${HEAVY};color:${color};text-transform:uppercase;vertical-align:middle">${esc(t.typeName)}</span></span></span>
   ${d.tickets.length > 1 ? `<span style="font:700 12px ${MONO};color:${LAV};vertical-align:middle;margin-left:6px">${i + 1}/${d.tickets.length}</span>` : ""}
 </td></tr>
 <tr><td colspan="2" style="padding:2px 20px 16px;font:700 12px/1.6 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${LAV}">${esc(t.nightLabels)}${t.holder ? " &nbsp;·&nbsp; " + esc(t.holder) : ""}${d.comp ? " &nbsp;·&nbsp; GUEST LIST" : ""}</td></tr>
@@ -139,6 +161,7 @@ ${summary}
 <tr><td align="center" style="padding:26px 0 22px"><img src="${IMG}partners.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
 
 <tr><td style="padding:26px 0 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">
+Your ticket also makes you a Subduction member: unreleased tracks and first word on shows, by email. You can unsubscribe from those anytime.<br><br>
 Questions or need a change? Reply to this email or write <a href="mailto:${esc(d.contactEmail)}" style="color:${LAV}">${esc(d.contactEmail)}</a>.<br>
 <a href="${d.eventUrl}" style="color:${LAV}">Event page</a> ${addr ? "&nbsp;·&nbsp; " + esc(addr) : ""}</td></tr>
 
@@ -154,10 +177,11 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
     ...d.tickets.map((t) => `${t.typeName} (${t.nightLabels})${t.holder ? " · " + t.holder : ""}\nCode: ${t.code}\n${t.ticketUrl}`),
     d.comp ? "" : `\nTotal paid: ${usd(d.totalCents)}${d.feeCents ? ` (incl. ${usd(d.feeCents)} card fee)` : ""}`,
     "\nShow the QR code at the door. Each code works once per night.",
+    "\nYour ticket also makes you a Subduction member: unreleased tracks and first word on shows, by email. Unsubscribe from those anytime.",
     `\nQuestions? ${d.contactEmail}${addr ? "\n" + addr : ""}`,
   ].filter((x) => x !== "").join("\n");
 
-  return { subject, html, text };
+  return { subject, html: gmailSafe(html), text };
 }
 
 // Reveal day: the address, sent once to everyone who already has a ticket.
@@ -199,5 +223,5 @@ ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};le
   const text = [`The secret location for ${d.eventName}`, "", d.venue || "", d.address, "Keep it underground: please don't post the address.", "",
     d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"), d.age ? `${d.age} · Bring ID` : "", "",
     "Your tickets are in your earlier email. Show the QR code at the door.", `Questions? ${d.contactEmail}`].filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
-  return { subject, html, text };
+  return { subject, html: gmailSafe(html), text };
 }
