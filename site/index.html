@@ -166,6 +166,9 @@ input::placeholder{color:#8a8486}
 .gets{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:24px;max-width:1100px}
 @media (min-width:640px){.gets .checks{grid-template-columns:1fr 1fr}}
 @media (min-width:1000px){.gets .checks{grid-template-columns:1fr 1fr 1fr}}
+.yours{border-left:3px solid var(--hot);padding:4px 0 4px 18px;max-width:640px;display:flex;flex-direction:column;gap:8px}
+.yours h3{font-size:clamp(32px,8.6vw,56px)}
+.yours p{font-size:15px;line-height:1.5;color:#e6e1dd}
 /* fee bars */
 .bars{display:flex;flex-direction:column;gap:10px;max-width:560px;width:100%}
 .bars-h{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:2px}
@@ -283,13 +286,13 @@ html:not(.js) .rv{opacity:1;transform:none}
   <figure class="hero-art" aria-hidden="true"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></figure>
   <p class="kick rv">Ticketing for the underground</p>
   <h1 class="disp rv">Your show.<br>Your page.<br>Your <em>money.</em></h1>
-  <p class="lead rv">Tickets for underground shows. Promoters keep their money, artists get a free page, fans get free music.</p>
+  <p class="lead rv">Tickets for underground shows. Promoters get a custom page in their own brand and keep their money. Artists get a free page. Fans get free music.</p>
   <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a><a class="ghost" href="#promoters">How it works</a></div>
 </section>
 
 <!-- 2. Three doors: what each person gets, in one line -->
 <nav class="doors" aria-label="Who it's for">
-  <a href="#promoters"><span class="kick">Promoters</span><b>Sell tickets. Keep your money.</b><i aria-hidden="true">&rarr;</i></a>
+  <a href="#promoters"><span class="kick">Promoters</span><b>Your own custom page. Your money.</b><i aria-hidden="true">&rarr;</i></a>
   <a href="#artists"><span class="kick">Artists</span><b>Get a free artist page.</b><i aria-hidden="true">&rarr;</i></a>
   <a href="#fans"><span class="kick">Fans</span><b>Get free music with every ticket.</b><i aria-hidden="true">&rarr;</i></a>
 </nav>
@@ -309,12 +312,16 @@ html:not(.js) .rv{opacity:1;transform:none}
   </div>
   <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy" style="--pos:50% 66%"></figure>
   </div>
+  <div class="yours rv">
+    <h3 class="disp">Your brand. <em>Not ours.</em></h3>
+    <p>Every page is built from scratch for your show: your art, your colors, your name. No template. No Subduction logo on it. It looks like your site, because it is.</p>
+  </div>
   <div class="gets rv">
     <p class="kick">Every show gets</p>
     <ul class="checks">
-      <li>Its own event page, built from your art</li>
+      <li>A custom page in your brand, no Subduction logo</li>
       <li>Ticket tiers and promo codes</li>
-      <li>PDF tickets and emails</li>
+      <li>PDF tickets and emails in your look</li>
       <li>A door scanner on any phone</li>
       <li>Guest list and artist passes</li>
       <li>Your buyer list, yours to export</li>
