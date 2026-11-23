@@ -52,6 +52,7 @@ writeFileSync(join(out, "_redirects"), [
   "/admin /admin.html 200",
   "/privacy /privacy.html 200",
   "/tickets /tickets.html 200",
+  "/show /show.html 200",
   "/ticket /ticket.html 200",
   "/door /door.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,

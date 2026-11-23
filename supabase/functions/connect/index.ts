@@ -9,7 +9,8 @@ import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts
 //   POST {a:"start", company}   company owner: make their Stripe account if needed, return Stripe's sign-up link
 //   GET  ?a=status&company=id   anyone on that company: re-read Stripe and return where the account stands
 Deno.serve(async (req) => {
-  const pf = preflight(req); if (pf) return pf;
+  // Browsers ask first before sending the staff sign-in header (used by preview / Stripe sign-up).
+  if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), "Access-Control-Allow-Headers": "content-type, x-admin-token" } }); }
   const st = await staffAuth(req);
   if (!st) return err("Sign in first.", 401);
   const u = new URL(req.url);

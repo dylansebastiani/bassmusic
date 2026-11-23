@@ -4,7 +4,11 @@ import { json, err, preflight, EMAIL_RE, clean, ipHash } from "../_shared/util.t
 import { SITE_URL } from "../_shared/config.ts";
 import { loadEvent, availability, stripe, TICKET_PAGE } from "../_shared/tickets.ts";
 import { ticketsPdf, sendLocation, revealLabel } from "../_shared/send.ts";
-import { loadCompany, feeFor, connectTotals, allInPrice } from "../_shared/company.ts";
+import { loadCompany, feeFor, connectTotals, allInPrice, staffAuth, canSee } from "../_shared/company.ts";
+import { cleanPage } from "../_shared/page_spec.ts";
+
+// Art in show pages may only come from our own storage (plus the site's assets/ folder).
+const STORAGE_HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
 
 // Card fee for an amount so the show still nets the full amount after Stripe's 2.9% + 30c.
 // tickets.js uses the same formula to show all-in prices.
@@ -19,7 +23,8 @@ const cardFee = (cents: number) => (cents > 0 ? Math.ceil((cents + 30) / (1 - 0.
 const SLUG = /^[a-z0-9-]{1,80}$/, TOKEN = /^[0-9a-f]{48}$/;
 
 Deno.serve(async (req) => {
-  const pf = preflight(req); if (pf) return pf;
+  // Browsers ask first before sending the staff sign-in header (used by preview / Stripe sign-up).
+  if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), "Access-Control-Allow-Headers": "content-type, x-admin-token" } }); }
   const u = new URL(req.url), a = u.searchParams.get("a") || "";
 
   if (req.method === "GET" && a === "qr") {
@@ -97,7 +102,21 @@ Deno.serve(async (req) => {
     const x = await loadEvent(slug);
     if (!x) return err("Not found", 404);
     const { ev, nights, types } = x;
+    // The show's page description and who runs it. Looked up on their own so a database without
+    // these columns yet still serves the original tickets page exactly as before.
+    const { data: extra } = await db.from("events").select("company_id,page,page_draft").eq("id", ev.id).maybeSingle();
+    // ?preview=1 from signed-in staff of that company (or Dylan) shows the working draft instead.
+    let raw = extra?.page ?? null, preview = false;
+    if (u.searchParams.get("preview") === "1") {
+      const st = await staffAuth(req);
+      if (st && canSee(st, extra?.company_id)) { raw = extra?.page_draft ?? extra?.page ?? null; preview = true; }
+    }
+    // Subduction's per-ticket fee for this show, so the page can show the true all-in price.
+    const co = extra?.company_id ? await loadCompany(extra.company_id) : null;
+    const platform = co && !co.legacy_stripe ? (await feeFor(co)) ?? 0 : 0;
     return json({
+      page: raw ? cleanPage(raw, STORAGE_HOSTS) : null, preview,
+      fee: { platform_cents: platform, card_pct: 0.029, card_fixed_cents: 30 },
       // A secret location stays off the public page; ticket holders get it on their ticket and in the email.
       event: { slug: ev.slug, name: ev.name, venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city,
                address: ev.location_secret ? null : ev.address, location_secret: ev.location_secret, description: ev.description, age: ev.age,
@@ -208,7 +227,8 @@ Deno.serve(async (req) => {
     }
     const session = await stripe("checkout/sessions", {
       ui_mode: "embedded", mode: "payment",
-      return_url: `${SITE_URL}/tickets.html?e=${ev.slug}&s={CHECKOUT_SESSION_ID}`,
+      // Back to the page they bought on: the new show page, or the original tickets page.
+      return_url: `${SITE_URL}/${b.page === "show" ? "show" : "tickets"}.html?e=${ev.slug}&s={CHECKOUT_SESSION_ID}`,
       customer_email: email, line_items, discounts,
       expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
       client_reference_id: o!.id,
