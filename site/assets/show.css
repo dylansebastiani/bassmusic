@@ -64,7 +64,7 @@ html:has(.show){background:var(--bg)}
 .night li:first-child{font-family:var(--disp);font-size:21px;text-transform:uppercase;line-height:1.1}
 .night li:nth-child(2){font-weight:600;font-size:17px}
 .night li small{color:var(--mute);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-left:6px}
-.night .soon{position:relative;z-index:1;font-family:var(--disp);font-size:20px;color:var(--fg);margin:22px auto 10px}
+.night .soon{position:relative;z-index:1;font-family:var(--disp);font-size:20px;color:var(--fg);margin:22px auto 10px;border:0;padding:0;background:none}
 .glow .night .soon{text-shadow:0 0 14px color-mix(in srgb,var(--nc) 55%,transparent)}
 .night .icon{position:absolute;right:14px;top:18px;width:58px;height:58px;z-index:1;opacity:.9}
 .night .fig{position:absolute;right:2px;bottom:14px;height:54%;width:auto;max-width:32%;object-fit:contain;object-position:bottom right;z-index:0;pointer-events:none;opacity:.55}

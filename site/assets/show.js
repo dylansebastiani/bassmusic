@@ -98,7 +98,7 @@
         '<p class="fineprint">' + (s.fineprint ? esc(s.fineprint) : fine) + ' Your ticket also makes you a Subduction member: unreleased tracks and first word on shows by email. Unsubscribe anytime. <a href="privacy.html">Privacy</a>.</p></form>' +
         '<div id="payWrap" hidden><button type="button" class="back" id="back">&larr; Change tickets</button><div id="checkout"></div></div></section>';
     },
-    partners: function () { var a = data.page.art; return a.partners ? img(a.partners, "s-partners", "Event partners", ' loading="lazy"') : ""; },
+    partners: function () { var a = data.page.art; return a.partners ? img(a.partners, "s-partners", "Event partners", ' decoding="async"') : ""; },
     text: function (s) { return s.title || s.body ? '<div class="s-text v-' + s.variant + (s.variant === "boxed" ? " card" : "") + '">' + (s.title ? "<h2>" + esc(s.title) + "</h2>" : "") + (s.body ? "<p>" + esc(s.body) + "</p>" : "") + "</div>" : ""; },
     video: function () { var v = data.page.art.video; return v ? '<div class="s-video"><video src="' + esc(v) + '" muted loop playsinline autoplay preload="metadata"></video></div>' : ""; },
     faq: function (s) { return (s.items || []).length ? '<div class="s-faq">' + s.items.map(function (x) { return "<details><summary>" + esc(x.q) + "</summary><p>" + esc(x.a) + "</p></details>"; }).join("") + "</div>" : ""; },
