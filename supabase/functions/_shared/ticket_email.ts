@@ -125,7 +125,7 @@ ${d.feeCents ? `<tr><td style="padding:4px 0;font:13px ${SANS};color:${LAV}">Car
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px">
 
 <tr><td><a href="${d.eventUrl}"><img src="${IMG}hero.jpg" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0"></a></td></tr>
-<tr><td align="center" style="padding:18px 24px 0"><img src="${IMG}wordmark.png" width="300" alt="T.O.F.T.U." style="display:block;width:300px;max-width:80%;height:auto;border:0"></td></tr>
+<tr><td align="center" style="padding:18px 24px 0"><img src="${IMG}${artist ? "wordmark-gold" : "wordmark"}.png" width="300" alt="T.O.F.T.U." style="display:block;width:300px;max-width:80%;height:auto;border:0"></td></tr>
 <tr><td align="center" style="padding:14px 24px 0"><img src="${IMG}ftu.png" width="340" alt="FOR THE UNDERGROUND" style="display:block;width:340px;max-width:86%;height:auto;border:0"></td></tr>
 
 <tr><td style="padding:30px 24px 0;color:#E7E0F0;font:16px/1.6 ${SANS}">
