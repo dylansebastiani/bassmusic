@@ -1,7 +1,7 @@
 // Copies site/ to dist/ and injects config + public env into each page.
 // Public env (safe to ship to the browser): SUPABASE_URL, TURNSTILE_SITE_KEY.
 // The deploy workflow (.github/workflows/pages.yml) runs `npm run build` with these set.
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 
@@ -42,6 +42,9 @@ for (const f of readdirSync(out)) {
 mkdirSync(join(out, "underground"), { recursive: true });
 writeFileSync(join(out, "underground", "index.html"),
   readFileSync(join(out, "tickets.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
+// Any address that isn't a file falls back to the show page, which reads the show from the address:
+// subduction.art/<slug> works the moment a show is published, before the next rebuild gives it its own page below.
+writeFileSync(join(out, "404.html"), readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 // Pretty routes and the short links used in emails (/c/<token>, /u/<token>).
 const fn = pub.supabaseUrl + "/functions/v1";
 writeFileSync(join(out, "_redirects"), [
@@ -85,6 +88,28 @@ function jpegSize(buf) {
     i += 2 + len;
   }
   return null;
+}
+// Every published promoter show gets its own page at /<slug>/ (a real page, so link previews in iMessage,
+// Instagram and Facebook show the show's own name and image).
+async function showPages() {
+  if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
+  let shows = [];
+  try { shows = (await (await fetch(`${fn}/shows`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
+  catch (e) { console.warn("build: could not fetch the show list, short links fall back to the 404 page:", e.message); return; }
+  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">');
+  const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let n = 0;
+  for (const s of shows) {
+    if (!/^[a-z0-9-]{1,80}$/.test(s.slug || "")) continue;
+    // Never let a show's name shadow a real page or folder of the site.
+    if (existsSync(join(out, s.slug)) || existsSync(join(out, s.slug + ".html"))) { console.warn(`build: show "${s.slug}" clashes with a site page, skipped`); continue; }
+    const tags = `<title>${esc(s.name)}</title>\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">` +
+      (s.share_url ? `\n<meta property="og:image" content="${esc(s.share_url)}">\n<meta name="twitter:card" content="summary_large_image">` : "");
+    mkdirSync(join(out, s.slug), { recursive: true });
+    writeFileSync(join(out, s.slug, "index.html"), base.replace('<meta property="og:type" content="website">', '<meta property="og:type" content="website">\n' + tags));
+    n++;
+  }
+  console.log(`built ${n} show page(s)`);
 }
 async function trackPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
@@ -130,4 +155,5 @@ async function trackPages() {
   console.log("built", n, "track preview pages");
 }
 await trackPages();
+await showPages();
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");

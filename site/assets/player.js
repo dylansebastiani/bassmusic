@@ -133,7 +133,7 @@
   // A show's page plays that show's own playlist when its promoter uploaded one; everywhere else
   // (and on shows without one) it plays Subduction's tracks. Either way the order is a fresh shuffle.
   var qs = new URLSearchParams(location.search), path = location.pathname.replace(/\/+$/, "");
-  var showSlug = /(^|\/)show(\.html)?$/.test(path) ? qs.get("e") || "" : /(^|\/)(tickets(\.html)?|underground)$/.test(path) ? qs.get("e") || "underground" : "";
+  var showSlug = window.__SHOW_SLUG || (/(^|\/)show(\.html)?$/.test(path) ? qs.get("e") || "" : /(^|\/)(tickets(\.html)?|underground)$/.test(path) ? qs.get("e") || "underground" : "");
   showSlug = showSlug.replace(/[^a-z0-9-]/gi, "").toLowerCase();
   function getJson(url) { return fetch(url).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }); }
   function shuffle(list) {

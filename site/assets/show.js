@@ -5,7 +5,7 @@
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/tickets";
   var $ = function (id) { return document.getElementById(id); };
   var q = new URLSearchParams(location.search);
-  var slug = (q.get("e") || "").replace(/[^a-z0-9-]/gi, "").toLowerCase();
+  var slug = (window.__SHOW_SLUG || q.get("e") || "").replace(/[^a-z0-9-]/gi, "").toLowerCase();   // ?e=<slug> or subduction.art/<slug>
   var PREVIEW = q.get("preview") === "1";
   var data = null, cart = {}, checkout = null;
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
