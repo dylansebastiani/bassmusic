@@ -43,3 +43,9 @@ input{width:100%;background:#0c0c0c;border:1px solid var(--line);color:var(--fg)
 .close{margin-top:40px;border-top:1px solid var(--line);padding-top:30px}.close ul{list-style:none;padding:0;margin:0 0 6px;display:grid;gap:10px;text-align:left}
 .close li{padding-left:26px;position:relative;font-size:16px;line-height:1.4}.close li::before{content:"";position:absolute;left:0;top:6px;width:12px;height:12px;background:var(--hot)}
 @media (prefers-reduced-motion:reduce){.step,.finder::after{animation:none}}
+.inbox{padding:0;background:#fff;border-radius:14px}.mail{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:14px;color:#111}
+.mail .dot{flex:none;width:10px;height:10px;border-radius:50%;background:#1a73e8;margin-top:6px}.mail div{flex:1;min-width:0}.mail b{display:block;font-size:15px}
+.mail span{display:block;font-size:14px;font-weight:600}.mail small{display:block;font-size:13px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mail em{font:normal 12px var(--text);color:#666}
+.do{font-size:16px;line-height:1.5;color:#cfc9c3;margin:0 0 8px}.do b{color:var(--fg)}
+.ghostbtn{display:block;width:100%;margin-top:14px;background:none;border:1px solid var(--line);color:var(--fg);font:15px var(--text);padding:14px 12px;cursor:pointer;text-align:center}
+.close{margin-top:26px}

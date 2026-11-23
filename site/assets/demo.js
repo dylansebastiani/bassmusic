@@ -13,14 +13,14 @@
   })();
 
   function go(n) {
-    [1, 2, 3, 4].forEach(function (i) { $("s" + i).hidden = i !== n; });
+    [1, 2, 3, 4, 5].forEach(function (i) { $("s" + i).hidden = i !== n; });
     Array.prototype.forEach.call($("steps").children, function (el, i) { el.className = i < n ? "on" : ""; });
     window.scrollTo(0, 0);
   }
   function fill(l) {
     lead = l;
     try { localStorage.setItem(KEY, l.token); } catch (e) {}
-    $("toEmail").textContent = l.email; $("tkBy").textContent = l.crew || ""; $("tkName").textContent = l.name || ""; $("tkCode").textContent = l.code;
+    $("toEmail").textContent = l.email; $("mFrom").textContent = (l.crew || "Your crew") + " Tickets"; $("tkBy").textContent = l.crew || ""; $("tkName").textContent = l.name || ""; $("tkCode").textContent = l.code;
     $("qr").src = $("qr2").src = FN + "?a=qr&t=" + l.token;
     $("dName").textContent = l.name || ""; $("dEmail").textContent = l.email; $("dPhone").textContent = l.phone || ""; $("dCode").textContent = "GA · " + l.code;
     if (l.scanned_at) $("dIn").textContent = "1";
@@ -41,8 +41,8 @@
     post({ a: "start", name: name, crew: crew, email: email, phone: phone, website: $("website").value })
       .then(function (l) {
         if (!l.token) { $("msg").textContent = "Thanks. Check your inbox."; return; }
-        fill(l); $("msg").textContent = ""; go(2);
-        if (l.sent === false) $("toEmail").parentNode.textContent = "Here's the ticket every buyer gets by email the second they pay. (Our email to you didn't go through, so it's shown here instead.)";
+        fill(l); $("msg").textContent = "";
+        go(l.sent === false ? 3 : 2);   // if our email didn't go through, show the ticket right here instead
       })
       .catch(function (err) { $("msg").textContent = err.message; })
       .then(function () { $("go").disabled = false; });
@@ -60,8 +60,8 @@
       res.querySelector("span").textContent = (r.name || "") + " · General Admission";
       res.querySelector("small").textContent = r.again ? "First scan was at " + time(r.scanned_at) + ". A screenshot can't get two people in." : "Checked in at " + time(r.scanned_at);
       $("dIn").textContent = "1"; lead.scanned_at = r.scanned_at;
-      $("scan").textContent = r.again ? "Scan it again" : "Scan it again (try a screenshot)";
-      $("close").hidden = false;
+      $("scan").textContent = "Scan it again";
+      $("scan").className = "ghostbtn"; $("toSide").hidden = false;
     }).catch(function () {}).then(function () { $("scan").disabled = false; });
   });
 
@@ -83,7 +83,8 @@
   if (/^[0-9a-f]{32}$/.test(t)) {
     fetch(FN + "?t=" + t).then(function (r) { return r.ok ? r.json() : null; }).then(function (l) {
       if (!l) return;
-      fill(l); go(new URLSearchParams(location.search).get("t") ? 4 : 2);
+      // From the email button: they've opened their ticket, so that's where they land. A plain refresh picks up where they were.
+      fill(l); go(new URLSearchParams(location.search).get("t") ? 3 : l.scanned_at ? 5 : 2);
       try { history.replaceState(null, "", location.pathname); } catch (e) {}
     }).catch(function () {});
   }
