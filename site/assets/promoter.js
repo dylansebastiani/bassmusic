@@ -69,7 +69,7 @@
     var list = me.companies;
     app.innerHTML = top() + "<h1>Your promoters</h1><p class=lead>Add a promoter, then fill in their brand and show yourself, or send them this page to do it.</p>" +
       '<div class=ticket><label for=nc>Crew name</label><input type=text id=nc maxlength=80 placeholder="e.g. Basement Frequencies">' +
-      '<label for=ne>Their email (optional)</label><input type=email id=ne autocapitalize=off inputmode=email placeholder="Leave blank if you\'re setting it up for them">' +
+      '<label for=ne>Their email (optional)</label><input type=email id=ne autocapitalize=off inputmode=email placeholder="Blank = you fill it in">' +
       '<button class=btn type=button id=addco>Add promoter</button><p class=msg role=status></p></div>' +
       (list.length ? "<h2>Promoters</h2>" + list.map(function (c) {
         var n = me.shows.filter(function (x) { return x.company_id === c.id; }), w = n.filter(function (x) { return x.review_status === "submitted"; }).length;
