@@ -9,7 +9,8 @@
   fetch(FN + "?a=ticket&t=" + t).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error); return j; }); }).then(function (d) {
     var k = d.ticket, ev = d.event;
     document.title = (k.type || "Ticket") + " · " + ev.name;
-    $("kind").textContent = k.comp ? "Guest list" : "Ticket";
+    $("kind").textContent = k.artist ? "Artist pass · All access" : k.comp ? "Guest list" : "Ticket";
+    if (k.artist) { document.body.classList.add("artistpass"); $("card").classList.add("ta"); }
     $("ename").textContent = ev.name;
     $("ewhere").innerHTML = (ev.address ? '<span class="loclabel">The secret location</span><b>' + esc(ev.venue || "") + '</b><br><a href="https://maps.google.com/?q=' + encodeURIComponent(ev.address) + '" target="_blank" rel="noopener">' + esc(ev.address) + "</a>" : esc(ev.venue || "") + (ev.reveal ? '<br><span class="loclabel">Location drops ' + esc(ev.reveal) + "</span>" : "")) +
       (ev.age ? '<br><span class="agepill">' + esc(ev.age) + " · bring ID</span>" : "");
@@ -27,7 +28,7 @@
     // Night colors: look up where this ticket's nights sit in the show (first night orange, second violet).
     fetch(FN + "?e=" + encodeURIComponent(ev.slug)).then(function (r) { return r.json(); }).then(function (pub) {
       var idx = d.nights.map(function (n) { return (pub.nights || []).findIndex(function (x) { return x.label === n.label; }); }).filter(function (i) { return i >= 0; });
-      if (!idx.length) return;
+      if (!idx.length || k.artist) return;   // the artist pass stays all gold
       var card = $("card"), pass = idx.length > 1;
       card.classList.add(pass ? "tp" : idx[0] % 2 ? "t2" : "t1");
       $("ttype").insertAdjacentHTML("afterbegin", idx.map(function (i) { return '<img class="teye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="">'; }).join(""));

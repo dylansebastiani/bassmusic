@@ -49,12 +49,12 @@ Deno.serve(async (req) => {
     if (!tk) return err("Not found", 404);
     const [{ data: ev }, { data: ty }, { data: scans }] = await Promise.all([
       db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at").eq("id", tk.event_id).single(),
-      db.from("ticket_types").select("name,night_ids").eq("id", tk.type_id).single(),
+      db.from("ticket_types").select("slug,name,night_ids").eq("id", tk.type_id).single(),
       db.from("ticket_scans").select("night_id,scanned_at").eq("ticket_id", tk.id),
     ]);
     const { data: nights } = await db.from("ticket_nights").select("id,label,starts_at,ends_at").in("id", ty?.night_ids || []).order("sort");
     return json({
-      ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp },
+      ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp, artist: ty?.slug === "artist" },
       event: ev ? { slug: ev.slug, name: ev.name, venue: ev.venue, address: ev.address, age: ev.age,
         reveal: !ev.address && ev.location_secret ? revealLabel(ev.address_reveal_at) : null } : null,
       nights: (nights || []).map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, used_at: scans?.find((s) => s.night_id === n.id)?.scanned_at || null })),

@@ -84,10 +84,10 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
     const bar = t.artist ? `<td height="6" colspan="2" bgcolor="${GOLD}" style="background:${GOLD};font-size:0;line-height:0">&nbsp;</td>` : pass
       ? `<td height="6" width="50%" bgcolor="${ORANGE}" style="background:${ORANGE};font-size:0;line-height:0">&nbsp;</td><td height="6" width="50%" bgcolor="#8A2BE2" style="background:#8A2BE2;font-size:0;line-height:0">&nbsp;</td>`
       : `<td height="6" colspan="2" bgcolor="${color}" style="background:${color};font-size:0;line-height:0">&nbsp;</td>`;
-    const eyes = t.nightIdx.map((n) => `<img src="${IMG}eye-${n % 2 ? "sat" : "fri"}.png" width="30" height="30" alt="" style="display:inline-block;vertical-align:middle;border:0;margin-right:4px">`).join("");
+    const eyes = t.artist ? "" : t.nightIdx.map((n) => `<img src="${IMG}eye-${n % 2 ? "sat" : "fri"}.png" width="30" height="30" alt="" style="display:inline-block;vertical-align:middle;border:0;margin-right:4px">`).join("");
     return `
 <tr><td style="padding:0 0 22px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${t.artist ? GOLD : UV}">
 <tr>${bar}</tr>
 <tr><td colspan="2" style="padding:18px 20px 4px">
   ${eyes}<span class="gsi" style="vertical-align:middle"><span class="gdi"><span style="font:400 22px/1.2 ${HEAVY};color:${color};text-transform:uppercase;vertical-align:middle">${esc(t.typeName)}</span></span></span>
@@ -99,11 +99,11 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   <a href="${t.ticketUrl}"><img src="${t.qrUrl}" width="232" height="232" alt="Ticket QR code ${esc(t.code)}" style="display:block;border:0;width:232px;height:232px"></a>
   </td></tr></table>
 </td></tr>
-<tr><td colspan="2" align="center" style="padding:14px 20px 4px;font:700 22px/1 ${MONO};letter-spacing:.32em;color:#FFFFFF">${esc(t.code)}</td></tr>
+<tr><td colspan="2" align="center" style="padding:14px 20px 4px;font:700 22px/1 ${MONO};letter-spacing:.32em;color:${t.artist ? GOLD : "#FFFFFF"}">${esc(t.code)}</td></tr>
 <tr><td colspan="2" align="center" style="padding:2px 20px 18px;font:12px/1.5 ${SANS};color:${LAV}">Backup code if the scanner can't read your screen</td></tr>
 <tr><td colspan="2" align="center" style="padding:0 20px 22px">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${ORANGE}" style="background:${ORANGE}">
-  <a href="${t.ticketUrl}" style="display:inline-block;padding:14px 26px;font:400 14px/1 ${HEAVY};letter-spacing:.12em;text-transform:uppercase;color:#050505;text-decoration:none">Open ticket</a>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${t.artist ? GOLD : ORANGE}" style="background:${t.artist ? GOLD : ORANGE}">
+  <a href="${t.ticketUrl}" style="display:inline-block;padding:14px 26px;font:400 14px/1 ${HEAVY};letter-spacing:.12em;text-transform:uppercase;color:#050505;text-decoration:none">${t.artist ? "Open artist pass" : "Open ticket"}</a>
   </td></tr></table>
 </td></tr>
 </table></td></tr>`;
@@ -136,7 +136,7 @@ ${d.feeCents ? `<tr><td style="padding:4px 0;font:13px ${SANS};color:${LAV}">Car
 
 ${d.address ? `<tr><td style="padding:0 0 26px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
-<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE}">The secret location</td></tr>
+<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${artist ? GOLD : ORANGE}">The secret location</td></tr>
 <tr><td style="padding:2px 20px 2px;font:400 24px/1.2 ${HEAVY};color:#FFFFFF;text-transform:uppercase">${esc(d.venue || "")}</td></tr>
 <tr><td style="padding:2px 20px 10px;font:15px/1.5 ${SANS}"><a href="${maps}" style="color:#E7E0F0;text-decoration:underline">${esc(d.address)}</a></td></tr>
 <tr><td style="padding:0 20px 14px;font:13px/1.5 ${SANS};color:${LAV}">Keep it underground: please don't post the address.</td></tr>
@@ -144,7 +144,7 @@ ${d.address ? `<tr><td style="padding:0 0 26px">
 ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
 </table></td></tr>` : d.revealText ? `<tr><td style="padding:0 0 26px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${UV}">
-<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE}">The secret location</td></tr>
+<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${artist ? GOLD : ORANGE}">The secret location</td></tr>
 <tr><td style="padding:2px 20px 2px;font:400 24px/1.2 ${HEAVY};color:#FFFFFF;text-transform:uppercase">Drops ${esc(d.revealText)}</td></tr>
 <tr><td style="padding:6px 20px 14px;font:15px/1.5 ${SANS};color:#D9D2E3">We'll email the address to you one week before the show. Keep this email: your tickets are below.</td></tr>
 <tr><td style="padding:0 20px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${UV}">${nightRows}
@@ -165,9 +165,9 @@ ${summary}
 
 <tr><td style="padding:6px 0 0">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td width="25%" valign="bottom"><img src="${IMG}figure-fri.png" width="120" alt="" style="display:block;width:120px;max-width:100%;height:auto;border:0"></td>
+<td width="25%" valign="bottom"><img src="${IMG}${artist ? "figure-gold" : "figure-fri"}.png" width="120" alt="" style="display:block;width:120px;max-width:100%;height:auto;border:0"></td>
 <td align="center" valign="middle" style="font:400 18px/1.25 ${HEAVY};color:#FFFFFF;text-transform:uppercase">See you<br>underground</td>
-<td width="25%" valign="bottom" align="right"><img src="${IMG}figure-sat.png" width="120" alt="" style="display:block;width:120px;max-width:100%;height:auto;border:0;margin-left:auto"></td>
+<td width="25%" valign="bottom" align="right"><img src="${IMG}${artist ? "figure-gold" : "figure-sat"}.png" width="120" alt="" style="display:block;width:120px;max-width:100%;height:auto;border:0;margin-left:auto"></td>
 </tr></table></td></tr>
 
 <tr><td align="center" style="padding:26px 0 22px"><img src="${IMG}partners-v3.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>

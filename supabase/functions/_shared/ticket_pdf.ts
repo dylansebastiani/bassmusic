@@ -69,6 +69,8 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
   const figs = [await doc.embedPng(figFB), await doc.embedPng(figSB)];
   // The partner logo row (sound, crews). Optional: a ticket still renders without it.
   const partners = await get(base + "partners-v3.png").then((b) => doc.embedPng(b)).catch(() => null);
+  // Gold figure for the artist pass (falls back to the night figure if it can't load).
+  const goldFig = d.tickets.some((t) => t.artist) ? await get(base + "email/figure-gold.png").then((b) => doc.embedPng(b)).catch(() => null) : null;
 
   for (const [i, t] of d.tickets.entries()) {
     const p = doc.addPage([W, H]);
@@ -79,7 +81,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
 
     // ---- main ticket ----
     const top = M, mainH = 592;
-    frame(p, M, top, W - 2 * M, mainH, CUT, UV, 1, VOID);
+    frame(p, M, top, W - 2 * M, mainH, CUT, t.artist ? GOLD : UV, t.artist ? 1.4 : 1, VOID);
     halftone(p, W - M - 10, top + 10, 9, 7, 9, t.artist ? GOLD : pass ? VIOLET : accent);
     // night accent bar across the top-left, like the board's frame tabs
     if (t.artist) p.drawRectangle({ x: M + CUT, y: T(top) - 5, width: 140, height: 5, color: GOLD });
@@ -93,10 +95,10 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     y += img(p, ftu, (W - 220) / 2, y, 220) + 22;
 
     // the night's figure on the right, the ticket name on the left
-    const fig = figs[pass ? 1 : n0 % 2];
+    const fig = (t.artist && goldFig) || figs[pass ? 1 : n0 % 2];
     const figW = 78; img(p, fig, W - M - figW - 12, y - 4, figW);
     let ex = M + 18;
-    for (const n of t.nightIdx) { p.drawImage(eyes[n % 2], { x: ex, y: T(y) - 26, width: 26, height: 26 }); ex += 20; }
+    if (!t.artist) for (const n of t.nightIdx) { p.drawImage(eyes[n % 2], { x: ex, y: T(y) - 26, width: 26, height: 26 }); ex += 20; }
     const nameSize = fit(t.typeName.toUpperCase(), heavy, 30, W - 2 * M - figW - 40);
     text(p, t.typeName.toUpperCase(), M + 18, y + 30, nameSize, heavy, accentText);
     text(p, (t.artist ? "ARTIST · ALL ACCESS" : t.comp ? "GUEST LIST" : (t.tier || "ADMIT ONE")).toUpperCase(), M + 18, y + 34 + nameSize + 6, 9, mono, t.artist ? GOLD : LAV, 1.4);
@@ -112,7 +114,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     p.drawRectangle({ x: qx - 12, y: T(y) - qs - 12, width: qs + 24, height: qs + 24, color: INK });
     p.drawImage(qr, { x: qx, y: T(y + 12) - qs + 12, width: qs, height: qs });
     y += qs + 36;
-    centered(p, t.code, y, 20, mono, INK, 6);
+    centered(p, t.code, y, 20, mono, t.artist ? GOLD : INK, 6);
     y += 34;
 
     // details: holder + the secret location
@@ -123,11 +125,11 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
     text(p, `${d.orderRef} · ${i + 1}/${d.tickets.length}`, col + 190, y + 11, 10, mono, INK);
     y += 40;
     if (d.address) {
-      text(p, "THE SECRET LOCATION", col, y, 7.5, mono, ORANGE, 1.5);
+      text(p, "THE SECRET LOCATION", col, y, 7.5, mono, t.artist ? GOLD : ORANGE, 1.5);
       text(p, (d.venue || "").toUpperCase(), col, y + 11, 13, heavy, INK);
       text(p, d.address, col, y + 29, fit(d.address, mono, 9, W - 2 * M - 36), mono, LAV);
     } else if (d.revealText) {
-      text(p, "THE SECRET LOCATION", col, y, 7.5, mono, ORANGE, 1.5);
+      text(p, "THE SECRET LOCATION", col, y, 7.5, mono, t.artist ? GOLD : ORANGE, 1.5);
       const drop = ("DROPS " + d.revealText).toUpperCase();
       text(p, drop, col, y + 11, fit(drop, heavy, 13, W - 2 * M - 36), heavy, INK);
       text(p, "WE'LL EMAIL YOU THE ADDRESS", col, y + 29, 9, mono, LAV, 0.6);
@@ -140,7 +142,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
       p.drawImage(partners, { x: (W - pw) / 2, y: T(top + mainH - 12) , width: pw, height: h2, opacity: 0.85 });
     }
     const perf = top + mainH + 18;
-    for (let x = M; x < W - M; x += 9) p.drawLine({ start: { x, y: T(perf) }, end: { x: x + 4.5, y: T(perf) }, thickness: 0.8, color: UV });
+    for (let x = M; x < W - M; x += 9) p.drawLine({ start: { x, y: T(perf) }, end: { x: x + 4.5, y: T(perf) }, thickness: 0.8, color: t.artist ? GOLD : UV });
     p.drawCircle({ x: 0, y: T(perf), size: 9, color: hex("#000000") }); p.drawCircle({ x: W, y: T(perf), size: 9, color: hex("#000000") });
     const sTop = perf + 16, sH = H - sTop - M;
     frame(p, M, sTop, W - 2 * M, sH, 12, accent === INK ? LAV : accent, 1.2, VOID);
