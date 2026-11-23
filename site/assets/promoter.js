@@ -5,7 +5,7 @@
   var app = document.getElementById("app");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
-  var me = null, coId = "", draft = null, warns = {};
+  var me = null, coId = "", draft = null, warns = {}, flash = "";
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
@@ -59,9 +59,17 @@
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
+      (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
+        '<label for=ie>Their email</label><input type=email id=ie autocapitalize=off inputmode=email value="' + esc(co.contact_email || "") + '"><button class=btn type=button id=inv>' + (co.contact_email ? "Send invite again" : "Send invite") + "</button>" : "") +
       "<p class=msg role=status></p>";
     wireTop();
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
+    if (flash) { say(flash); flash = ""; }
+    var inv = document.getElementById("inv");
+    if (inv) inv.onclick = function () {
+      var em = document.getElementById("ie").value.trim(); say("Sending…");
+      call("invite", { company: co.id, email: em }).then(function (r) { co.contact_email = r.invited; flash = "Invite sent to " + r.invited + "."; home(); }).catch(function (x) { say(x.message, true); });
+    };
   }
 
   // ---------- Dylan's front page: every promoter, and adding a new one ----------
@@ -79,7 +87,8 @@
     document.getElementById("addco").onclick = function () {
       var nm = document.getElementById("nc").value.trim(); if (!nm) return say("What's the crew called?", true);
       say("Adding…");
-      call("company-create", { name: nm, owner_email: document.getElementById("ne").value.trim() }).then(function (r) { return load().then(function () { go("#co/" + r.company.id); }); }).catch(function (x) { say(x.message, true); });
+      var em2 = document.getElementById("ne").value.trim();
+      call("company-create", { name: nm, owner_email: em2 }).then(function (r) { flash = r.invited ? "Added. Invite sent to " + em2 + "." : em2 ? "Added, but the email didn't send. Use Send invite below." : "Added. Fill it in, or add their email below to invite them."; return load().then(function () { go("#co/" + r.company.id); }); }).catch(function (x) { say(x.message, true); });
     };
   }
 
@@ -288,6 +297,15 @@
     home();
   }
   window.addEventListener("hashchange", route);
+  // Arriving from the invite email: trade the one-time link for a session, then open their checklist.
+  var invite = (location.hash.match(/^#invite=([0-9a-f-]+\.[0-9a-f]+)$/) || [])[1];
+  if (invite) {
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+    app.innerHTML = "<p class=lead>Signing you in…</p>";
+    call("redeem", { invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; route(); })
+      .catch(function (x) { tok = ""; signin(); say(x.message, true); });
+    return;
+  }
   // Back from Stripe: refresh where things stand.
   if (/stripe=/.test(location.search)) { try { history.replaceState(null, "", location.pathname + "#paid"); } catch (e) {} }
   route();

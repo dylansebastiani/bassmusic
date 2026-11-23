@@ -19,7 +19,7 @@ export const unsubUrl = (m: Member) => `${FN}/unsubscribe?u=${m.unsubscribe_toke
 // Apple Mail and Outlook all draw it the same; bgcolor keeps it black in light mode.
 // preheader = the grey line inbox apps show next to the subject.
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-function wrap(m: Member, bodyHtml: string, bodyText: string, preheader = ""): Omit<Rendered, "subject"> {
+function wrap(m: Member, bodyHtml: string, bodyText: string, preheader = "", why = `You're getting this because you joined ${M}.`): Omit<Rendered, "subject"> {
   const foot = `${L} · ${CONFIG.mailingAddress}`;
   return {
     html: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
@@ -29,10 +29,10 @@ function wrap(m: Member, bodyHtml: string, bodyText: string, preheader = ""): Om
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;color:#e9e9e9;font:16px/1.6 ${FONT}">
 <tr><td align="center" style="padding-bottom:28px"><img src="${SITE_URL}/assets/mail-logo.png" width="40" height="40" alt="${L}" style="display:block;border:0"></td></tr>
 <tr><td style="padding-bottom:32px">${bodyHtml}</td></tr>
-<tr><td style="padding-top:36px;border-top:1px solid #222;font-size:12px;line-height:1.7;color:#777">You're getting this because you joined ${M}.<br>
+<tr><td style="padding-top:36px;border-top:1px solid #222;font-size:12px;line-height:1.7;color:#777">${why}<br>
 <a href="${unsubUrl(m)}" style="color:#999">Unsubscribe</a> · ${foot}</td></tr>
 </table></td></tr></table></body></html>`,
-    text: `${bodyText}\n\n--\nYou're getting this because you joined ${M}.\nUnsubscribe: ${unsubUrl(m)}\n${foot}`,
+    text: `${bodyText}\n\n--\n${why}\nUnsubscribe: ${unsubUrl(m)}\n${foot}`,
   };
 }
 const btn = (href: string, label: string) =>
@@ -138,6 +138,17 @@ ${big6}<p style="margin:0 0 6px;color:#bdbdbd">${code ? "Type it on the site to 
 ${btn(u, code ? "Or tap to sign in" : "Open my page")}<p style="margin:0;color:#888;font-size:14px">Didn't ask for this? Ignore it and nothing changes.</p>`;
     const text = `${code ? `Your ${M} sign-in code: ${code}\n\nType it on the site. It works for 10 minutes.\n\nOr tap to sign in: ${u}` : `Open your ${M} page on this device:\n${u}`}\n\nDidn't ask for this? Ignore it and nothing changes.`;
     return { subject: code ? `${code} is your ${M} code` : `your ${M} sign-in link`, ...wrap(m, html, text, code ? "Type it on the site to sign in." : "") };
+  },
+  // A promoter Dylan just added: one button signs them straight in to their checklist.
+  // The link carries a one-time invite code (no email), good for 7 days.
+  promoter_invite: (m, extra) => {
+    const link = String(extra?.link || `${SITE_URL}/promoter`), crew = String(extra?.company || "your crew");
+    const html = `${eyebrow("Subduction")}${big("Let's get your show up")}
+<p>You're set up on Subduction as <b>${crew}</b>. Tap below to start. No password, no app.</p>
+<p style="color:#bdbdbd">It takes about 10 minutes: your logo and colors, five quick questions about your show, your flyers, and connecting where your ticket money goes. We build the page.</p>
+${btn(link, "Start now")}<p style="margin:0;color:#888;font-size:14px">The button works for 7 days. After that, sign in at ${SITE_URL.replace(/^https?:\/\//, "")}/promoter with this email.</p>`;
+    const text = `You're set up on Subduction as ${crew}.\n\nStart here (no password): ${link}\n\nIt takes about 10 minutes: logo and colors, five quick questions, your flyers, and where ticket money goes. We build the page.\n\nThe link works for 7 days. After that, sign in at ${SITE_URL}/promoter with this email.`;
+    return { subject: `${crew} is set up on Subduction`, ...wrap(m, html, text, "Tap to start. Takes about 10 minutes.", "You're getting this because you were added as a promoter on Subduction.") };
   },
   // Referral rewards
   reward: (m, extra) => {
