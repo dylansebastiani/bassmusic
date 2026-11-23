@@ -80,7 +80,11 @@
         </section>
 
         <section class="sv" id="sv-guests" hidden>
-          <form class="form" id="gf" novalidate>
+          <div class="dlhead">
+            <div class="dltotal"><b id="gtotal">0</b><span>coming</span></div>
+            <button type="button" class="btn ghost" id="gadd">+ Add to guest list</button>
+          </div>
+          <form class="form" id="gf" novalidate hidden>
             <p class="lead">A free, real ticket, emailed with its QR code. It scans at the door like any other.</p>
             <label for="gtype">Ticket</label><select id="gtype"></select>
             <label for="gname">Full name</label><input type="text" id="gname" autocomplete="off" placeholder="First and last name" maxlength="80">
@@ -92,6 +96,8 @@
             <button type="submit" class="btn" id="ggo">Send guest ticket</button>
             <p class="msg" id="gmsg" role="status"></p>
           </form>
+          <div class="chips" id="gfilter"></div>
+          <input type="search" id="gsearch" class="search gsearch" placeholder="Search name, email or code" autocomplete="off">
           <div class="sub mono" id="gcount"></div>
           <div class="people" id="guests"></div>
         </section>

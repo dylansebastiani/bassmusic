@@ -68,7 +68,7 @@
   $("shows").addEventListener("click", function (e) { var b = e.target.closest("[data-open]"); if (b) openShow(b.getAttribute("data-open")); });
 
   // ================= SHOWS: one show =================
-  var SEGS = [["lineup", "Lineup"], ["sales", "Sales"], ["guests", "Guests"], ["artists", "Artists"], ["codes", "Codes"], ["images", "Images"], ["details", "Details"]];
+  var SEGS = [["lineup", "Lineup"], ["sales", "Sales"], ["guests", "Door List"], ["artists", "Artists"], ["codes", "Codes"], ["images", "Images"], ["details", "Details"]];
   function openShow(slug, keepTab) {
     $("showList").hidden = true; $("showView").hidden = false; scrollTo(0, 0);
     $("svName").textContent = "Loading..."; $("svWhen").textContent = ""; $("svLinks").innerHTML = ""; $("seg").innerHTML = "";
@@ -188,14 +188,35 @@
       $("gtype").setAttribute("data-show", cur.event.slug);
     }
     $("guests").innerHTML = '<div class="empty">Loading...</div>';
-    door("guests").then(function (d) {
-      say("gcount", d.guests.length ? d.guests.length + " on the list" : "");
-      $("guests").innerHTML = d.guests.length ? d.guests.map(function (g) {
-        return '<div class="person"><div><b>' + esc(g.name) + '</b><span class="mono">' + esc(g.type || "") + (g.list ? " · " + esc(g.list) + "'s list" : "") + " · " + esc(g.code) + (g.email ? " · " + esc(g.email) : "") + (g.phone ? " · " + esc(g.phone) : "") + "</span></div>" +
-          '<span class="pa">' + (g.email ? '<button type="button" data-resend="' + esc(g.ticket_id) + '">Resend</button>' : "") + '<button type="button" data-void="' + esc(g.ticket_id) + '">Remove</button></span></div>';
-      }).join("") : '<div class="empty">No one on the list yet.</div>';
-    }).catch(function (err) { $("guests").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
+    door("guests").then(function (d) { GL = d.guests; drawList(); })
+      .catch(function (err) { $("guests").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
   }
+  // The door list: everyone with a ticket. Filter by group, search, see who's checked in each night.
+  var GL = [], GF = "all";
+  var KINDS = [["all", "Everyone"], ["paid", "Bought"], ["guest", "Guest list"], ["artist", "Artists"], ["artist_guest", "Artist guests"]];
+  var KLABEL = { paid: "Bought", guest: "Guest list", artist: "Artist", artist_guest: "Artist guest" };
+  function drawList() {
+    var n = function (k) { return k === "all" ? GL.length : GL.filter(function (g) { return g.kind === k; }).length; };
+    $("gtotal").textContent = GL.length;
+    $("gfilter").innerHTML = KINDS.filter(function (k) { return k[0] === "all" || n(k[0]); }).map(function (k) {
+      return '<button type="button" data-k="' + k[0] + '" aria-pressed="' + (GF === k[0]) + '">' + k[1] + " <i>" + n(k[0]) + "</i></button>";
+    }).join("");
+    var q = $("gsearch").value.trim().toLowerCase();
+    var rows = GL.filter(function (g) { return (GF === "all" || g.kind === GF) && (!q || [g.name, g.email, g.code, g.list].join(" ").toLowerCase().indexOf(q) >= 0); });
+    var inside = rows.filter(function (g) { return g.nights.some(function (x) { return x.in; }); }).length;
+    say("gcount", rows.length ? rows.length + " shown" + (inside ? " · " + inside + " checked in" : "") : "");
+    $("guests").innerHTML = rows.length ? rows.map(function (g) {
+      var badges = g.nights.map(function (x) { return '<em class="nt' + (x.in ? " in" : "") + '">' + esc(x.label.split(" ")[0]) + (x.in ? " ✓" : "") + "</em>"; }).join("");
+      return '<div class="person k-' + g.kind + '"><div><b>' + esc(g.name || "No name") + ' <small class="kind">' + KLABEL[g.kind] + "</small></b>" +
+        '<span class="mono">' + esc(g.type || "") + (g.list && g.kind !== "artist" ? " · " + esc(g.list) + "'s list" : "") + " · " + esc(g.code) + (g.email ? " · " + esc(g.email) : "") + (g.phone ? " · " + esc(g.phone) : "") + "</span>" +
+        '<span class="nts">' + badges + "</span></div>" +
+        '<span class="pa">' + (g.email ? '<button type="button" data-resend="' + esc(g.ticket_id) + '">Resend</button>' : "") +
+        (g.comp && g.kind !== "artist" ? '<button type="button" data-void="' + esc(g.ticket_id) + '">Remove</button>' : "") + "</span></div>";
+    }).join("") : '<div class="empty">' + (GL.length ? "No one matches." : "No one yet.") + "</div>";
+  }
+  $("gfilter").addEventListener("click", function (e) { var b = e.target.closest("[data-k]"); if (b) { GF = b.getAttribute("data-k"); drawList(); } });
+  $("gsearch").addEventListener("input", drawList);
+  $("gadd").addEventListener("click", function () { var f = $("gf"); f.hidden = !f.hidden; $("gadd").textContent = f.hidden ? "+ Add to guest list" : "Close"; if (!f.hidden) $("gname").focus(); });
   // Same checks as checkout: full name, a real email (with a nudge for common typos), a reachable phone.
   var FIX = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gmail.co": "gmail.com", "gmail.con": "gmail.com", "yaho.com": "yahoo.com", "yahoo.con": "yahoo.com", "hotmial.com": "hotmail.com", "iclod.com": "icloud.com", "icloud.con": "icloud.com", "outlok.com": "outlook.com" };
   function checkEmail() {

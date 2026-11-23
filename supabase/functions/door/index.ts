@@ -170,12 +170,24 @@ Deno.serve(async (req) => {
     });
   }
 
-  // ---- guest list: comps are real tickets that scan, but never count toward sales or tiers ----
+  // ---- door list: every valid ticket for the show (paid, guest list, artists, artists' guests) ----
   if (a === "guests") {
-    const { data: rows } = await db.from("tickets").select("id,code,holder_name,email,type_id,order_id,status").eq("event_id", ev.id).eq("is_comp", true).eq("status", "valid").order("holder_name");
-    const { data: orders } = await db.from("ticket_orders").select("id,comp_list,phone").in("id", [...new Set((rows || []).map((r) => r.order_id))]);
-    return ok({ guests: (rows || []).map((r) => { const o = orders?.find((x) => x.id === r.order_id); return { ticket_id: r.id, code: r.code, name: r.holder_name, email: r.email, type: typeOf(r.type_id)?.name,
-      list: o?.comp_list || null, phone: o?.phone || null }; }) });
+    const { data: rows } = await db.from("tickets").select("id,code,holder_name,email,type_id,order_id,status,is_comp").eq("event_id", ev.id).eq("status", "valid").order("holder_name").limit(5000);
+    // Whole-show lookups (not long id lists), so a big list stays one quick request.
+    const [{ data: orders }, { data: scans }] = await Promise.all([
+      db.from("ticket_orders").select("id,comp_list,phone,artist_invite_id").eq("event_id", ev.id).in("status", ["paid", "comp"]).limit(5000),
+      db.from("ticket_scans").select("ticket_id,night_id").in("night_id", nights.map((n) => n.id)).limit(10000),
+    ]);
+    const om = new Map((orders || []).map((o) => [o.id, o]));
+    const inN = new Map<string, string[]>();
+    for (const s of scans || []) inN.set(s.ticket_id, [...(inN.get(s.ticket_id) || []), s.night_id]);
+    return ok({ guests: (rows || []).filter((r) => typeOf(r.type_id)?.slug !== "test").map((r) => {
+      const o = om.get(r.order_id), ty = typeOf(r.type_id);
+      const kind = ty?.slug === "artist" ? "artist" : r.is_comp && o?.artist_invite_id ? "artist_guest" : r.is_comp ? "guest" : "paid";
+      return { ticket_id: r.id, code: r.code, name: r.holder_name, email: r.email, type: ty?.name, kind, comp: r.is_comp,
+        list: o?.comp_list || null, phone: o?.phone || null,
+        nights: (ty?.night_ids || []).map((id) => ({ label: nights.find((n) => n.id === id)?.label || "", in: (inN.get(r.id) || []).includes(id) })) };
+    }) });
   }
 
   if (a === "comp") {
