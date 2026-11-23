@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/studio.css">
+<!--CONFIG-->
+<title>Page studio · Subduction</title>
+</head>
+<body class="studio">
+<header class="bar">
+  <span class="mono brand">Page studio</span>
+  <label class="sr" for="show">Show</label><select id="show"><option value="">Pick a show…</option></select>
+  <span class="status mono" id="status" role="status"></span>
+  <span class="grow"></span>
+  <div class="seg" role="group" aria-label="Preview size"><button type="button" id="vPhone" aria-pressed="true">Phone</button><button type="button" id="vWide" aria-pressed="false">Wide</button></div>
+  <a class="ghostbtn" id="openPreview" target="_blank" rel="noopener" hidden>Open preview</a>
+  <button type="button" class="ghostbtn" id="save" disabled>Save draft</button>
+  <button type="button" class="btn small" id="publish" disabled>Publish</button>
+</header>
+
+<div class="signin" id="signin" hidden><p class="lead">Sign in on the <a href="admin.html">staff page</a> first, then come back here. Same sign-in, same device.</p></div>
+
+<main class="split" id="app" hidden>
+  <section class="stage"><div class="frame" id="frameWrap"><iframe id="preview" title="Page preview"></iframe></div></section>
+  <aside class="panel" id="panel">
+    <p class="hint" id="empty">Pick a show at the top. You'll see its page here, and every change shows up in the preview as you make it.</p>
+    <div id="editor" hidden>
+      <details open><summary>Sections <small>(page order)</small></summary>
+        <div id="sections"></div>
+        <div class="row"><label class="sr" for="addType">Add a section</label><select id="addType"></select><button type="button" class="ghostbtn" id="addBtn">Add section</button></div>
+      </details>
+      <details open><summary>Colors &amp; fonts</summary><div id="theme"></div></details>
+      <details><summary>Art</summary><p class="hint">Paste links to the show's art (from the asset uploads or the site's assets folder). Anything from elsewhere is ignored.</p><div id="art"></div></details>
+      <details><summary>Custom styling <small>(this show only)</small></summary>
+        <p class="hint">For the last few percent the sections can't do. Can't load anything from outside.</p>
+        <label class="sr" for="css">Custom CSS</label><textarea id="css" spellcheck="false" rows="8"></textarea></details>
+      <details><summary>Start from another show's style</summary>
+        <p class="hint">Copies the look (colors, fonts, frames, section order). Not the art or words.</p>
+        <div class="row"><label class="sr" for="fromShow">Show to copy</label><select id="fromShow"></select><button type="button" class="ghostbtn" id="fromBtn">Copy style</button></div></details>
+      <details><summary>Page description <small>(advanced)</small></summary>
+        <p class="hint">The whole page as text. This is what Claude reads and writes. Paste a new one and press Apply.</p>
+        <label class="sr" for="raw">Page description</label><textarea id="raw" spellcheck="false" rows="14"></textarea>
+        <button type="button" class="ghostbtn" id="applyRaw">Apply</button></details>
+      <p class="hint" id="pubinfo"></p>
+    </div>
+  </aside>
+</main>
+<script src="assets/stack.js"></script>
+<script src="assets/studio.js"></script>
+</body>
+</html>

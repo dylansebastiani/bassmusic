@@ -259,7 +259,9 @@
   (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
     data = d;
     // Shows without a page description yet keep using the original tickets page.
-    if (!d.page) { location.replace("tickets.html?e=" + encodeURIComponent(slug)); return; }
+    if (!d.page && !PREVIEW) { location.replace("tickets.html?e=" + encodeURIComponent(slug)); return; }
+    // A brand-new show in the studio: wait for the studio to send its first draft.
+    if (!d.page) { $("page").innerHTML = '<p class="msg">Waiting for the studio…</p>'; return; }
     render();
     var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid);
   }).catch(function (e) { $("page").innerHTML = '<p class="msg">' + (e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again.") + "</p>"; });
