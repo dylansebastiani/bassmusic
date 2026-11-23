@@ -90,7 +90,10 @@
       '<a class="sbx-dl" href="#">Download</a>' +
       '<button type="button" class="sbx-min" aria-label="Minimize player">' + I.min + "</button></div>";
     document.body.appendChild(el);
-    if (st.mini) { el.classList.add("mini"); $(".sbx-min").innerHTML = I.max; $(".sbx-min").setAttribute("aria-label", "Expand player"); }
+    // On the homepage and the artist page the bar starts tucked away, so it never covers the page's own buttons.
+    // Once someone opens or closes it, that choice is remembered.
+    var tucked = /^\/(index\.html|artists(\.html)?)?$/.test(location.pathname);
+    if (st.mini || (st.mini === undefined && tucked)) { el.classList.add("mini"); $(".sbx-min").innerHTML = I.max; $(".sbx-min").setAttribute("aria-label", "Expand player"); }
 
     $(".sbx-play").addEventListener("click", function () { if (audio.paused) play(); else audio.pause(); });
     $(".sbx-prev").addEventListener("click", function () { load(audio.currentTime > 3 ? i : i - 1, 0, true); });

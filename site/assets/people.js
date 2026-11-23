@@ -21,7 +21,7 @@
       row: function (r) { return who(r) + "<td>" + tag(r.kind, r.kind === "Bought") + "</td>" + td(r.from, "dim") + td(r.show) + td(r.belongs_to) + td(r.tickets, "num") + td(usd(r.paid), "num") + td(usd(r.fee), "num") + td(day(r.when), "dim num"); },
       csv: ["name", "email", "phone", "kind", "from", "show", "belongs_to", "tickets", "paid", "fee", "when"] },
     promoters: { label: "Promoters", what: "Every crew selling through Subduction, who is on their account, and whether their own Stripe is connected.",
-      head: ["Crew", "People", "Status", "Payouts", "Shows", "Tickets sold", "Link", "Added"],
+      head: ["Crew", "People", "Status", "Payouts", "Shows", "Tickets sold", "Show links", "Added"],
       row: function (r) { return who(r) + td(r.people, "dim") + "<td>" + tag(r.status, r.status === "active") + "</td>" + td(r.payouts) + td(r.shows, "num") + td(r.tickets_sold, "num") + td(r.link, "dim") + td(day(r.when), "dim num"); },
       csv: ["name", "email", "people", "status", "payouts", "shows", "tickets_sold", "link", "when"] },
     artists: { label: "Artists", what: "Artists booked on a show and sent an artist pass. \"Whose\" is the promoter who booked them.",

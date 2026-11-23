@@ -82,7 +82,9 @@ Deno.serve(async (req) => {
     name: c.name, email: c.contact_email,
     people: (staff.data ?? []).filter((s) => s.company_id === c.id).map((s) => (sub.get(s.subscriber_id)?.email || "?") + " (" + s.role + ")").join(", "),
     status: c.status, payouts: c.legacy_stripe ? "Original Stripe account" : c.stripe_charges_enabled ? "Own Stripe connected" : "Stripe not connected yet",
-    shows: shows[c.id] || 0, tickets_sold: sold[c.id] || 0, link: "subduction.art/" + c.slug, when: c.created_at,
+    shows: shows[c.id] || 0, tickets_sold: sold[c.id] || 0,
+    // One link per show (a show's address is its own name, not the crew's).
+    link: (events.data ?? []).filter((e) => e.company_id === c.id).map((e) => "subduction.art/" + e.slug).join(", "), when: c.created_at,
   }));
   const artists = (invites.data ?? []).map((i) => ({
     name: i.name, full_name: i.full_name, email: i.email, phone: i.phone,
