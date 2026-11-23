@@ -223,10 +223,9 @@ input::placeholder{color:#8a8486}
   .hero{padding-top:56px;gap:14px;padding-bottom:36px}
   .hero h1{font-size:clamp(44px,12.4vw,64px);max-width:none;line-height:.9}
   .hero .lead{font-size:15px}
-  .hero-art{height:min(46svh,98vw);margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px)));overflow:visible;-webkit-mask-image:none;mask-image:none;
-    background:radial-gradient(ellipse 55% 50% at 50% 48%,rgba(182,255,0,.13),rgba(182,255,0,0) 70%)}
-  .hero-art picture{display:block;height:100%}
-  .hero-art img{object-fit:contain;object-position:50% 50%;transform:none}
+  .hero-art{height:auto;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) -34px;overflow:hidden;-webkit-mask-image:none;mask-image:none;max-height:54svh}
+  .hero-art picture{display:block}
+  .hero-art img{width:100%;height:auto;object-fit:cover;object-position:50% 0;transform:none}
   /* section art = a clean strip centred in the gap between sections */
   .art,.art.wide,.art.tall{height:auto;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) 28px;overflow:hidden;-webkit-mask-image:none;mask-image:none}
   .art picture{display:block}
