@@ -59,8 +59,10 @@
     var evs = d.events.slice().sort(function (a, b) { return new Date(b.starts_at || 0) - new Date(a.starts_at || 0); });
     $("shows").innerHTML = evs.length ? evs.map(function (e) {
       var up = e.starts_at && new Date(e.ends_at || e.starts_at) > new Date();
-      return '<button type="button" class="card showcard' + (e.is_active ? "" : " off") + '" data-open="' + esc(e.slug) + '">' +
-        '<span class="chips"><span class="chip' + (up ? "" : " alt") + '">' + (up ? "Upcoming" : esc(e.kind)) + "</span>" + (e.is_active ? "" : '<span class="chip alt">off</span>') + "</span>" +
+      // Only past shows are dimmed. "Switched off" just keeps a show off the members' page and
+      // stickers (a secret-location show stays off so its venue isn't shown); tickets still sell.
+      return '<button type="button" class="card showcard' + (up ? "" : " off") + '" data-open="' + esc(e.slug) + '">' +
+        '<span class="chips"><span class="chip' + (up ? "" : " alt") + '">' + (up ? "Upcoming" : "Past") + "</span>" + (e.is_active || !up ? "" : '<span class="chip alt">Not on member page</span>') + "</span>" +
         "<h3>" + esc(e.name) + "</h3>" + (e.starts_at ? '<div class="when">' + esc(fmt(e.starts_at)) + "</div>" : "") +
         (e.city ? '<div class="where mono">' + esc(e.city) + "</div>" : "") + '<span class="go mono">Open →</span></button>';
     }).join("") : '<div class="empty">No shows yet. Add one below.</div>';
