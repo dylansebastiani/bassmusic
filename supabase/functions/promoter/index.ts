@@ -67,7 +67,8 @@ Deno.serve(async (req) => {
 
   if (a === "me") {
     const ids = st.owner ? null : st.companies.map((c) => c.id);
-    let cq = db.from("companies").select("id,slug,name,status,brand,stripe_charges_enabled,legacy_stripe").order("created_at");
+    // Promoter companies only. The original account (T.O.F.T.U.) is run from the staff page, not here.
+    let cq = db.from("companies").select("id,slug,name,status,brand,stripe_charges_enabled,legacy_stripe").eq("legacy_stripe", false).order("created_at", { ascending: false });
     if (ids) cq = cq.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
     const { data: cos } = await cq;
     const { data: shows } = await db.from("events").select("id,slug,name,company_id,review_status,review_note,sales_open,kit,page,page_draft,city,venue,age,location_secret,address_reveal_at,starts_at")
@@ -94,14 +95,18 @@ Deno.serve(async (req) => {
   if (a === "company-create") {
     if (!st.owner) return no("Only Subduction can add companies.", 403);
     const name = clean(b.name, 80) || "", email = (clean(b.owner_email, 254) || "").toLowerCase();
-    if (!name || !EMAIL_RE.test(email)) return no("Company name and the owner's email, please.");
+    // Their email is optional: Dylan can set a promoter up himself and add their email later.
+    if (!name) return no("What's the crew called?");
+    if (email && !EMAIL_RE.test(email)) return no("That email doesn't look right.");
     let slug = slugify(name) || "crew";
     if ((await db.from("companies").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
-    const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email }).select("id,slug").single();
+    const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email || null }).select("id,slug").single();
     if (error || !co) return no("Couldn't add that company.", 500);
-    let { data: m } = await db.from("subscribers").select("id").eq("email", email).maybeSingle();
-    if (!m) m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id").single()).data;
-    if (m) await db.from("company_staff").insert({ company_id: co.id, subscriber_id: m.id, role: "owner" });
+    if (email) {
+      let { data: m } = await db.from("subscribers").select("id").eq("email", email).maybeSingle();
+      if (!m) m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id").single()).data;
+      if (m) await db.from("company_staff").insert({ company_id: co.id, subscriber_id: m.id, role: "owner" });
+    }
     return ok({ company: co });
   }
 
