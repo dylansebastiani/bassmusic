@@ -60,3 +60,11 @@ html,body{background:#050505}
 .toggle{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:16px}
 .toggle input{width:22px;height:22px}
 .note{color:var(--mute);font-size:13px;margin-top:8px}
+
+.wiz{display:flex;gap:6px;margin:4px 0 12px}.wiz i{flex:1;height:4px;background:var(--line)}.wiz i.on{background:var(--hot)}
+.steps.plain li{cursor:default}.steps li[data-href]{cursor:pointer}
+.pro details{border:1px solid var(--line);margin-top:14px;padding:0 12px}.pro details[open]{padding-bottom:12px}
+.pro summary{cursor:pointer;padding:14px 0;font-size:15px;color:var(--fg)}
+.pro .btn+.linkbtn,.pro .btn+a.linkbtn{display:block;width:100%;text-align:center;margin-top:8px;padding:12px 0}
+.pro a.linkbtn{display:block;text-align:center;color:var(--mute);margin-top:8px;padding:12px 0}
+.pro a.btn{display:block;text-align:center;text-decoration:none}
