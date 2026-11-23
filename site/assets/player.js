@@ -49,7 +49,7 @@
     probe.onerror = function () { art.style.backgroundImage = k.artwork_url ? 'url("' + k.artwork_url.replace(/"/g, "%22") + '")' : ""; };
     if (k.slug && !own) probe.src = thumb; else probe.onerror();
     var dl = $(".sbx-dl");
-    dl.hidden = !k.downloadable || !k.code;
+    dl.hidden = !k.downloadable || !(k.code || k.dl);
     dl.href = "/t?c=" + encodeURIComponent(k.code || "");
     dl.setAttribute("aria-label", "Download " + k.title + " free");
   }
@@ -105,7 +105,7 @@
     bar.addEventListener("pointerdown", function (e) { seek(e); bar.setPointerCapture(e.pointerId); bar.onpointermove = seek; });
     bar.addEventListener("pointerup", function () { bar.onpointermove = null; save(); });
     bar.addEventListener("keydown", function (e) { if (e.key === "ArrowRight") audio.currentTime += 5; if (e.key === "ArrowLeft") audio.currentTime -= 5; });
-    $(".sbx-dl").addEventListener("click", save);
+    $(".sbx-dl").addEventListener("click", function (e) { save(); var k = tracks[i]; if (k && k.dl) { e.preventDefault(); showDownload(k); } });
 
     audio.addEventListener("play", function () { sync(); save(); });
     audio.addEventListener("pause", function () { sync(); save(); });
@@ -132,15 +132,28 @@
   }
   // A show's page plays that show's own playlist when its promoter uploaded one; everywhere else
   // (and on shows without one) it plays Subduction's tracks. Either way the order is a fresh shuffle.
-  var showSlug = /(^|\/)show(\.html)?$/.test(location.pathname) ? (new URLSearchParams(location.search).get("e") || "").replace(/[^a-z0-9-]/gi, "").toLowerCase() : "";
-  function getTracks(url) { return fetch(url).then(function (r) { return r.ok ? r.json() : { tracks: [] }; }).then(function (j) { return j.tracks || []; }).catch(function () { return []; }); }
+  var qs = new URLSearchParams(location.search), path = location.pathname.replace(/\/+$/, "");
+  var showSlug = /(^|\/)show(\.html)?$/.test(path) ? qs.get("e") || "" : /(^|\/)(tickets(\.html)?|underground)$/.test(path) ? qs.get("e") || "underground" : "";
+  showSlug = showSlug.replace(/[^a-z0-9-]/gi, "").toLowerCase();
+  function getJson(url) { return fetch(url).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }); }
   function shuffle(list) {
     for (var a = list.length - 1; a > 0; a--) { var b = Math.floor(Math.random() * (a + 1)), t = list[a]; list[a] = list[b]; list[b] = t; }
     return list;
   }
   function fetchList() {
-    var own = showSlug ? getTracks(FN + "/playlist?show=" + encodeURIComponent(showSlug)) : Promise.resolve([]);
-    return own.then(function (list) { return list.length ? list : getTracks(FN + "/track?player=1"); }).then(shuffle);
+    var own = showSlug ? getJson(FN + "/playlist?show=" + encodeURIComponent(showSlug)) : Promise.resolve({});
+    return own.then(function (o) {
+      var mine = o.tracks || [];
+      // The show's own tracks only, when its promoter uploaded a playlist. Otherwise Subduction's tracks, plus anything the show's artists added.
+      if (mine.length && !o.mix) return mine;
+      return getJson(FN + "/track?player=1").then(function (c) { return mine.concat(c.tracks || []); });
+    }).then(shuffle);
+  }
+  // A show track's free download: members get the file; everyone else joins first (email first, like every other track).
+  function showDownload(k) {
+    var key = null; try { key = localStorage.getItem("stack_member"); } catch (e) {}
+    if (!key) { location.href = "/?src=dl#fans"; return; }
+    getJson(FN + "/playlist?a=dl&id=" + encodeURIComponent(k.dl) + "&t=" + encodeURIComponent(key)).then(function (r) { location.href = r.url || "/?src=dl#fans"; });
   }
 
   fetchList().then(function (list) {

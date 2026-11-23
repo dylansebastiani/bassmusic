@@ -268,8 +268,11 @@
           (full ? "<p class=note>That's the most a show can have.</p>" : '<div class=drop id=d-track><span class=thumb></span><span><b>Add a track</b><small>MP3, WAV or M4A, up to 40 MB</small><small class=st>Tap to add</small><div class=bar2></div></span><input type=file accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Add a track"></div>') +
           "<p class=note>Only upload music you have the right to share.</p>"
           : "<p class=note>Your page plays a random mix of Subduction's tracks. Nothing to upload.</p>") +
-        '<button class=btn type=button id=save>Save music</button><p class=msg role=status></p>';
+        '<button class=btn type=button id=save>Save music</button><p class=msg role=status></p>' +
+        "<h2>From your artists</h2>" + ((pl.artist_tracks || []).length ? pl.artist_tracks.map(function (t) { return "<div class=card><b>" + esc(t.title) + "</b><small>" + esc(t.artist || "") + (t.free_download ? " · free download on" : "") + '</small><button type=button class=linkbtn data-arm="' + esc(t.id) + '">Remove</button></div>'; }).join("")
+          : "<p class=note>Artists with an artist pass can add their own tracks. They show up here and go straight into the mix.</p>");
       wireTop();
+      app.querySelectorAll("[data-arm]").forEach(function (b) { b.onclick = function () { keep(); b.disabled = true; api(PL, { a: "artist-remove", show: s.id, id: b.getAttribute("data-arm") }).then(function (r) { pl.artist_tracks = r.artist_tracks; draw(); }).catch(function (x) { say(x.message, true); }); }; });
       app.querySelectorAll("[data-mode]").forEach(function (b) { b.onclick = function () { keep(); pl.mode = b.getAttribute("data-mode"); draw(); }; });
       app.querySelectorAll("[data-rm]").forEach(function (b) { b.onclick = function () { keep(); pl.tracks.splice(+b.getAttribute("data-rm"), 1); draw(); }; });
       var inp = app.querySelector("#d-track input"); if (inp) inp.onchange = function () { add(inp); };

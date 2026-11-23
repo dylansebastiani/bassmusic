@@ -73,7 +73,7 @@
     if (!checkEmail($("cemail"), $("cemailh"))) return ($("cmsg").textContent = "Enter the email your pass should go to.");
     if (!checkPhone($("cphone"), $("cphoneh"))) return ($("cmsg").textContent = "Enter a phone number we can reach you at.");
     $("cgo").disabled = true; $("cmsg").textContent = "Making your pass...";
-    call("claim", { name: name, email: $("cemail").value.trim().toLowerCase(), phone: $("cphone").value }).then(function (d) { draw(d); scrollTo(0, 0); })
+    call("claim", { name: name, email: $("cemail").value.trim().toLowerCase(), phone: $("cphone").value }).then(function (d) { draw(d); loadTracks(d); scrollTo(0, 0); })
       .catch(function (err) { $("cgo").disabled = false; $("cmsg").textContent = err.message; });
   });
 
@@ -103,5 +103,48 @@
       .catch(function (err) { $("pmsg").textContent = err.message; $("resend").disabled = false; });
   });
 
-  call("get").then(draw).catch(function (err) { $("msg").textContent = err.message; });
+  // ---- your tracks: add music to this show's playlist ----
+  var PL = (C.supabaseUrl || "") + "/functions/v1/playlist";
+  function pl(a, body) {
+    var o = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ a: a, k: k }, body)) } : {};
+    return fetch(PL + (body ? "" : "?a=" + a + "&k=" + k), o).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+  }
+  function drawTracks(d) {
+    var full = d.tracks.length >= d.max;
+    $("tcount").textContent = d.tracks.length + " of " + d.max;
+    $("tf").hidden = full; $("tfull").hidden = !full;
+    $("tlist").innerHTML = d.tracks.length ? d.tracks.map(function (t) {
+      return '<div class="guest" style="flex-wrap:wrap;gap:8px"><div style="flex:1 0 100%"><b>' + esc(t.title) + "</b><span>In the mix · free download " + (t.free_download ? "on" : "off") + "</span></div>" +
+        '<button type="button" data-free="' + esc(t.id) + '" data-on="' + (t.free_download ? "1" : "") + '">' + (t.free_download ? "Turn off download" : "Make it free") + '</button><button type="button" data-trm="' + esc(t.id) + '">Remove</button></div>';
+    }).join("") : '<div class="empty">No tracks yet.</div>';
+  }
+  $("tfile").addEventListener("change", function () { var f = $("tfile").files[0]; if (f && !$("ttitle").value) $("ttitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80); });
+  $("tlist").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    var job = b.hasAttribute("data-trm") ? pl("artist-remove", { id: b.getAttribute("data-trm") }) : b.hasAttribute("data-free") ? pl("artist-set", { id: b.getAttribute("data-free"), free_download: !b.getAttribute("data-on") }) : null;
+    if (!job) return; b.disabled = true;
+    job.then(drawTracks).catch(function (err) { $("tmsg").textContent = err.message; b.disabled = false; });
+  });
+  $("tf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = $("tfile").files[0], title = $("ttitle").value.trim(), ext = f ? (f.name.split(".").pop() || "").toLowerCase() : "";
+    if (!f) { $("tmsg").textContent = "Pick a track first."; return; }
+    if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { $("tmsg").textContent = "Use an MP3, WAV or M4A."; return; }
+    if (f.size > 40 * 1048576) { $("tmsg").textContent = "That track is over 40 MB. Export an MP3 instead."; return; }
+    if (!title) { $("tmsg").textContent = "Give it a title."; $("ttitle").focus(); return; }
+    $("tgo").disabled = true; $("tmsg").textContent = "Uploading… 0%";
+    pl("artist-upload-url", { ext: ext }).then(function (r) {
+      return new Promise(function (ok, no) {
+        var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
+        x.upload.onprogress = function (ev) { if (ev.lengthComputable) $("tmsg").textContent = "Uploading… " + Math.round(ev.loaded / ev.total * 100) + "%"; };
+        x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); }; x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
+        x.send(f);
+      });
+    }).then(function (path) { return pl("artist-add", { path: path, title: title, free_download: $("tfree").checked }); })
+      .then(function (d) { $("tf").reset(); $("tgo").disabled = false; $("tmsg").textContent = "Added. It's in the mix."; drawTracks(d); })
+      .catch(function (err) { $("tgo").disabled = false; $("tmsg").textContent = err.message; });
+  });
+  function loadTracks(d) { if (d && d.artist && d.artist.claimed) pl("artist").then(drawTracks).catch(function () {}); return d; }
+
+  call("get").then(function (d) { draw(d); loadTracks(d); }).catch(function (err) { $("msg").textContent = err.message; });
 })();
