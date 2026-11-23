@@ -186,6 +186,7 @@ input::placeholder{color:#8a8486}
 .art{order:-1;position:relative;z-index:0;pointer-events:none;margin:-24px calc(-1 * max(18px,env(safe-area-inset-right,0px))) 4px;height:96vw;
   -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 80%,transparent 100%),linear-gradient(to right,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-composite:source-in;
   mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 80%,transparent 100%),linear-gradient(to right,transparent 0,#000 12%,#000 88%,transparent 100%);mask-composite:intersect}
+.art picture,.hero-art picture{display:block;width:100%;height:100%}
 .art img{width:100%;height:100%;object-fit:contain;object-position:50% 50%;display:block}
 .art.wide{height:62vw;margin-bottom:4px}
 .hero-art{position:absolute;inset:0;z-index:0;margin:0;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent 100%);mask-image:linear-gradient(to bottom,#000 55%,transparent 100%)}
@@ -217,20 +218,20 @@ input::placeholder{color:#8a8486}
 @media (max-width:899px){
   .bar{background:#000;border-bottom:1px solid #1c1c1c;padding-top:calc(env(safe-area-inset-top,0px) + 8px);padding-bottom:8px}
   .bar .go{font-size:15px;padding:7px 12px 5px}
-  .sec{padding-top:0;padding-bottom:56px;gap:16px}
+  .sec{padding-top:0;padding-bottom:40px;gap:16px}
   .sec h2{font-size:clamp(38px,10.4vw,56px);max-width:none}
-  .hero{padding-top:52px;gap:14px;padding-bottom:40px}
+  .hero{padding-top:56px;gap:14px;padding-bottom:36px}
   .hero h1{font-size:clamp(44px,12.4vw,64px);max-width:none;line-height:.9}
   .hero .lead{font-size:15px}
-  .hero-art{height:min(50svh,84vw);margin-bottom:0;overflow:hidden}
+  .hero-art{height:min(46svh,98vw);margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px)));overflow:visible;-webkit-mask-image:none;mask-image:none;
+    background:radial-gradient(ellipse 55% 50% at 50% 48%,rgba(182,255,0,.13),rgba(182,255,0,0) 70%)}
+  .hero-art picture{display:block;height:100%}
   .hero-art img{object-fit:contain;object-position:50% 50%;transform:none}
-  /* section art = a thin strip that breaks up the page, never beside the words */
-  .art,.art.wide,.art.tall{height:30vw;margin:8px calc(-1 * max(18px,env(safe-area-inset-right,0px))) 36px;overflow:hidden;
-    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 22%,#000 78%,transparent 100%),linear-gradient(to right,transparent 0,#000 10%,#000 90%,transparent 100%);-webkit-mask-composite:source-in;
-    mask-image:linear-gradient(to bottom,transparent 0,#000 22%,#000 78%,transparent 100%),linear-gradient(to right,transparent 0,#000 10%,#000 90%,transparent 100%);mask-composite:intersect}
-  .art img{object-fit:cover;object-position:var(--pos,50% 50%);transform:none}
-  .art.tall img{transform:none}
-  .doors{margin-bottom:56px}
+  /* section art = a clean strip centred in the gap between sections */
+  .art,.art.wide,.art.tall{height:auto;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) 28px;overflow:hidden;-webkit-mask-image:none;mask-image:none}
+  .art picture{display:block}
+  .art img,.art.tall img{width:100%;height:auto;object-fit:fill;transform:none}
+  .doors{margin-bottom:40px}
   .doors b{font-size:22px}
   .price-big{font-size:clamp(84px,24vw,120px)}
   .price-big small{display:block;font-size:.2em;margin:.5em 0 0;color:#cfc9c5;letter-spacing:.12em}
@@ -283,7 +284,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 
 <!-- 1. The pitch, for everyone -->
 <section class="sec hero" id="top" aria-label="Subduction">
-  <figure class="hero-art" aria-hidden="true"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></figure>
+  <figure class="hero-art" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-hero-m.webp"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></picture></figure>
   <p class="kick rv">Ticketing for the underground</p>
   <h1 class="disp rv">Your show.<br>Your page.<br>Your <em>money.</em></h1>
   <p class="lead rv">Tickets for underground shows. Promoters get a custom page in their own brand and keep their money. Artists get a free page. Fans get free music.</p>
@@ -310,7 +311,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
   </ol>
   </div>
-  <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy" style="--pos:50% 66%"></figure>
+  <figure class="art tall" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-promoters-m.webp"><img src="assets/art-promoters.webp" alt="" loading="lazy"></picture></figure>
   </div>
   <div class="yours rv">
     <h3 class="disp">Your brand. <em>Not ours.</em></h3>
@@ -346,7 +347,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   </div>
   <p class="fine rv">Card processing included for everyone. Published US rates, Nov 2026: Eventbrite 3.7% + $1.79 plus 2.9%; Posh 10% + $0.99; DICE 13%; Subduction $1.50 plus Stripe's 2.9% + 30¢.</p>
   </div>
-  <figure class="art wide" aria-hidden="true"><img src="assets/art-pricing.webp" alt="" loading="lazy" style="--pos:50% 50%"></figure>
+  <figure class="art wide" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-pricing-m.webp"><img src="assets/art-pricing.webp" alt="" loading="lazy"></picture></figure>
   </div>
 </section>
 
@@ -363,7 +364,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   </ul>
   <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the list</a></div>
   </div>
-  <figure class="art wide" aria-hidden="true"><img src="assets/art-artists.webp" alt="" loading="lazy" style="--pos:50% 50%"></figure>
+  <figure class="art wide" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-artists-m.webp"><img src="assets/art-artists.webp" alt="" loading="lazy"></picture></figure>
   </div>
 </section>
 
@@ -404,7 +405,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div class="proof" id="proof" hidden></div>
   </div>
   </div>
-  <figure class="art tall" aria-hidden="true"><img src="assets/art-fans.webp" alt="" loading="lazy" style="--pos:50% 30%"></figure>
+  <figure class="art tall" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-fans-m.webp"><img src="assets/art-fans.webp" alt="" loading="lazy"></picture></figure>
   </div>
 </section>
 
