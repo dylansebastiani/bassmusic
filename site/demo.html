@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://hxfuelulxsituzcgsvhg.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Try a test ticket · Subduction</title>
+<meta name="description" content="Get a test ticket and see exactly what your fans get and what you see. Takes one minute.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Try a test ticket · Subduction">
+<meta property="og:description" content="Get a test ticket and see exactly what your fans get and what you see. Takes one minute.">
+<meta property="og:image" content="https://subduction.art/assets/og.jpg">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/demo.css">
+<!--CONFIG-->
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Subduction home"><img src="assets/logo.png" alt=""><b>Subduction</b></a>
+  <span class="steps" id="steps" aria-label="Progress"><i class="on"></i><i></i><i></i><i></i></span>
+</header>
+<main>
+  <!-- 1: the show page -->
+  <section class="step" id="s1">
+    <p class="kick">Step 1 of 4 · what your fans see</p>
+    <h1>This is your show page.</h1>
+    <p class="lead">Your art, your colors, your name on it. Grab a test ticket and see the rest.</p>
+    <div class="screen show">
+      <div class="addr">subduction.art/<b>yourshow</b></div>
+      <div class="burst" id="burst"></div>
+      <div class="sname">Demo Night</div>
+      <div class="sdate">Sat Mar 13</div>
+      <div class="sinfo">Your venue · Your city · 18+</div>
+      <div class="tcard"><div><b>General Admission</b><span>Test ticket</span></div><strong>$0</strong></div>
+    </div>
+    <form id="form" novalidate>
+      <label for="name">Full name</label><input id="name" type="text" autocomplete="name" maxlength="80" required>
+      <label for="crew">Crew or promoter name</label><input id="crew" type="text" autocomplete="organization" maxlength="80" required>
+      <label for="email">Email (your test ticket goes here)</label><input id="email" type="email" autocomplete="email" inputmode="email" maxlength="254" autocapitalize="off" spellcheck="false" required>
+      <label for="phone">Phone</label><input id="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="(309) 555-0123" required>
+      <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn" id="go" type="submit">Get my test ticket</button>
+      <p class="msg" id="msg" role="status"></p>
+      <p class="fine">We email your test ticket and may reach out about your show. <a href="privacy.html">Privacy</a>.</p>
+    </form>
+  </section>
+
+  <!-- 2: the ticket -->
+  <section class="step" id="s2" hidden>
+    <p class="kick">Step 2 of 4 · what your buyer gets</p>
+    <h1>Their ticket. Your name on it.</h1>
+    <p class="lead">We just emailed this to <b id="toEmail"></b>. That's the email every buyer gets the second they pay.</p>
+    <div class="screen tk">
+      <div class="by" id="tkBy"></div>
+      <div class="tname">Demo Night</div>
+      <div class="ttype">General Admission</div>
+      <div class="tholder" id="tkName"></div>
+      <div class="qr"><img id="qr" alt="Test ticket QR code" width="300" height="300"></div>
+      <div class="code" id="tkCode"></div>
+    </div>
+    <button class="btn next" data-to="3" type="button">Next: your side</button>
+  </section>
+
+  <!-- 3: the promoter side -->
+  <section class="step" id="s3" hidden>
+    <p class="kick">Step 3 of 4 · what you see</p>
+    <h1>Every buyer is yours.</h1>
+    <p class="lead">Name, email and phone for every ticket sold. The money goes straight to your own Stripe.</p>
+    <div class="screen dash">
+      <div class="tiles"><div><b>1</b><span>Sold</span></div><div><b id="dIn">0</b><span>Checked in</span></div><div><b>100%</b><span>Yours</span></div></div>
+      <div class="rowh">Buyers</div>
+      <div class="buyer"><b id="dName"></b><span id="dEmail"></span><span id="dPhone"></span><em id="dCode"></em></div>
+      <div class="rowh">Your list</div>
+      <div class="note">Every buyer lands on your list. Email them about your next show.</div>
+    </div>
+    <button class="btn next" data-to="4" type="button">Next: the door</button>
+  </section>
+
+  <!-- 4: the door -->
+  <section class="step" id="s4" hidden>
+    <p class="kick">Step 4 of 4 · the door</p>
+    <h1>Scan them in with your phone.</h1>
+    <p class="lead">No scanner to rent. Open the door page, point your camera, done. Try it on your test ticket.</p>
+    <div class="screen door" id="door">
+      <div class="finder"><img id="qr2" alt="" width="220" height="220"></div>
+      <div class="result" id="result" hidden></div>
+    </div>
+    <button class="btn" id="scan" type="button">Scan my ticket</button>
+    <div class="close" id="close" hidden>
+      <h2>That's the whole thing.</h2>
+      <ul>
+        <li>Your own custom page at subduction.art/yourshow</li>
+        <li>Tickets, emails and a door app in your brand</li>
+        <li>Money goes to your own Stripe</li>
+        <li>Buyers pay a flat $1.50 per ticket. You pay nothing.</li>
+      </ul>
+      <a class="btn" href="promoter.html">Put my show on it</a>
+    </div>
+  </section>
+</main>
+<script src="assets/demo.js"></script>
+</body>
+</html>

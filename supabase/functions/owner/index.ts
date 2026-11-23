@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   const admin = await requireAdmin(req);
   if (!admin) return json({ error: "Sign in again." }, 401);
 
-  const [subs, orders, tix, invites, cos, staff, events, wait] = await Promise.all([
+  const [subs, orders, tix, invites, cos, staff, events, wait, demo] = await Promise.all([
     db.from("subscribers").select("id,email,first_name,phone,zip,source,event_id,referred_by,utm_source,utm_campaign,status,email_confirmed_at,created_at").neq("status", "deleted").order("created_at", { ascending: false }).limit(10000),
     db.from("ticket_orders").select("id,event_id,company_id,status,email,name,phone,total_cents,platform_fee_cents,comp_list,ref,artist_invite_id,created_at,paid_at").in("status", ["paid", "comp"]).order("created_at", { ascending: false }).limit(10000),
     db.from("tickets").select("order_id").limit(50000),
@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
     db.from("company_staff").select("company_id,subscriber_id,role").limit(5000),
     db.from("events").select("id,slug,name,company_id,starts_at").limit(2000),
     db.from("artist_waitlist").select("email,artist_name,full_name,phone,created_at").order("created_at", { ascending: false }).limit(10000),
+    db.from("demo_leads").select("email,full_name,crew,phone,emailed_at,opened_at,scanned_at,created_at").order("created_at", { ascending: false }).limit(10000),
   ]);
-  const bad = [subs, orders, tix, invites, cos, staff, events, wait].find((r) => r.error);
+  const bad = [subs, orders, tix, invites, cos, staff, events, wait, demo].find((r) => r.error);
   if (bad) { console.error("owner", bad.error!.message); return json({ error: "Couldn't load. Try again." }, 500); }
 
   const ev = new Map((events.data ?? []).map((e) => [e.id, e]));
@@ -93,6 +94,10 @@ Deno.serve(async (req) => {
   }));
   const waitlist = (wait.data ?? []).map((w) => ({ name: w.artist_name, full_name: w.full_name, email: w.email, phone: w.phone, from: "Artist waitlist page", when: w.created_at }));
 
+  // Promoters who took the test ticket demo: sales leads. "Status" is how far they got.
+  const leads = (demo.data ?? []).map((d) => ({ name: d.crew, full_name: d.full_name, email: d.email, phone: d.phone, from: "Demo page",
+    status: d.scanned_at ? "Finished the demo" : d.opened_at ? "Opened the ticket" : d.emailed_at ? "Got the ticket" : "Signed up", when: d.created_at }));
+
   await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:people_view", meta: {} });
-  return json({ fans, buyers, promoters, artists, waitlist });
+  return json({ fans, buyers, promoters, artists, waitlist, leads });
 });

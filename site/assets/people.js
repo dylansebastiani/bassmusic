@@ -31,7 +31,11 @@
     waitlist: { label: "Artist waitlist", what: "Artists who signed up on the artist waitlist page. Email these first when artist pages open.",
       head: ["Artist", "Full name", "Came from", "Signed up"],
       row: function (r) { return who(r) + td(r.full_name) + td(r.from, "dim") + td(day(r.when), "dim num"); },
-      csv: ["name", "full_name", "email", "phone", "from", "when"] }
+      csv: ["name", "full_name", "email", "phone", "from", "when"] },
+    leads: { label: "Demo leads", what: "Promoters who took the test ticket demo. Call or email the ones who finished it first.",
+      head: ["Crew", "Full name", "How far they got", "Signed up"],
+      row: function (r) { return who(r) + td(r.full_name) + "<td>" + tag(r.status, r.status === "Finished the demo") + "</td>" + td(day(r.when), "dim num"); },
+      csv: ["name", "full_name", "email", "phone", "status", "from", "when"] }
   };
 
   function rows() {
