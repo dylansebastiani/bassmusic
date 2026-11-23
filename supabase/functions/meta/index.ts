@@ -9,8 +9,9 @@ Deno.serve(async (req) => {
   const slug = (new URL(req.url).searchParams.get("e") || "").slice(0, 80);
   let event = null;
   if (slug) {
-    const { data } = await db.from("events").select("slug,name,prize,venue,city").eq("slug", slug).eq("is_active", true).maybeSingle();
-    event = data;
+    const { data } = await db.from("events").select("slug,name,prize,venue,city,location_secret").eq("slug", slug).eq("is_active", true).maybeSingle();
+    // A secret-location show never sends its venue.
+    if (data) { const { location_secret, ...e } = data; event = location_secret ? { ...e, venue: null } : e; }
   }
   const { count } = await db.from("subscribers").select("id", { count: "exact", head: true }).eq("status", "active");
   const min = Number(await setting("social_proof_min", CONFIG.socialProofMin)) || 100;
