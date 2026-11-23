@@ -5,7 +5,7 @@
   var app = document.getElementById("app");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
-  var me = null, coId = "", draft = null, warns = {};
+  var me = null, coId = "", draft = null, warns = {}, flash = "";
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
@@ -17,6 +17,7 @@
   function go(h) { if (location.hash === h) route(); else location.hash = h; }
   function company() { return me.companies.find(function (c) { return c.id === coId; }) || me.companies[0]; }
   function showById(id) { return me.shows.find(function (s) { return s.id === id; }); }
+  function homeHref() { return me && me.owner ? "#co/" + coId : "#"; }
   function top(back) { return '<div class="top"><span>' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : "Subduction") + "</span>" + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>"; }
   function wireTop() { var o = document.getElementById("out"); if (o) o.onclick = signOut; }
 
@@ -53,19 +54,41 @@
       { key: "send", t: "Send to Subduction", d: s && s.checklist.submitted ? (s.live ? "Live!" : "We're building your page.") : "We build your page and tell you when it's live.", done: !!(s && s.checklist.submitted), href: s ? "#send/" + s.id : "#show/new/1" },
     ];
     var doneN = steps.filter(function (x) { return x.done; }).length, nextI = steps.findIndex(function (x) { return !x.done; });
-    app.innerHTML = top() + (me.companies.length > 1 ? '<label for=co>Crew</label><select id=co>' + me.companies.map(function (c) { return '<option value="' + c.id + '"' + (c.id === co.id ? " selected" : "") + ">" + esc(c.name) + "</option>"; }).join("") + "</select>" : "") +
+    app.innerHTML = top(me.owner ? "#" : "") + (me.owner ? '<div class=qnum>Setting up for</div>' : "") +
       "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
-      (me.owner ? '<h2>Subduction only</h2><details><summary class=ghost>Add a promoter</summary><label for=nc>Crew name</label><input type=text id=nc><label for=ne>Owner email</label><input type=email id=ne autocapitalize=off><button class=btn type=button id=addco>Add</button></details>' : "") +
+      (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
+        '<label for=ie>Their email</label><input type=email id=ie autocapitalize=off inputmode=email value="' + esc(co.contact_email || "") + '"><button class=btn type=button id=inv>' + (co.contact_email ? "Send invite again" : "Send invite") + "</button>" : "") +
       "<p class=msg role=status></p>";
     wireTop();
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
-    var sel = document.getElementById("co"); if (sel) sel.onchange = function () { coId = sel.value; home(); };
-    var add = document.getElementById("addco");
-    if (add) add.onclick = function () {
-      call("company-create", { name: document.getElementById("nc").value, owner_email: document.getElementById("ne").value }).then(function (r) { coId = r.company.id; return load(); }).then(home).catch(function (x) { say(x.message, true); });
+    if (flash) { say(flash); flash = ""; }
+    var inv = document.getElementById("inv");
+    if (inv) inv.onclick = function () {
+      var em = document.getElementById("ie").value.trim(); say("Sending…");
+      call("invite", { company: co.id, email: em }).then(function (r) { co.contact_email = r.invited; flash = "Invite sent to " + r.invited + "."; home(); }).catch(function (x) { say(x.message, true); });
+    };
+  }
+
+  // ---------- Dylan's front page: every promoter, and adding a new one ----------
+  function promoters() {
+    var list = me.companies;
+    app.innerHTML = top() + "<h1>Your promoters</h1><p class=lead>Add a promoter, then fill in their brand and show yourself, or send them this page to do it.</p>" +
+      '<div class=ticket><label for=nc>Crew name</label><input type=text id=nc maxlength=80 placeholder="e.g. Basement Frequencies">' +
+      '<label for=ne>Their email (optional)</label><input type=email id=ne autocapitalize=off inputmode=email placeholder="Blank = you fill it in">' +
+      '<button class=btn type=button id=addco>Add promoter</button><p class=msg role=status></p></div>' +
+      (list.length ? "<h2>Promoters</h2>" + list.map(function (c) {
+        var n = me.shows.filter(function (x) { return x.company_id === c.id; }), w = n.filter(function (x) { return x.review_status === "submitted"; }).length;
+        return '<div class=card data-href="#co/' + c.id + '"><b>' + esc(c.name) + "</b><small>" + (w ? w + " sent to you" : n.length ? n.length + " show" + (n.length > 1 ? "s" : "") : "Nothing filled in yet") + "</small></div>"; }).join("") : "");
+    wireTop();
+    app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
+    document.getElementById("addco").onclick = function () {
+      var nm = document.getElementById("nc").value.trim(); if (!nm) return say("What's the crew called?", true);
+      say("Adding…");
+      var em2 = document.getElementById("ne").value.trim();
+      call("company-create", { name: nm, owner_email: em2 }).then(function (r) { flash = r.invited ? "Added. Invite sent to " + em2 + "." : em2 ? "Added, but the email didn't send. Use Send invite below." : "Added. Fill it in, or add their email below to invite them."; return load().then(function () { go("#co/" + r.company.id); }); }).catch(function (x) { say(x.message, true); });
     };
   }
 
@@ -109,7 +132,7 @@
   function brand() {
     var co = company(), b = JSON.parse(JSON.stringify(co.brand || {})); b.colors = b.colors || {}; b.socials = b.socials || {}; b.figures = b.figures || [];
     function draw(warnFor, warn) {
-      app.innerHTML = top("#") + "<h1>Your brand</h1><p class=lead>Upload it once. Every show you run starts looking like you.</p>" +
+      app.innerHTML = top(homeHref()) + "<h1>Your brand</h1><p class=lead>Upload it once. Every show you run starts looking like you.</p>" +
         drop("logo", "Logo", "logo", b.logo) + drop("partners", "Partner & sound logos", "partners", b.partners) +
         b.figures.map(function (u, i) { return drop("fig" + i, "Signature art " + (i + 1), "figure", u); }).join("") + (b.figures.length < 6 ? drop("fig" + b.figures.length, "Signature art (characters, cutouts)", "figure", "") : "") +
         "<h2>Your colors</h2><div class=colors>" + [["main", "Main", "#ff5a1f"], ["second", "Second", "#8a2be2"], ["background", "Background", "#050505"]].map(function (c) {
@@ -123,7 +146,7 @@
       app.querySelectorAll("[data-clear]").forEach(function (x) { x.onclick = function (e) { e.stopPropagation(); var id = x.getAttribute("data-clear"); if (id.indexOf("fig") === 0) b.figures.splice(+id.slice(3), 1); else delete b[id]; collect(); draw(); }; });
       document.getElementById("save").onclick = function () {
         collect(); say("Saving…");
-        call("brand-save", { company: co.id, brand: b }).then(function (r) { co.brand = r.brand; say("Saved."); setTimeout(function () { go("#"); }, 500); }).catch(function (x) { say(x.message, true); });
+        call("brand-save", { company: co.id, brand: b }).then(function (r) { co.brand = r.brand; say("Saved."); setTimeout(function () { go(homeHref()); }, 500); }).catch(function (x) { say(x.message, true); });
       };
     }
     function collect() {
@@ -148,7 +171,7 @@
   function question(id, step) {
     startDraft(id);
     var d = draft, n = +step || 1, body = "";
-    var head = top("#") + '<div class=qnum>Question ' + n + " of 5</div>";
+    var head = top(homeHref()) + '<div class=qnum>Question ' + n + " of 5</div>";
     if (n === 1) body = "<h1>What's the show called?</h1><label for=q>Show name</label><input type=text id=q maxlength=100 value=\"" + esc(d.name) + '" placeholder="e.g. Basement Frequencies Vol. 3">';
     if (n === 2) body = "<h1>When is it?</h1><p class=lead>One block per night. Times are Central.</p>" + d.nights.map(function (x, i) {
       return '<div class=night-row><b>Night ' + (i + 1) + '</b><label for="nd' + i + '">Date</label><input type=date id="nd' + i + '" value="' + esc(x.date) + '"><div class=row2><div><label for="no' + i + '">Doors</label><input type=time id="no' + i + '" value="' + esc(x.doors) + '"></div><div><label for="ne' + i + '">Ends</label><input type=time id="ne' + i + '" value="' + esc(x.ends) + '"></div></div>' +
@@ -203,10 +226,10 @@
 
   // ---------- show art (event kit) ----------
   function art(id) {
-    var s = showById(id); if (!s) return go("#");
+    var s = showById(id); if (!s) return go(homeHref());
     var k = JSON.parse(JSON.stringify(s.kit || {})); k.flyers = k.flyers || []; k.figures = k.figures || [];
     function draw(warnFor, warn) {
-      app.innerHTML = top("#") + "<h1>Show art</h1><p class=lead>For <b>" + esc(s.name) + "</b>. Add what you have. Your brand fills in the rest, and we finish the page.</p>" +
+      app.innerHTML = top(homeHref()) + "<h1>Show art</h1><p class=lead>For <b>" + esc(s.name) + "</b>. Add what you have. Your brand fills in the rest, and we finish the page.</p>" +
         s.nights.map(function (n, i) { return drop("flyer" + i, n.label + " flyer", "flyer", k.flyers[i]); }).join("") +
         drop("hero", "Background art", "hero", k.hero) +
         s.nights.map(function (n, i) { return drop("figure" + i, n.label + " cutout / character", "figure", k.figures[i]); }).join("") +
@@ -220,7 +243,7 @@
       app.querySelectorAll("[data-clear]").forEach(function (x) { x.onclick = function (e) { e.stopPropagation(); set(x.getAttribute("data-clear"), null); draw(); }; });
       document.getElementById("save").onclick = function () {
         k.links = document.getElementById("links").value; say("Saving…");
-        call("kit-save", { show: s.id, kit: k }).then(function (r) { s.kit = r.kit; say("Saved."); setTimeout(function () { go("#"); }, 500); }).catch(function (x) { say(x.message, true); });
+        call("kit-save", { show: s.id, kit: k }).then(function (r) { s.kit = r.kit; say("Saved."); setTimeout(function () { go(homeHref()); }, 500); }).catch(function (x) { say(x.message, true); });
       };
     }
     function set(key, url) {
@@ -234,7 +257,7 @@
   // ---------- get paid ----------
   function paid() {
     var co = company();
-    app.innerHTML = top("#") + "<h1>Get paid</h1>" + (co.paid_ready ? "<p class=lead>&#10003; You're all set. Ticket money goes straight to your own account.</p>"
+    app.innerHTML = top(homeHref()) + "<h1>Get paid</h1>" + (co.paid_ready ? "<p class=lead>&#10003; You're all set. Ticket money goes straight to your own account.</p>"
       : "<p class=lead>Ticket money goes straight to your own account. Stripe (the payment company) checks who you are and where to send it. Subduction never holds your money.</p>" +
         (company().can_manage ? '<button class=btn type=button id=st>Connect my bank with Stripe</button>' : "<p class=note>Only the crew's owner can do this step.</p>")) + "<p class=msg role=status></p>";
     wireTop();
@@ -246,9 +269,9 @@
 
   // ---------- send to Subduction ----------
   function send(id) {
-    var s = showById(id); if (!s) return go("#");
+    var s = showById(id); if (!s) return go(homeHref());
     var missing = []; if (!s.checklist.details) missing.push("the show questions"); if (!company().paid_ready) missing.push("Get paid");
-    app.innerHTML = top("#") + (s.checklist.submitted ? "<h1>" + (s.live ? "You're live" : "We've got it") + "</h1><p class=lead>" + (s.live ? "Your page is up and selling." : "We're building your page now. We'll email you the moment it's live.") + "</p>"
+    app.innerHTML = top(homeHref()) + (s.checklist.submitted ? "<h1>" + (s.live ? "You're live" : "We've got it") + "</h1><p class=lead>" + (s.live ? "Your page is up and selling." : "We're building your page now. We'll email you the moment it's live.") + "</p>"
       : "<h1>Send to Subduction</h1><p class=lead>We'll build your page from your brand and show art, and let you know when it's live.</p>" +
         (missing.length ? "<p class=note>Still to do first: " + missing.join(" and ") + ".</p>" : "") +
         '<button class=btn type=button id=go' + (s.checklist.details ? "" : " disabled") + ">Send it</button>") + "<p class=msg role=status></p>";
@@ -264,6 +287,8 @@
     if (!me) return load().then(route).catch(function (e) { if (tok) app.innerHTML = '<p class="msg bad">' + esc(e.message) + "</p>"; });
     var h = location.hash.replace(/^#/, "").split("/");
     window.scrollTo(0, 0);
+    if (h[0] === "co" && h[1]) { coId = h[1]; return home(); }
+    if (me.owner && !h[0]) return promoters();
     if (h[0] === "brand") return brand();
     if (h[0] === "show") return question(h[1] || "new", h[2]);
     if (h[0] === "art") return art(h[1]);
@@ -272,6 +297,15 @@
     home();
   }
   window.addEventListener("hashchange", route);
+  // Arriving from the invite email: trade the one-time link for a session, then open their checklist.
+  var invite = (location.hash.match(/^#invite=([0-9a-f-]+\.[0-9a-f]+)$/) || [])[1];
+  if (invite) {
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+    app.innerHTML = "<p class=lead>Signing you in…</p>";
+    call("redeem", { invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; route(); })
+      .catch(function (x) { tok = ""; signin(); say(x.message, true); });
+    return;
+  }
   // Back from Stripe: refresh where things stand.
   if (/stripe=/.test(location.search)) { try { history.replaceState(null, "", location.pathname + "#paid"); } catch (e) {} }
   route();

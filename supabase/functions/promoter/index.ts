@@ -4,12 +4,16 @@ import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
+import { sendNow } from "../_shared/sendnow.ts";
+import { SITE_URL } from "../_shared/config.ts";
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
 //   POST {a:"login", email} / {a:"verify", email, code}   email + 6-digit code; company staff (or Dylan) only
 //   GET  ?a=me                                            my companies (brand kit), their shows and checklists
 //   POST {a:"company-create", name, owner_email}          Dylan only: add a promoter company and its owner
+//   POST {a:"invite", company, email?}                    Dylan only: email them a one-tap link to start (adds them as owner)
+//   POST {a:"redeem", invite}                             the one-tap link from that email -> a session
 //   POST {a:"brand-save", company, brand}                 brand kit (files + 3 colours + socials)
 //   POST {a:"upload-url", company, kind, ext, show?}      one-time link to upload one kit file
 //   POST {a:"show-save", company, show}                   the five questions (create or edit while not yet approved)
@@ -32,6 +36,27 @@ function local(date: string, time: string): Date | null {
   return new Date(guess.getTime() - off(guess) * 60000);
 }
 const label = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }).format(d).replace(",", "");
+
+// Invite: a one-time code stored hashed in signin_codes (7 days), emailed as a link. The link holds
+// "<row id>.<secret>" in the #fragment, so it never reaches a server log and holds no email.
+async function sendInvite(subscriberId: string, company: string): Promise<boolean> {
+  const { data: m } = await db.from("subscribers").select(MEMBER_COLS).eq("id", subscriberId).maybeSingle();
+  if (!m || m.status === "deleted") return false;
+  const secret = rand() + rand() + rand();
+  const { data: inv } = await db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await codeHash(m.id, secret), expires_at: new Date(Date.now() + 7 * 86400000).toISOString() }).select("id").single();
+  if (!inv) return false;
+  const { data: row } = await db.from("email_queue").insert({ subscriber_id: m.id, template_key: "promoter_invite:" + Date.now(), priority: 0, send_after: new Date(Date.now() + 15 * 60000).toISOString() }).select("id").single();
+  if (!row) return false;
+  return await sendNow(m as any, row.id, "promoter_invite", { link: `${SITE_URL}/promoter#invite=${inv.id}.${secret}`, company });
+}
+async function ownerFor(companyId: string, email: string): Promise<string | null> {
+  let { data: m } = await db.from("subscribers").select("id").eq("email", email).maybeSingle();
+  if (!m) m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id").single()).data;
+  if (!m) return null;
+  await db.from("company_staff").upsert({ company_id: companyId, subscriber_id: m.id, role: "owner" }, { onConflict: "company_id,subscriber_id", ignoreDuplicates: true });
+  await db.from("companies").update({ contact_email: email }).eq("id", companyId).is("contact_email", null);
+  return m.id;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_P } }); }
@@ -62,12 +87,29 @@ Deno.serve(async (req) => {
     return ok({ token: await newSession(m!.id), email });
   }
 
+  // ---- the one-tap link from the invite email ----
+  if (a === "redeem") {
+    const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, (await setting("ip_salt", "unset")) + "|promoter") });
+    if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
+    const [id, secret] = String(b.invite || "").split(".");
+    const bad = () => no("That link has expired or was already used. Sign in with your email instead.");
+    if (!UUID_RE.test(id || "") || !/^[0-9a-f]{36}$/.test(secret || "")) return bad();
+    const { data: c } = await db.from("signin_codes").select("id,subscriber_id,code_hash,expires_at,attempts,used_at").eq("id", id).maybeSingle();
+    if (!c || c.used_at || new Date(c.expires_at).getTime() < Date.now() || c.attempts >= 5) return bad();
+    if (c.code_hash !== await codeHash(c.subscriber_id, secret)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); return bad(); }
+    await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
+    const { data: m } = await db.from("subscribers").select("email,status").eq("id", c.subscriber_id).maybeSingle();
+    if (!m || m.status === "deleted") return bad();
+    return ok({ token: await newSession(c.subscriber_id), email: m.email });
+  }
+
   const st = await staffAuth(req);
   if (!st) return no("Sign in again.", 401);
 
   if (a === "me") {
     const ids = st.owner ? null : st.companies.map((c) => c.id);
-    let cq = db.from("companies").select("id,slug,name,status,brand,stripe_charges_enabled,legacy_stripe").order("created_at");
+    // Promoter companies only. The original account (T.O.F.T.U.) is run from the staff page, not here.
+    let cq = db.from("companies").select("id,slug,name,status,brand,stripe_charges_enabled,legacy_stripe,contact_email").eq("legacy_stripe", false).order("created_at", { ascending: false });
     if (ids) cq = cq.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
     const { data: cos } = await cq;
     const { data: shows } = await db.from("events").select("id,slug,name,company_id,review_status,review_note,sales_open,kit,page,page_draft,city,venue,age,location_secret,address_reveal_at,starts_at")
@@ -79,7 +121,7 @@ Deno.serve(async (req) => {
     ]);
     return ok({ email: st.email, owner: st.owner,
       companies: (cos || []).map((c) => ({ id: c.id, slug: c.slug, name: c.name, status: c.status, brand: c.brand || {}, paid_ready: c.legacy_stripe || c.stripe_charges_enabled,
-        can_manage: canManage(st, c.id) })),
+        can_manage: canManage(st, c.id), ...(st.owner ? { contact_email: c.contact_email } : {}) })),
       shows: (shows || []).map((s) => {
         const ns = (nights || []).filter((n) => n.event_id === s.id), ts = (types || []).filter((t) => t.event_id === s.id && t.slug !== "test" && t.slug !== "artist");
         const kit = s.kit || {};
@@ -94,15 +136,27 @@ Deno.serve(async (req) => {
   if (a === "company-create") {
     if (!st.owner) return no("Only Subduction can add companies.", 403);
     const name = clean(b.name, 80) || "", email = (clean(b.owner_email, 254) || "").toLowerCase();
-    if (!name || !EMAIL_RE.test(email)) return no("Company name and the owner's email, please.");
+    // Their email is optional: Dylan can set a promoter up himself and add their email later.
+    if (!name) return no("What's the crew called?");
+    if (email && !EMAIL_RE.test(email)) return no("That email doesn't look right.");
     let slug = slugify(name) || "crew";
     if ((await db.from("companies").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
-    const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email }).select("id,slug").single();
+    const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email || null }).select("id,slug").single();
     if (error || !co) return no("Couldn't add that company.", 500);
-    let { data: m } = await db.from("subscribers").select("id").eq("email", email).maybeSingle();
-    if (!m) m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id").single()).data;
-    if (m) await db.from("company_staff").insert({ company_id: co.id, subscriber_id: m.id, role: "owner" });
-    return ok({ company: co });
+    let invited = false;
+    if (email) { const sid = await ownerFor(co.id, email); if (sid) invited = await sendInvite(sid, name); }
+    return ok({ company: co, invited });
+  }
+
+  if (a === "invite") {
+    if (!st.owner) return no("Only Subduction can send invites.", 403);
+    const co = UUID_RE.test(String(b.company || "")) ? await loadCompany(String(b.company)) : null;
+    if (!co || co.legacy_stripe) return no("Not found", 404);
+    const email = (clean(b.email, 254) || co.contact_email || "").toLowerCase();
+    if (!EMAIL_RE.test(email)) return no("Add their email first.");
+    const sid = await ownerFor(co.id, email);
+    if (!sid || !await sendInvite(sid, co.name)) return no("Couldn't send the email. Try again in a minute.", 502);
+    return ok({ invited: email });
   }
 
   // Everything below acts on one company (directly, or through one of its shows).
