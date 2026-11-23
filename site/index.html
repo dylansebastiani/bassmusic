@@ -3,158 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Subduction</title>
+<title>Subduction · Ticketing for the underground</title>
+<meta name="description" content="Tickets for underground and bass promoters. A custom event page, tickets, emails and a door app. Money goes to your own Stripe. Buyers pay a flat $1.50.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Subduction">
-<meta property="og:title" content="Subduction">
-<meta property="og:description" content="A new bass music label and the community around it. Members get unreleased tracks free, before anyone else, and first word on shows.">
+<meta property="og:title" content="Subduction · Ticketing for the underground">
+<meta property="og:description" content="Your show, your page, your money. Custom event pages, tickets and a door app for promoters, free pages for artists, free tracks for fans. Buyers pay a flat $1.50.">
 <meta property="og:image" content="https://subduction.art/assets/og.jpg">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Subduction">
-<meta name="twitter:description" content="A new bass music label and the community around it. Members get unreleased tracks free, before anyone else, and first word on shows.">
+<meta name="twitter:title" content="Subduction · Ticketing for the underground">
+<meta name="twitter:description" content="Your show, your page, your money. Custom event pages, tickets and a door app for promoters, free pages for artists, free tracks for fans. Buyers pay a flat $1.50.">
 <meta name="twitter:image" content="https://subduction.art/assets/og.jpg">
 <script>document.documentElement.className="js"</script>
 <link rel="stylesheet" href="assets/fonts.css">
 <style>
-/* Members. One world, one flight through it, one email field. Black, white, acid green. Mobile first. */
+/* Promoters first, artists second, fans third. Black, white, acid green. Mobile first. */
 :root{--bg:#000;--fg:#f4f1ee;--mute:#9a9490;--line:#2a2627;--hot:#b6ff00;
   --disp:"Anton","Arial Narrow",Impact,sans-serif;--text:"Archivo",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
 *{box-sizing:border-box;margin:0}
-html{background:var(--bg)}
+html{background:var(--bg);scroll-behavior:smooth;scroll-padding-top:64px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.55;overflow-x:hidden;-webkit-text-size-adjust:100%}
 img{display:block}
-.grain{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:.09;mix-blend-mode:screen;
+a{color:inherit}
+.grain{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:.08;mix-blend-mode:screen;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
-.sec{position:relative;min-height:100svh;display:flex;flex-direction:column;
-  padding:max(18px,env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) max(22px,env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
 .disp{font-family:var(--disp);font-weight:400;text-transform:uppercase;line-height:.92;letter-spacing:.005em}
-.mono{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
-.label{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#cfc9c5}
-.laser{height:1px;background:linear-gradient(90deg,transparent,var(--hot) 20%,var(--hot) 80%,transparent);opacity:.9}
+.disp em,.hot{font-style:normal;color:var(--hot)}
+.kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot)}
+.laser{height:1px;width:160px;background:linear-gradient(90deg,transparent,var(--hot) 20%,var(--hot) 80%,transparent);opacity:.9}
+.lead{font-size:16px;line-height:1.55;color:#e6e1dd;max-width:40ch}
+.fine{font-size:13px;line-height:1.6;color:var(--mute);max-width:52ch}
 
-/* ===== the world: fixed, behind everything ===== */
+/* ===== the world: fixed art behind everything ===== */
 .world{position:fixed;inset:0;z-index:0;overflow:hidden;background:#000}
 .wp{position:absolute;inset:0;will-change:transform,opacity;transform-origin:50% 50%;opacity:0;visibility:hidden}
-.wp[data-wp="0"] .ch{object-position:50% 45%}
-.wp[data-wp="1"] .ch{object-position:60% 50%}
-.wp[data-wp="3"] .ch{object-fit:contain;object-position:50% 50%}
-.wscrim{position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse 90% 70% at 50% 50%,rgba(0,0,0,0) 40%,rgba(0,0,0,.6) 100%)}
-.sec{z-index:2}
-.flyer .art,.offer .bg,.get .bg{display:none}
-.offer::before,.get::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(to right,rgba(0,0,0,.82) 0,rgba(0,0,0,.45) 60%,rgba(0,0,0,.1) 100%)}
-.get::before{background:linear-gradient(to bottom,rgba(0,0,0,.2) 0,rgba(0,0,0,.75) 55%,rgba(0,0,0,.92) 100%)}
-.foot{background:#000}
-/* ===== camera plates ===== */
-.rgb{position:absolute;inset:0;isolation:isolate}
-.rgb .ch{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;will-change:transform}
-.rgb .r{filter:url(#fr)}.rgb .g{filter:url(#fg)}.rgb .b{filter:url(#fb)}
-.cut{position:fixed;left:0;right:0;top:50%;height:2px;background:var(--hot);z-index:25;pointer-events:none;opacity:0;transform:scaleX(0)}
-@media (prefers-reduced-motion:reduce){.plate{transform:none!important;opacity:1!important}.rgb .ch{transform:none!important}.cut{display:none}}
-.mbg,.pbar{display:none}
-@media (max-width:899px){
-  /* Phones run the same camera flight as desktop, drawn once per scene: no RGB layers, no filters, no grain. */
-  .grain,.cut,.mbg{display:none}
-  .rgb .r,.rgb .b{display:none}
-  .rgb .g{filter:none;mix-blend-mode:normal;transform:none!important}
-  /* First screen: the machine fills the top three quarters edge to edge, bleeds into black under the headline. */
-  .wp[data-wp="0"] .ch{object-fit:cover;object-position:50% 0%;height:80%;top:0;transform-origin:50% 30%}
-  .wp[data-wp="0"] .rgb{animation:breathe 9s ease-in-out infinite alternate;will-change:transform}
-  @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.07) translate3d(0,-1.2%,0)}}
-  .wscrim{background:linear-gradient(to bottom,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 14%,rgba(0,0,0,0) 46%,rgba(0,0,0,.6) 64%,rgba(0,0,0,.95) 78%,#000 90%)}
-  .flyer{justify-content:flex-end}
-  .flyer::after{display:none}
-  .flyer .top{position:absolute;left:18px;right:18px;top:max(18px,env(safe-area-inset-top,0px))}
-  .promise{font-size:clamp(40px,11.5vw,80px);text-shadow:none}
-  .sub{font-size:16px;color:#d9d4d0;max-width:30ch}
-  .offer::before{background:linear-gradient(to bottom,rgba(0,0,0,.45) 0,rgba(0,0,0,.84) 48%,rgba(0,0,0,.94) 100%)}
-  .pbar{display:block;position:fixed;left:0;top:0;height:2px;width:100%;background:var(--hot);transform-origin:0 50%;transform:scaleX(0);z-index:40;pointer-events:none}
-  .flyer .top{animation:up .8s .2s cubic-bezier(.2,.7,.2,1) both}
-  .flyer .bottom>*{animation:up .9s cubic-bezier(.2,.7,.2,1) both}
-  .flyer .bottom>:nth-child(1){animation-delay:.35s}.flyer .bottom>:nth-child(2){animation-delay:.5s}.flyer .bottom>:nth-child(3){animation-delay:.65s}
-  @keyframes up{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
-  @media (prefers-reduced-motion:reduce){.pbar,.flyer .top,.flyer .bottom>*,.wp[data-wp="0"] .rgb{animation:none;opacity:1;transform:none}}
-}}
-}}
-}
-}
-/* ===== 1. The flyer ===== */
-.flyer{justify-content:space-between;overflow:visible;min-height:100svh}
-.offer,.get{min-height:92svh}
-.flyer>*{position:relative;z-index:1}
-.top{display:flex;justify-content:space-between;align-items:flex-start}
+.wp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.wp[data-wp="0"] img{object-position:50% 20%}
+.wp[data-wp="3"] img{object-fit:contain}
+.wscrim{position:absolute;inset:0;z-index:5;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.3) 0,rgba(0,0,0,.15) 30%,rgba(0,0,0,.75) 70%,rgba(0,0,0,.95) 100%)}
+@media (prefers-reduced-motion:reduce){.wp{transform:none!important}}
+
+/* ===== top bar ===== */
+.bar{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;gap:14px;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+  background:linear-gradient(to bottom,rgba(0,0,0,.92),rgba(0,0,0,.6) 70%,rgba(0,0,0,0));}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.brand .logo{--mw:26px}
+.brand b{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;letter-spacing:.08em}
 .mark{display:block;width:var(--mw,64px);height:auto;fill:#fff}
 img.mark{object-fit:contain}
-.brandrow{display:flex;align-items:center;gap:14px}
-.wordmark{font-family:var(--disp);text-transform:uppercase;line-height:.86;letter-spacing:-.01em;font-size:clamp(42px,13.5vw,92px);color:#fff;transform:scaleY(1.18);transform-origin:0 0}
-.wordmark small{display:block;font-family:var(--text);font-weight:600;font-size:13px;letter-spacing:.18em;color:#cfc9c5;margin-top:.35em;transform:scaleY(.85)}
-.wordmark:empty{display:none}
-.flyer .cat{text-align:right}
-.flyer .bottom{display:flex;flex-direction:column;gap:14px}
-.promise{font-size:clamp(44px,12.2vw,96px);max-width:11ch;text-shadow:0 2px 24px rgba(0,0,0,.9)}
-.promise em{font-style:normal;color:var(--hot)}
-.sub{font-size:16px;line-height:1.55;color:#f1ece8;max-width:34ch;text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 18px rgba(0,0,0,.9)}
-.flyer .fine,.flyer .msg{text-shadow:0 1px 2px rgba(0,0,0,.95),0 2px 14px rgba(0,0,0,.9)}
-.flyer::after{content:"";position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(to top,rgba(0,0,0,.92) 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,0) 100%);pointer-events:none;z-index:0}
-.ev .sub{display:block}
-.cue{display:flex;align-items:center;gap:12px;margin-top:6px;font-size:12px;letter-spacing:.14em;transition:opacity .4s}
-.cue.off{opacity:0}
-.cue b{display:block;width:1px;height:28px;background:rgba(255,255,255,.3);position:relative;overflow:hidden}
-.cue b::after{content:"";position:absolute;left:0;top:-12px;width:1px;height:12px;background:#fff;animation:drip 1.5s ease-in infinite}
-@keyframes drip{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(42px);opacity:0}}
+.nav{display:none;gap:22px;margin-left:auto}
+.nav a{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:#cfc9c5}
+.nav a:hover{color:var(--hot)}
+.bar .go{margin-left:auto;font-family:var(--disp);font-size:16px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;background:var(--hot);color:#000;padding:8px 14px 6px}
+.bar .go:hover{background:#fff}
+@media (min-width:760px){.nav{display:flex}.bar .go{margin-left:8px}}
 
-/* ===== 2. The offer ===== */
-.bg{position:absolute;inset:0;z-index:0;overflow:hidden}
-.offer>*{position:relative;z-index:1}
-.offer .bg{position:absolute;z-index:0}
+/* ===== sections ===== */
+.sec{position:relative;z-index:2;display:flex;flex-direction:column;gap:22px;
+  padding:96px max(18px,env(safe-area-inset-right,0px)) 72px max(18px,env(safe-area-inset-left,0px))}
+.sec>*{position:relative;z-index:1}
+.sec h2{font-size:clamp(44px,12vw,104px);max-width:12ch}
+.panel::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0,rgba(0,0,0,.88) 18%,rgba(0,0,0,.92) 82%,rgba(0,0,0,.55) 100%)}
 
-.offer{justify-content:center;gap:18px}
-.offer h2{font-size:clamp(46px,12.5vw,100px);max-width:10ch}
-.offer h2 em{font-style:normal;color:var(--hot)}
+/* hero */
+.hero{min-height:100svh;justify-content:flex-end;padding-bottom:max(36px,calc(env(safe-area-inset-bottom,0px) + 28px))}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70%;background:linear-gradient(to top,rgba(0,0,0,.95),rgba(0,0,0,.6) 50%,rgba(0,0,0,0));z-index:0}
+.hero h1{font-size:clamp(52px,14vw,132px);max-width:9ch}
+.hero .kick{align-self:flex-start;background:rgba(0,0,0,.75);padding:4px 8px}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-block;background:var(--hot);color:#000;border:0;border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:14px 24px 12px;text-decoration:none;cursor:pointer;transition:background .15s}
+.btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
+.btn:disabled{opacity:.5;cursor:default}
+.ghost{display:inline-block;color:#fff;border:1px solid #6c6567;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:12px 20px 10px;text-decoration:none}
+.ghost:hover{border-color:var(--hot);color:var(--hot)}
+.who{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.who a{color:#cfc9c5;text-decoration:none;border-bottom:1px solid #555;padding-bottom:2px}
+.who a:hover{color:var(--hot);border-color:var(--hot)}
+
+/* numbered steps and feature lists */
+ol.steps{list-style:none;padding:0;border-top:1px solid var(--line);max-width:860px}
+.steps li{display:grid;grid-template-columns:5ch 1fr;gap:12px;align-items:baseline;border-bottom:1px solid var(--line);padding:14px 0}
+.steps li i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
+.steps li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(28px,7.6vw,48px);line-height:.95}
+.steps li p{grid-column:2;font-size:14px;line-height:1.5;color:#b5afab;margin-top:5px;max-width:46ch}
+.grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);border:1px solid var(--line);max-width:1100px}
+.grid div{background:#050505;padding:18px 18px 20px}
+.grid h3{font-size:15px;font-weight:700;letter-spacing:.02em;margin-bottom:4px}
+.grid p{font-size:14px;color:#b5afab;line-height:1.5}
+.tag{display:inline-block;margin-left:6px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#000;background:var(--hot);padding:1px 6px;vertical-align:2px}
+@media (min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+@media (min-width:1000px){.grid{grid-template-columns:1fr 1fr 1fr 1fr}}
+
+/* pricing */
+.price-big{font-family:var(--disp);font-size:clamp(88px,26vw,240px);line-height:.85;color:var(--hot);white-space:nowrap}
+.price-big small{font-size:.24em;color:#fff;letter-spacing:.06em;margin-left:.2em}
+table.cmp{width:100%;max-width:720px;border-collapse:collapse;font-size:15px}
+.cmp caption{text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding-bottom:10px}
+.cmp th,.cmp td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line)}
+.cmp th{font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.cmp td:nth-child(n+2),.cmp th:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
+.cmp tr.us td{color:#000;background:var(--hot);font-weight:700;border-bottom-color:var(--hot)}
+.cmp .rate{display:block;font-size:12px;color:var(--mute);font-weight:400}
+.cmp tr.us .rate{color:#1d2a00}
+
+/* fans: email box (logic shared with collection and t pages) */
 form{width:100%;max-width:460px;display:flex;flex-direction:column;gap:8px}
 form[hidden]{display:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .unit{display:flex;flex-direction:column;border:1px solid #6c6567;background:#000}
 .unit:focus-within{border-color:#fff}
 input[type=email],.unit input[type=text]{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:17px 16px;outline:none}
+.unit .btn{width:100%;border-top:1px solid #6c6567}
 #code{font-family:var(--mono);font-size:24px;letter-spacing:.32em;text-align:center}
 #code::placeholder{font-family:var(--text);font-size:17px;letter-spacing:0}
 input::placeholder{color:#8a8486}
-.btn{display:block;width:100%;background:var(--hot);color:#000;border:0;border-top:1px solid #6c6567;border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:14px 22px 12px;cursor:pointer;transition:background .15s,color .15s}
-.btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
-.btn:disabled{opacity:.5;cursor:default}
-@media (min-width:480px){.unit{flex-direction:row}.unit input{flex:1}.btn{width:auto;border-top:0;border-left:1px solid #6c6567;padding-inline:26px;white-space:nowrap}}
+@media (min-width:480px){.unit{flex-direction:row}.unit input{flex:1}.unit .btn{width:auto;border-top:0;border-left:1px solid #6c6567;padding-inline:26px;white-space:nowrap}}
 .hp{position:absolute;left:-9999px}
-.fine{font-size:13px;line-height:1.6;color:var(--mute);max-width:42ch}
 .msg{font-size:14px;min-height:20px;color:var(--mute)}
 .msg.ok{color:#fff}
 #ts{display:flex;justify-content:center;margin-top:10px}
 .hint{font-size:14px;color:var(--hot);cursor:pointer;text-decoration:underline;background:none;border:0;font-family:inherit;padding:4px 0}
 .proof{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#cfc9c5}
+.perks{display:flex;flex-wrap:wrap;gap:8px 22px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#cfc9c5}
+.perks span::before{content:"+ ";color:var(--hot)}
 
-.strip{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 0}
-.strip-in{display:flex;gap:28px;width:max-content;animation:slide 40s linear infinite}
-.strip-in .logo{--mw:16px;opacity:.5;flex:none}
-@keyframes slide{to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){.strip-in{animation:none}}
-/* ===== 3. What you get ===== */
-.get>*{position:relative;z-index:1}
-.get{justify-content:center;gap:14px}
-.gh{display:flex;align-items:center;gap:14px}
-.gh .disp{font-size:34px;line-height:1;letter-spacing:.04em;color:#fff}
-.get ol{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
-.get li{display:grid;grid-template-columns:5ch 1fr;gap:12px;align-items:baseline;border-bottom:1px solid var(--line);padding:11px 0}
-.get li i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
-.get li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(26px,7.6vw,52px);line-height:.95}
-.get li p{grid-column:2;font-size:14px;line-height:1.5;color:#b5afab;margin-top:5px;max-width:40ch}
-.get .again{align-self:center;justify-self:center;text-align:center;display:inline-block;margin-top:8px;background:#fff;color:#000;text-decoration:none;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:12px 22px 10px}
-.get .again:hover{background:var(--hot)}
-
-/* ===== 4. Footer, with the one hidden thing ===== */
-.foot{min-height:0;padding-top:48px;padding-bottom:max(48px,calc(env(safe-area-inset-bottom,0px) + 32px));gap:22px;align-items:center;text-align:center;border-top:1px solid #1c1c1c}
+/* footer */
+.foot{position:relative;z-index:2;background:#000;border-top:1px solid #1c1c1c;display:flex;flex-direction:column;align-items:center;text-align:center;gap:22px;
+  padding:48px 18px max(48px,calc(env(safe-area-inset-bottom,0px) + 32px))}
 .fbrand{display:flex;align-items:center;gap:12px}
 .fname{font-family:var(--disp);text-transform:uppercase;font-size:20px;letter-spacing:.08em;color:#fff}
 .fsocial,.flinks{display:flex;gap:26px;flex-wrap:wrap;justify-content:center}
@@ -163,89 +144,138 @@ input::placeholder{color:#8a8486}
 .flinks a{color:var(--mute);font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
 .fsocial a:hover,.flinks a:hover{color:var(--hot)}
 .fcopy{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:#555;text-transform:uppercase}
-@keyframes flick{0%{opacity:.2}50%{opacity:1}100%{opacity:.6}}
 
-/* ===== Motion: hard cuts, scroll-driven reveals, nothing else ===== */
+/* reveals */
 .rv{opacity:0;transform:translateY(14px)}
 @supports (animation-timeline:view()){
-  .rv{animation:rise linear both;animation-timeline:view();animation-range:entry 10% entry 45%}
+  .rv{animation:rise linear both;animation-timeline:view();animation-range:entry 5% entry 40%}
   @keyframes rise{to{opacity:1;transform:none}}
 }
-@supports not (animation-timeline:view()){
-  .rv{transition:opacity .6s ease,transform .6s ease}
-  .rv.in{opacity:1;transform:none}
-}
+@supports not (animation-timeline:view()){.rv{transition:opacity .6s ease,transform .6s ease}.rv.in{opacity:1;transform:none}}
 html:not(.js) .rv{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){.rv{animation:none;transition:none;opacity:1;transform:none}.cue b::after{animation:none}}
+.hero .rv{animation:up .9s cubic-bezier(.2,.7,.2,1) both;animation-timeline:auto;opacity:1;transform:none}
+.hero .rv:nth-child(2){animation-delay:.12s}.hero .rv:nth-child(3){animation-delay:.24s}.hero .rv:nth-child(4){animation-delay:.36s}.hero .rv:nth-child(5){animation-delay:.48s}
+@keyframes up{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rv,.hero .rv{animation:none;transition:none;opacity:1;transform:none}}
 
 @media (min-width:900px){
-  .sec{padding-inline:max(40px,5vw)}
-  /* Desktop: one sharp image per scene on the right, words on black on the left. No RGB layers, no heavy zoom. */
-  .rgb .r,.rgb .b{display:none}
-  .rgb .g{filter:none;mix-blend-mode:normal}
-  .wp[data-wp="0"] .rgb{left:36%}
-  .wp[data-wp="0"] .ch{object-fit:contain;object-position:50% 50%}
-  .wp[data-wp="1"] .rgb{left:46%}
-  .wp[data-wp="1"] .ch{object-fit:cover;object-position:50% 40%}
-  .wp[data-wp="2"] .ch{object-position:50% 50%}
-  .wscrim{background:radial-gradient(ellipse 100% 80% at 60% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%)}
-  .flyer{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;column-gap:4vw}
-    .flyer .top{grid-column:1;align-self:start}
-  .flyer .bottom{grid-column:1;align-self:end;padding-bottom:6vh}
-  .flyer::after{height:100%;background:linear-gradient(to right,rgba(0,0,0,.92) 0,rgba(0,0,0,.7) 34%,rgba(0,0,0,0) 58%)}
-  .wordmark{font-size:clamp(80px,8.5vw,140px)}
-  .promise{font-size:clamp(72px,7vw,128px);text-shadow:none}
-  .sub{font-size:19px;max-width:30ch}
-  .offer{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:30px}
-  .offer>*{max-width:min(560px,44vw)}
-  .offer::before{background:linear-gradient(to right,rgba(0,0,0,.94) 0,rgba(0,0,0,.75) 40%,rgba(0,0,0,0) 62%);-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18%,#000 82%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 18%,#000 82%,transparent 100%)}
-  .offer h2{font-size:clamp(64px,6.4vw,118px);max-width:none}
-  .offer .box{display:flex;flex-direction:column;gap:14px;width:100%}
-  .get{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px}
-  .get::before{background:linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,.8) 22%,rgba(0,0,0,.86) 78%,rgba(0,0,0,0) 100%)}
-  .get>div,.get ol{width:min(860px,100%)}
-  .get .again{align-self:center}
-  .get li h3{font-size:clamp(34px,3.2vw,54px)}
-  .foot{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .sec{padding-inline:max(40px,5vw);padding-top:120px;padding-bottom:100px;gap:28px}
+  .wp[data-wp="0"] img,.wp[data-wp="1"] img{left:42%;width:58%;object-fit:contain}
+  .wp[data-wp="2"] img{left:30%;width:70%}
+  .wp[data-wp="3"] img{left:45%;width:55%}
+  .wscrim{background:linear-gradient(to right,rgba(0,0,0,.95) 0,rgba(0,0,0,.7) 38%,rgba(0,0,0,0) 62%)}
+  .hero{justify-content:center}
+  .hero::after{height:100%;background:linear-gradient(to right,rgba(0,0,0,.9) 0,rgba(0,0,0,.5) 40%,rgba(0,0,0,0) 60%)}
+  .hero>*{max-width:min(640px,52vw)}
+  .hero h1{font-size:clamp(84px,8vw,140px)}
+  .lead{font-size:19px}
+  .panel::before{background:linear-gradient(to right,rgba(0,0,0,.96) 0,rgba(0,0,0,.85) 55%,rgba(0,0,0,.35) 100%)}
+  .sec h2{font-size:clamp(64px,6.4vw,112px)}
 }
 </style>
 <!--CONFIG-->
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="fr"><feColorMatrix values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter><filter id="fg"><feColorMatrix values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter><filter id="fb"><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"/></filter></svg>
 <div class="grain" aria-hidden="true"></div>
-<div class="cut" id="cut" aria-hidden="true"></div>
 <div class="world" id="world" aria-hidden="true">
-  <div class="wp" data-wp="0"><div class="rgb"><img class="ch r" src="assets/flyer.webp" alt=""><img class="ch g" src="assets/flyer.webp" alt=""><img class="ch b" src="assets/flyer.webp" alt=""></div></div>
-  <div class="wp" data-wp="1"><div class="rgb"><img class="ch r" src="assets/offer.webp" alt=""><img class="ch g" src="assets/offer.webp" alt=""><img class="ch b" src="assets/offer.webp" alt=""></div></div>
-  <div class="wp" data-wp="2"><div class="rgb"><img class="ch r" src="assets/inside.webp" alt=""><img class="ch g" src="assets/inside.webp" alt=""><img class="ch b" src="assets/inside.webp" alt=""></div></div>
-  <div class="wp" data-wp="3"><div class="rgb"><img class="ch r" src="assets/vault.webp" alt=""><img class="ch g" src="assets/vault.webp" alt=""><img class="ch b" src="assets/vault.webp" alt=""></div></div>
+  <div class="wp" data-wp="0"><img src="assets/flyer.webp" alt=""></div>
+  <div class="wp" data-wp="1"><img src="assets/offer.webp" alt="" loading="lazy"></div>
+  <div class="wp" data-wp="2"><img src="assets/inside.webp" alt="" loading="lazy"></div>
+  <div class="wp" data-wp="3"><img src="assets/vault.webp" alt="" loading="lazy"></div>
   <div class="wscrim"></div>
 </div>
 
-<!-- 1. The flyer. Wordmark, art, one promise. -->
-<div class="pbar" aria-hidden="true"></div>
-<header class="sec flyer" id="flyer">
-    <div class="top">
-    <div class="brandrow"><span class="logo" style="--mw:44px"></span><div class="wordmark" id="wordmark"></div></div>
-    <div class="label cat" id="cat"></div>
-  </div>
-  <div class="bottom">
-    <h1 class="disp promise" id="h1"></h1>
-    <p class="sub" id="sub"></p>
-    <div class="cue mono" id="cue" aria-hidden="true"><b></b><span>Descend</span></div>
-  </div>
+<header class="bar">
+  <a class="brand" href="#top" aria-label="Subduction home"><span class="logo"></span><b id="wordmark">Subduction</b></a>
+  <nav class="nav" aria-label="Sections">
+    <a href="#promoters">Promoters</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#artists">Artists</a>
+    <a href="#fans">Fans</a>
+    <a href="collection.html" id="mine" hidden>My collection</a>
+  </nav>
+  <a class="go" href="promoter.html">Sell tickets</a>
 </header>
 
-<!-- 2. The offer. The headline is the reward. Email first. -->
-<section class="sec offer" id="offer" aria-label="Join">
-  <div><h2 class="disp rv" id="offerH"></h2></div>
-  <div class="box">
-    <form id="f" novalidate method="post" action="collection.html" class="rv">
+<!-- 1. Promoters: the pitch -->
+<section class="sec hero" id="top" aria-label="Subduction">
+  <p class="kick rv">Ticketing for the underground</p>
+  <h1 class="disp rv">Your show. Your page. Your <em>money.</em></h1>
+  <p class="lead rv">Subduction sells tickets for bass and underground promoters. Every show gets a custom event page, tickets, emails and a door scanner. Ticket money goes straight to your own Stripe. Buyers pay a flat $1.50.</p>
+  <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a><a class="ghost" href="#promoters">How it works</a></div>
+  <div class="who rv"><a href="#artists">I'm an artist</a><a href="#fans">I'm a fan</a></div>
+</section>
+
+<!-- 2. Promoters: how it works + what you get -->
+<section class="sec panel" id="promoters" aria-label="For promoters">
+  <p class="kick rv">For promoters</p>
+  <h2 class="disp rv">Hand us the art. We build the <em>page.</em></h2>
+  <div class="laser rv"></div>
+  <ol class="steps">
+    <li class="rv"><i>001</i><h3>Sign up</h3><p>Just your email. No passwords, we send you a 6-digit code.</p></li>
+    <li class="rv"><i>002</i><h3>Try a demo show</h3><p>Sell yourself a test ticket, add a guest, scan it at the door. See all of it before anything is real.</p></li>
+    <li class="rv"><i>003</i><h3>Upload your kit</h3><p>Logo, flyers, colors, dates, lineup and ticket tiers. The form tells you what's missing as you go.</p></li>
+    <li class="rv"><i>004</i><h3>Get paid</h3><p>Connect your own Stripe in about 10 minutes. Ticket money lands with you, never with us.</p></li>
+    <li class="rv"><i>005</i><h3>Go live</h3><p>We finish your page, check every detail and switch it on, usually within a day.</p></li>
+  </ol>
+  <p class="kick rv" style="margin-top:18px">Every show gets</p>
+  <div class="grid rv">
+    <div><h3>A custom event page</h3><p>Built from your art and colors, not a template with your logo slapped on.</p></div>
+    <div><h3>Tiers and promo codes</h3><p>Early bird sells out, then GA opens. Codes for your street team.</p></div>
+    <div><h3>Tickets and emails</h3><p>PDF tickets and confirmation emails in your show's look.</p></div>
+    <div><h3>A door scanner</h3><p>Any phone becomes the scanner. Locked with a PIN.</p></div>
+    <div><h3>Guest list and artist passes</h3><p>Comps and passes go out by link. No fee on free tickets.</p></div>
+    <div><h3>Secret location reveal</h3><p>Keep the address quiet and email it to ticket holders when you're ready.</p></div>
+    <div><h3>Your buyer list</h3><p>Export everyone who bought. They're your fans.</p></div>
+    <div><h3>No art yet?</h3><p>We'll connect you with a scene designer who uploads straight into your kit.</p></div>
+  </div>
+</section>
+
+<!-- 3. Pricing -->
+<section class="sec panel" id="pricing" aria-label="Pricing">
+  <p class="kick rv">Pricing</p>
+  <div class="price-big rv">$1.50<small>/ ticket</small></div>
+  <p class="lead rv">One flat fee, paid by the buyer and built into the price they see. You keep your ticket price. No monthly fee, no setup fee. Free tickets cost nothing, and a refund gives the fee back.</p>
+  <table class="cmp rv">
+    <caption>What a buyer pays in fees on a $25 ticket, card processing included</caption>
+    <thead><tr><th scope="col">Platform</th><th scope="col">Fees</th><th scope="col">Buyer pays</th></tr></thead>
+    <tbody>
+      <tr><td>Eventbrite<span class="rate">3.7% + $1.79, plus 2.9% processing</span></td><td>$3.52</td><td>$28.52</td></tr>
+      <tr><td>Posh<span class="rate">10% + $0.99</span></td><td>$3.49</td><td>$28.49</td></tr>
+      <tr><td>DICE<span class="rate">13% of face value (self sign-up)</span></td><td>$3.25</td><td>$28.25</td></tr>
+      <tr class="us"><td>Subduction<span class="rate">$1.50, plus Stripe's 2.9% + 30¢</span></td><td>$2.60</td><td>$27.60</td></tr>
+    </tbody>
+  </table>
+  <p class="fine rv">Based on each platform's published US rates, November 2026. Stripe's card fee is the standard rate on your own Stripe account.</p>
+  <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a></div>
+</section>
+
+<!-- 4. Artists -->
+<section class="sec panel" id="artists" aria-label="For artists">
+  <p class="kick rv">For artists</p>
+  <h2 class="disp rv">Booked on a show? Your page is <em>free.</em></h2>
+  <div class="laser rv"></div>
+  <ol class="steps">
+    <li class="rv"><i>001</i><h3>Artist pass</h3><p>Your promoter sends you a link. Grab your pass and your guest list spots from your phone.</p></li>
+    <li class="rv"><i>002</i><h3>Your own page <span class="tag">Coming next</span></h3><p>Your photo, your links, your music and every show you're booked on, in one place.</p></li>
+    <li class="rv"><i>003</i><h3>Free track drops <span class="tag">Coming next</span></h3><p>Put a free download in front of everyone who buys a ticket to your show.</p></li>
+  </ol>
+  <p class="lead rv">Every artist on a Subduction show gets one, free. Want yours first, or want your promoter on Subduction?</p>
+  <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the artist list</a></div>
+</section>
+
+<!-- 5. Fans -->
+<section class="sec panel" id="fans" aria-label="For fans">
+  <p class="kick rv">For fans</p>
+  <h2 class="disp rv" id="fanH">Buy a ticket. Get free <em>music.</em></h2>
+  <p class="lead rv" id="fanSub">Every ticket to a Subduction show makes you a member. Unreleased tracks land in your collection for free, and you hear about shows first. No ticket yet? Get in with your email.</p>
+  <div class="perks rv"><span>Unreleased tracks, free</span><span>Play or download the WAV</span><span>Shows first</span></div>
+  <div class="box rv">
+    <form id="f" novalidate method="post" action="collection.html">
     <label for="email" class="sr">Email address</label>
     <div class="unit">
       <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
-      <button type="submit" class="btn" id="btn"></button>
+      <button type="submit" class="btn" id="btn">Get in</button>
     </div>
     <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
     <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -266,23 +296,11 @@ html:not(.js) .rv{opacity:1;transform:none}
   </div>
 </section>
 
-
-
-<!-- 3. What you get. Catalogue style. -->
-<section class="sec get" id="get" aria-label="Benefits">
-  <div>
-    <div class="gh rv"><span class="logo" style="--mw:34px"></span><h2 class="disp">What members get</h2></div>
-    <div class="laser rv" style="margin:16px 0 6px;max-width:160px"></div>
-  </div>
-  <ol id="plist"></ol>
-  <a class="again rv" href="#offer" id="again"></a>
-</section>
-
-<!-- 4. Footer. Links, and one thing with no label. -->
-<footer class="sec foot" id="foot">
-  <div class="fbrand"><span class="logo" style="--mw:28px"></span><span class="fname" id="fname"></span></div>
+<footer class="foot" id="foot">
+  <div class="fbrand"><span class="logo" style="--mw:28px"></span><span class="fname" id="fname">Subduction</span></div>
   <nav class="fsocial" id="fsocial"></nav>
   <nav class="flinks">
+    <a href="promoter.html">Sell tickets</a>
     <a class="contact" href="#">Contact</a>
     <a href="privacy.html">Privacy</a>
   </nav>
@@ -362,56 +380,46 @@ window.Stack = (function () {
   function all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
   function esc(s) { return S.esc(s); }
 
-  // ---------- Logo: one mark, everywhere. C.logoUrl (svg/png) wins; otherwise the placeholder monogram ----------
+  // ---------- Logo: one mark, everywhere ----------
   var MARK = '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg>';
-  function markHTML() { return C.logoUrl ? '<img class="mark" src="' + esc(C.logoUrl) + '" alt="' + esc(C.labelName || "") + '">' : MARK; }
+  function markHTML() { return C.logoUrl ? '<img class="mark" src="' + esc(C.logoUrl) + '" alt="">' : MARK; }
   all(".logo").forEach(function (el) { el.innerHTML = markHTML(); });
-  // (logo strip removed)
 
-  // ---------- Copy from config ----------
-  var label = C.labelName || "", name = C.membershipName || "Subduction";
-  var named = !!label && !/^label name$/i.test(label);
-  $("wordmark").innerHTML = named && label.toLowerCase() !== name.toLowerCase() ? esc(label) + "<small>" + esc(name) + "</small>" : "<small>" + esc(label || name) + "</small>";
-  if (!named) $("wordmark").style.transform = "none";
-  $("cat").innerHTML = "";
-  $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + " " + esc(label || name);
-  $("fname").textContent = label || name;
+  // ---------- Bits from config ----------
+  var name = C.labelName || "Subduction";
+  $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + " " + esc(name);
   (function () { var so = C.social || {}, out = [], map = { instagram: ["Instagram", "https://instagram.com/"], tiktok: ["TikTok", "https://tiktok.com/@"], facebook: ["Facebook", "https://facebook.com/"] };
     Object.keys(map).forEach(function (k) { var h = (so[k] || "").replace(/^@/, ""); if (h) out.push('<a href="' + esc(map[k][1] + h) + '" target="_blank" rel="noopener">' + map[k][0] + "</a>"); });
     $("fsocial").innerHTML = out.join(""); })();
-  // the promise: the A/B headline with the hot word picked out
-  function hot(t) { var w = t.split(" "); if (w.length > 2) { w[w.length - 1] = "<em>" + esc(w[w.length - 1]) + "</em>"; return w.slice(0, -1).map(esc).join(" ") + " " + w[w.length - 1]; } return esc(t); }
-  $("h1").innerHTML = hot((C.headlines || {})[v] || "Hear it first.");
-  $("offerH").innerHTML = "Your email is <em>the key</em>.";
-  $("btn").textContent = C.cta || "REQUEST ACCESS";
-  $("sub").textContent = C.subhead || "";
-  $("again").textContent = C.cta || "REQUEST ACCESS";
-  $("fine").textContent = "Drop it once. Your first unreleased track is waiting on the other side. " + (C.microcopy || "") + " Already in? Same box, we'll email you a code.";
-  all(".contact").forEach(function (a) { a.href = "mailto:" + (C.contactEmail || ""); });
-  $("plist").innerHTML = (C.perks || []).map(function (p, i) { return '<li class="rv"><i>' + String(i + 1).padStart(3, "0") + "</i><h3>" + esc(p.title) + "</h3><p>" + esc(p.body) + "</p></li>"; }).join("");
+  all(".contact").forEach(function (a) { var s = a.getAttribute("data-subject"); a.href = "mailto:" + (C.contactEmail || "") + (s ? "?subject=" + encodeURIComponent(s) : ""); });
+  $("fine").textContent = "Your first unreleased track is waiting on the other side. " + (C.microcopy || "") + " Already in? Same box, we'll email you a code.";
+
+  // Fans arriving from a show QR (?e=) or a friend link (?r=) skip the promoter pitch and land on the email box.
+  var fanVisit = !!(S.q.get("e") || S.q.get("r") || S.q.get("src"));
+  if (fanVisit) addEventListener("load", function () { $("fans").scrollIntoView({ behavior: "auto" }); });
 
   S.get("meta", { e: S.attr.e || null }).then(function (m) {
     if (m.event) {
-      root.classList.add("ev");
-      $("h1").innerHTML = hot(S.fill(C.eventHeadline, { EVENT_NAME: m.event.name }));
-      $("sub").textContent = S.fill(C.eventSubhead, { EVENT_NAME: m.event.name }); $("sub").hidden = false;
+      $("fanH").innerHTML = esc(S.fill(C.eventHeadline || "You made it to {{EVENT_NAME}}.", { EVENT_NAME: m.event.name }));
+      $("fanSub").textContent = S.fill(C.eventSubhead || "", { EVENT_NAME: m.event.name }) || $("fanSub").textContent;
     }
-    if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " cleared"; $("proof").hidden = false; }
+    if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " members"; $("proof").hidden = false; }
   }).catch(function () {});
   S.pageview("/");
 
-  // ---------- Returning members: this phone already joined ----------
-  // The member key lives on the phone (see collection.html). With it, the landing page
-  // steps aside, and a show's QR code (?e=slug) enters them with no typing.
+  // ---------- Returning members ----------
+  // The member key lives on the phone (see collection.html). A show QR (?e=slug) checks them in with no typing;
+  // otherwise the homepage stays put (promoters and artists come here too) and the bar shows "My collection".
   var MKEY = "stack_member";
   function remember(tok) { try { localStorage.setItem(MKEY, tok); } catch (e) {} }
   var mine = null; try { mine = localStorage.getItem(MKEY); } catch (e) {}
   if (mine && /^[0-9a-f-]{36}$/i.test(mine)) {
+    $("mine").hidden = false;
     if (S.q.get("e")) {
       S.api("checkin", { t: mine, e: S.q.get("e") })
         .then(function (r) { window.__go("collection.html" + (r.event ? "?e=" + encodeURIComponent(r.event.slug) : "")); })
-        .catch(function (err) { if (err.status === 404) { try { localStorage.removeItem(MKEY); } catch (e) {} } });
-    } else if (!S.q.get("r")) window.__go("collection.html");
+        .catch(function (err) { if (err.status === 404) { try { localStorage.removeItem(MKEY); } catch (e) {} $("mine").hidden = true; } });
+    }
   }
 
   // ---------- Signup ----------
@@ -510,51 +518,31 @@ window.Stack = (function () {
       .then(function (r) { if (r && r.access_token) go(r); else say(""); }).catch(function () { say(""); });
   }
 
-  addEventListener("scroll", function () { $("cue").classList.toggle("off", scrollY > 40); }, { passive: true });
 
-  // ---------- The hidden thing ----------
-  function toOffer(e) { e.preventDefault(); $("offer").scrollIntoView({ behavior: still ? "auto" : "smooth" }); setTimeout(function () { $("email").focus({ preventScroll: true }); }, still ? 0 : 500); }
-  $("again").addEventListener("click", toOffer);
-
-  // ---------- The flight. One camera, four places. Scroll position picks where you are; the plates crossfade and zoom so it never cuts. ----------
+  // ---------- The world: one art plate per audience, crossfading and zooming with scroll ----------
   (function () {
-    var mobile = innerWidth < 900 || (window.matchMedia && matchMedia("(pointer:coarse)").matches);
-    var bar = document.querySelector(".pbar");
-    if (still) { var w0 = document.querySelector('.wp[data-wp="0"]'); w0.style.opacity = 1; w0.style.visibility = "visible"; return; }
-    var wps = all(".wp").map(function (el) { return { el: el, r: el.querySelector(".r"), b: el.querySelector(".b") }; });
-    var secs = [$("flyer"), $("offer"), $("get"), $("foot")];
-    var cut = $("cut"), vel = 0, lastY = scrollY, lastT = performance.now(), px = 0, py = 0, tx = 0, ty = 0, cutT = 0, smooth = scrollY;
-    addEventListener("mousemove", function (e) { tx = (e.clientX / innerWidth - .5) * 2; ty = (e.clientY / innerHeight - .5) * 2; }, { passive: true });
+    var plates = all(".wp");
+    if (still) { plates[0].style.opacity = 1; plates[0].style.visibility = "visible"; return; }
+    var mobile = innerWidth < 900;
+    var secs = [$("top"), $("promoters"), $("artists"), $("fans"), $("foot")];
+    var ZEND = mobile ? [1.5, 1.35, 1.3, 1.15] : [1.18, 1.14, 1.1, 1.06];
+    var smooth = scrollY;
     function cl(x) { return Math.min(1, Math.max(0, x)); }
     function ss(a, b, x) { var t = cl((x - a) / (b - a)); return t * t * (3 - 2 * t); }
-    // leg i runs from the top of section i to the top of section i+1. Inside a leg: zoom from 1 to ZEND into the current place, the next place fades up behind at the end.
-    var ZEND = mobile ? [2.2, 2.0, 1.7, 1.3] : [1.22, 1.16, 1.12, 1.06];
-    function frame(now) {
-      var dt = Math.max(1, now - lastT), y = scrollY; vel += ((y - lastY) / dt * 16 - vel) * 0.2; lastY = y; lastT = now;
-      smooth += (y - smooth) * 0.12; if (Math.abs(y - smooth) < .4) smooth = y;
-      px += (tx - px) * .05; py += (ty - py) * .05;
-      var vh = innerHeight, v = Math.max(-1, Math.min(1, vel / 36)), av = Math.abs(v);
-      var tops = secs.map(function (el) { return el.offsetTop; });
-      var leg = 0; for (var i = 0; i < tops.length - 1; i++) if (smooth >= tops[i]) leg = i;
-      var span = Math.max(1, (tops[leg + 1] || tops[leg] + vh) - tops[leg]), t = cl((smooth - tops[leg]) / span);  // 0..1 through this leg
-      wps.forEach(function (w, i) {
-        var o, z, dy;
-        if (i === leg) { z = 1 + (ZEND[i] - 1) * Math.pow(t, 1.4); o = 1 - ss(.72, 1, t); dy = -t * vh * (mobile ? .16 : .08); }
-        else if (i === leg + 1) { z = (mobile ? .7 : .82) + (mobile ? .3 : .18) * ss(.55, 1, t); o = ss(.6, 1, t); dy = (1 - t) * vh * (mobile ? .1 : .05); }
-        else { z = 1; o = 0; dy = 0; }
-        var mx = mobile ? (i === leg ? (i % 2 ? 1 : -1) * t * innerWidth * .05 : 0) : px * (i === leg ? 9 : 4), my = mobile ? 0 : py * (i === leg ? 5 : 2);
-        w.el.style.transform = "translate3d(" + mx.toFixed(1) + "px," + (dy + my).toFixed(1) + "px,0) scale(" + z.toFixed(3) + ")";
-        w.el.style.opacity = o.toFixed(3); w.el.style.visibility = o > .005 ? "visible" : "hidden";
-        if (mobile) return;
-        var sp = av * 5 + (i === leg ? t * (1 - t) * 8 : 0);
-        w.r.style.transform = "translate3d(" + (-sp).toFixed(1) + "px," + (v * 2).toFixed(1) + "px,0)";
-        w.b.style.transform = "translate3d(" + sp.toFixed(1) + "px," + (-v * 2).toFixed(1) + "px,0)";
+    function frame() {
+      smooth += (scrollY - smooth) * 0.12; if (Math.abs(scrollY - smooth) < .4) smooth = scrollY;
+      var vh = innerHeight, tops = secs.map(function (el) { return el.offsetTop; });
+      var leg = 0; for (var i = 0; i < tops.length - 1; i++) if (smooth >= tops[i] - vh * .3) leg = i;
+      leg = Math.min(leg, plates.length - 1);
+      var start = tops[leg] - vh * .3, span = Math.max(1, (tops[leg + 1] - vh * .3) - start), t = cl((smooth - start) / span);
+      plates.forEach(function (el, i) {
+        var o, z;
+        if (i === leg) { z = 1 + (ZEND[i] - 1) * Math.pow(t, 1.4); o = 1 - ss(.8, 1, t); }
+        else if (i === leg + 1) { z = .9 + .1 * ss(.7, 1, t); o = ss(.75, 1, t); }
+        else { z = 1; o = 0; }
+        el.style.transform = "scale(" + z.toFixed(3) + ")";
+        el.style.opacity = o.toFixed(3); el.style.visibility = o > .005 ? "visible" : "hidden";
       });
-      // laser cut when a leg hands off
-      if (t > .97 && av > .1) cutT = now;
-      var age = now - cutT, co = age < 240 ? 1 - age / 240 : 0;
-      cut.style.opacity = co.toFixed(2); cut.style.transform = "scaleX(" + (co > 0 ? (1 - co * .6).toFixed(3) : 0) + ")";
-      if (bar) { var hh = document.documentElement.scrollHeight - vh; bar.style.transform = "scaleX(" + (hh > 0 ? Math.min(1, y / hh) : 0).toFixed(3) + ")"; }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
