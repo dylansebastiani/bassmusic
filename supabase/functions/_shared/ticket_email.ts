@@ -75,7 +75,7 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   const maps = d.address ? "https://maps.google.com/?q=" + encodeURIComponent(d.address) : null;
 
   const nightRows = d.nights.map((n, i) => `
-<tr><td style="padding:6px 0;font:700 13px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${nightColor(i)}">${esc(n.label)}</td>
+<tr><td style="padding:6px 0;font:700 13px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${artist ? GOLD : nightColor(i)}">${esc(n.label)}</td>
 <td align="right" style="padding:6px 0;font:700 13px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#E7E0F0">${esc(n.doors || "")}</td></tr>`).join("");
 
   const cards = d.tickets.map((t, i) => {
