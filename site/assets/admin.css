@@ -230,3 +230,18 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .aprof .alinks a{font-size:12px;text-transform:capitalize}
 .aprof .arider{margin:6px 0 8px;padding:8px 10px;border-left:2px solid var(--gold,#F2C14E);font-size:13px;white-space:pre-line}
 .aprof .arider b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+
+.plmode{display:flex;gap:8px;margin:4px 0 12px}
+.plmode .mini[aria-pressed=true]{border-color:#fff;color:#fff;background:#1a1a1a}
+.plrow{display:flex;gap:8px;align-items:center;border:1px solid var(--line);padding:10px;margin-bottom:8px;flex-wrap:wrap}
+.plrow input{flex:1 1 160px;min-width:0;background:#000;border:1px solid #6c6567;color:var(--fg);font-size:16px;padding:10px;border-radius:0}
+.plrow.art{border-left:4px solid #F2C14E;justify-content:space-between}
+.plrow.art span{display:flex;flex-direction:column;gap:2px}
+.plrow small{color:var(--mute);font-size:11px}
+.pladd{display:flex;flex-direction:column;gap:6px;border:1px dashed #6c6567;padding:14px;cursor:pointer;margin-bottom:8px}
+.pladd:hover{border-color:#fff}
+.pladd input{display:none}
+.pladd .mono{font-size:11px;color:var(--mute)}
+.plbar{height:3px;background:#222}.plbar i{display:block;height:100%;width:0;background:#fff}
+.plfan{display:flex;align-items:center;gap:12px;margin:4px 0 8px}
+#sv-playlist .sub{margin-top:22px}

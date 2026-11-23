@@ -81,7 +81,7 @@
   $("shows").addEventListener("click", function (e) { var b = e.target.closest("[data-open]"); if (b) openShow(b.getAttribute("data-open")); });
 
   // ================= SHOWS: one show =================
-  var SEGS = [["lineup", "Lineup"], ["sales", "Sales"], ["guests", "Door List"], ["artists", "Artists"], ["codes", "Codes"], ["images", "Images"], ["details", "Details"]];
+  var SEGS = [["lineup", "Lineup"], ["sales", "Sales"], ["guests", "Door List"], ["artists", "Artists"], ["playlist", "Playlist"], ["codes", "Codes"], ["images", "Images"], ["details", "Details"]];
   function openShow(slug, keepTab) {
     $("showList").hidden = true; $("showView").hidden = false; scrollTo(0, 0);
     $("svName").textContent = "Loading..."; $("svWhen").textContent = ""; $("svLinks").innerHTML = ""; $("seg").innerHTML = "";
@@ -94,7 +94,7 @@
         '<a class="pill" href="door.html?e=' + esc(slug) + '" target="_blank" rel="noopener">Door app ↗</a>' +
         '<span class="pill ' + (d.event.sales_open ? "on" : "") + '">Sales ' + (d.event.sales_open ? "on" : "off") + "</span>" +
         '<span class="pill ' + (d.lineup_public ? "on" : "") + '">Lineup ' + (d.lineup_public ? "public" : "hidden") + "</span>" : "";
-      var segs = d.ticketed ? SEGS : [["details", "Details"]];
+      var segs = d.ticketed ? SEGS : [["details", "Details"], ["playlist", "Playlist"]];
       $("seg").innerHTML = segs.map(function (s) { return '<button type="button" data-seg="' + s[0] + '">' + s[1] + "</button>"; }).join("");
       seg(keepTab && segs.some(function (s) { return s[0] === curTab; }) ? curTab : segs[0][0]);
       // Load the other tabs in the background so they open instantly.
@@ -108,7 +108,7 @@
     curTab = name;
     SEGS.forEach(function (s) { $("sv-" + s[0]).hidden = s[0] !== name; });
     [].forEach.call($("seg").children, function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-seg") === name ? "true" : "false"); });
-    ({ lineup: drawLineup, sales: sales, guests: guests, artists: artists, codes: codes, images: drawImages, details: drawDetails })[name]();
+    ({ lineup: drawLineup, sales: sales, guests: guests, artists: artists, playlist: playlist, codes: codes, images: drawImages, details: drawDetails })[name]();
   }
   function refreshShow() { return openShow(cur.event.slug, true); }
 
@@ -315,6 +315,77 @@
       }).join("") : '<div class="empty">No artists yet. Create one above.</div>';
     }).catch(function (err) { $("artists").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
   }
+  // ---------- playlist: the music bar on this show's page ----------
+  var PLF = BASE + "playlist", pl = null;
+  function plKeep() { (pl && pl.tracks || []).forEach(function (t, i) { var a = $("plt" + i), b = $("pla" + i); if (a) t.title = a.value.trim(); if (b) t.artist = b.value.trim(); }); }
+  function plDraw() {
+    var own = pl.mode === "upload", full = pl.tracks.length >= (pl.max || 20);
+    $("plMode").innerHTML = '<button type="button" class="mini" data-plmode="subduction" aria-pressed="' + !own + '">Subduction tracks</button><button type="button" class="mini" data-plmode="upload" aria-pressed="' + own + '">Our own tracks</button>';
+    $("plOwn").innerHTML = own ? (pl.tracks.length ? pl.tracks.map(function (t, i) {
+        return '<div class="plrow"><input type="text" id="plt' + i + '" maxlength="80" value="' + esc(t.title) + '" aria-label="Track title" placeholder="Title"><input type="text" id="pla' + i + '" maxlength="80" value="' + esc(t.artist || "") + '" aria-label="Artist" placeholder="Artist"><button type="button" class="mini danger" data-plrm="' + i + '">Remove</button></div>';
+      }).join("") : '<div class="empty">No tracks yet. Add one below.</div>') +
+      (full ? '<p class="fine">That\'s the most a show can have (' + (pl.max || 20) + ').</p>' : '<label class="pladd"><b>+ Add a track</b><span class="mono" id="plSt">MP3, WAV or M4A, up to 50 MB</span><span class="plbar"><i id="plBar"></i></span><input type="file" id="plFile" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4"></label>')
+      : '<p class="fine">The page plays a random mix of Subduction tracks, plus anything the artists add. Nothing to upload.</p>';
+    var at = pl.artist_tracks || [];
+    $("plArt").innerHTML = at.length ? at.map(function (t) {
+      return '<div class="plrow art"><span><b>' + esc(t.title) + '</b><small class="mono">' + esc(t.artist || "") + (t.free_download ? " · free download on" : "") + '</small></span><button type="button" class="mini danger" data-plarm="' + esc(t.id) + '">Remove</button></div>';
+    }).join("") : '<div class="empty">Artists add their own tracks from their artist link. They show up here.</div>';
+    var f = $("plFile"); if (f) f.onchange = plUpload;
+  }
+  function plFans() {
+    $("plFans").innerHTML = '<div class="empty">Loading...</div>';
+    req(PLF + "?a=downloads&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
+      var rows = d.downloads || [];
+      $("plFans").innerHTML = rows.length ? '<div class="plfan"><b>' + rows.length + " download" + (rows.length === 1 ? "" : "s") + '</b> <button type="button" class="mini" id="plCsv">Download fan list (CSV)</button></div>' +
+        rows.slice(0, 8).map(function (x) { return '<div class="mono asub">' + esc(x.name) + " · " + esc(x.track_title || "") + " · " + esc(x.zip || "") + "</div>"; }).join("") +
+        (rows.length > 8 ? '<div class="mono asub">+ ' + (rows.length - 8) + " more in the CSV</div>" : "")
+        : '<div class="empty">No downloads yet. When an artist turns on free download, fans give their name, email, phone and ZIP to get the track.</div>';
+      var b = $("plCsv"); if (b) b.onclick = function () { dlCsv(rows, cur.event.name); };
+    }).catch(function (err) { $("plFans").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
+  }
+  function playlist() {
+    var id = cur.base && cur.base.id; say("plMsg", "");
+    $("plMode").innerHTML = ""; $("plArt").innerHTML = ""; $("plOwn").innerHTML = '<div class="empty">Loading...</div>';
+    if (!id) { $("plOwn").innerHTML = '<div class="empty">Couldn\'t find this show. Go back and open it again.</div>'; return; }
+    req(PLF + "?a=get&show=" + id).then(function (r) { pl = r; pl.id = id; plDraw(); }).catch(function (err) { $("plOwn").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
+    plFans();
+  }
+  function plUpload() {
+    var inp = $("plFile"), f = inp.files[0]; if (!f) return;
+    var st = $("plSt"), bar = $("plBar"), ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { st.textContent = "Use an MP3, WAV or M4A."; return; }
+    if (f.size > 50 * 1048576) { st.textContent = "Over 50 MB. Export it as a 320 kbps MP3 and it will fit."; return; }
+    plKeep(); st.textContent = "Uploading...";
+    req(PLF, { a: "upload-url", show: pl.id, ext: ext }).then(function (r) {
+      return new Promise(function (ok, no) {
+        var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
+        x.upload.onprogress = function (e) { if (e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + "%"; };
+        x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); };
+        x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
+        x.send(f);
+      });
+    }).then(function (path) {
+      pl.tracks.push({ path: path, title: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80), artist: "" });
+      plDraw(); say("plMsg", "Added. Check the title, then Save playlist.");
+    }).catch(function (e) { st.textContent = e.message; });
+  }
+  $("sv-playlist").addEventListener("click", function (e) {
+    var m = e.target.closest("[data-plmode]"), rm = e.target.closest("[data-plrm]"), arm = e.target.closest("[data-plarm]");
+    if (m && pl) { plKeep(); pl.mode = m.getAttribute("data-plmode"); plDraw(); say("plMsg", "Hit Save playlist to make it live."); }
+    else if (rm && pl) { plKeep(); pl.tracks.splice(+rm.getAttribute("data-plrm"), 1); plDraw(); say("plMsg", "Hit Save playlist to make it live."); }
+    else if (arm && pl) {
+      if (!confirm("Take this artist's track out of the playlist? It gets deleted.")) return;
+      arm.disabled = true;
+      req(PLF, { a: "artist-remove", show: pl.id, id: arm.getAttribute("data-plarm") }).then(function (r) { pl.artist_tracks = r.artist_tracks; plDraw(); say("plMsg", "Removed."); })
+        .catch(function (x) { arm.disabled = false; say("plMsg", x.message); });
+    }
+  });
+  $("plSave").addEventListener("click", function () {
+    if (!pl) return; plKeep(); say("plMsg", "Saving...");
+    req(PLF, { a: "save", show: pl.id, mode: pl.mode, tracks: pl.tracks }).then(function (r) { pl.mode = r.mode; pl.tracks = r.tracks; plDraw(); say("plMsg", "Saved. The show page picks it up within about 5 minutes."); })
+      .catch(function (x) { say("plMsg", x.message); });
+  });
+
   $("af").addEventListener("submit", function (e) {
     e.preventDefault(); say("amsg", "Saving...");
     var body = { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0,
