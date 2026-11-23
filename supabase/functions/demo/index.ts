@@ -5,6 +5,9 @@
 //   GET  ?t=token                                the test ticket (for the link in the email)
 //   GET  ?a=qr&t=token                           its QR code
 //   POST {a:"scan", t}                           mark it scanned, like the door app would
+//   POST {a:"claim", t, k?}                      open their promoter account: makes the crew and links their email as its owner.
+//                                                With the key from the email link (proof the inbox is theirs) they're signed
+//                                                straight in; without it they get the normal 6-digit code on the promoter page.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -30,13 +33,29 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
   return (data?.value as T) ?? fallback;
 }
 const ticketUrl = (t: string) => `${SITE}/demo.html?t=${t}`;
+const admins = async () => ((await setting<unknown>("admin_emails", [])) as unknown[]).map((e) => String(e).toLowerCase()).filter((e) => EMAIL_RE.test(e));
+
+// Tell the owner the moment a lead does something worth a call. Never blocks the visitor.
+async function ping(subject: string, l: Record<string, any>) {
+  try {
+    const key = Deno.env.get("BREVO_API_KEY"), to = await admins();
+    if (!key || !to.length) return;
+    const text = [subject, "", `Crew: ${l.crew || ""}`, `Name: ${l.full_name || ""}`, `Email: ${l.email}`, `Phone: ${l.phone || ""}`, "", "All demo leads: " + SITE + "/people.html"].join("\n");
+    await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ sender: { name: "Subduction leads", email: Deno.env.get("FROM_EMAIL") || CONTACT }, replyTo: { email: l.email }, to: to.map((email) => ({ email })),
+        subject, textContent: text, htmlContent: "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>", tags: ["lead"] }) });
+  } catch (e) { console.error("demo: ping failed", (e as Error).message); }
+}
 const pub = (l: Record<string, any>) => ({ token: l.token, code: l.code, name: l.full_name, crew: l.crew, email: l.email, phone: l.phone, scanned_at: l.scanned_at });
 
 async function sendTicket(l: Record<string, any>) {
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("demo: BREVO_API_KEY not set"); return false; }
   const first = (l.full_name || "").trim().split(/\s+/)[0] || "there", by = l.crew || "Your crew";
-  const F = "font-family:Arial,Helvetica,sans-serif", url = ticketUrl(l.token);
+  // The link in the email carries a one-tap key: opening it proves this inbox is theirs.
+  const k = hex(24);
+  await db.from("demo_leads").update({ claim_hash: await sha256(k) }).eq("id", l.id);
+  const F = "font-family:Arial,Helvetica,sans-serif", url = ticketUrl(l.token) + "&k=" + k;
   const subject = "Your test ticket: Demo Night";
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${subject}</title></head>
 <body style="margin:0;background:#0a0a0a"><div style="display:none;max-height:0;overflow:hidden;opacity:0">This is what your buyers get the second they pay.</div>
@@ -90,8 +109,38 @@ Deno.serve(async (req) => {
     const { data: l } = await db.from("demo_leads").select("*").eq("token", tok).maybeSingle();
     if (!l) return no("Not found", 404);
     const at = l.scanned_at || new Date().toISOString();
-    if (!l.scanned_at) await db.from("demo_leads").update({ scanned_at: at }).eq("id", l.id);
+    if (!l.scanned_at) { await db.from("demo_leads").update({ scanned_at: at }).eq("id", l.id); await ping(`Demo finished: ${l.crew || l.full_name || l.email}`, l); }
     return json({ ...pub(l), scanned_at: at, again: !!l.scanned_at });
+  }
+
+  if (b.a === "claim") {
+    const tok = clean(b.t, 40), k = clean(b.k, 60);
+    if (!TOKEN.test(tok)) return no("Not found", 404);
+    const { data: l } = await db.from("demo_leads").select("*").eq("token", tok).maybeSingle();
+    if (!l) return no("Not found", 404);
+    const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await sha256("claim|" + l.id) });
+    if ((n ?? 0) > 10) return no("Too many tries. Wait a minute and try again.", 429);
+    // Their member record and their crew, made once.
+    let { data: m } = await db.from("subscribers").select("id,status").eq("email", l.email).maybeSingle();
+    if (!m) m = (await db.from("subscribers").insert({ email: l.email, source: "promoter" }).select("id,status").single()).data;
+    if (!m || m.status === "deleted") return no("Couldn't open your account. Email " + CONTACT + " and we'll set it up.", 500);
+    let companyId = l.company_id as string | null;
+    if (!companyId) {
+      const base = (l.crew || "crew").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "crew";
+      const taken = (await db.from("companies").select("id").eq("slug", base).maybeSingle()).data;
+      const { data: co, error } = await db.from("companies").insert({ slug: taken ? `${base}-${hex(2)}` : base, name: l.crew || "My crew", status: "active", contact_email: l.email }).select("id").single();
+      if (error || !co) { console.error("demo: company failed", error?.message); return no("Couldn't open your account. Try again.", 500); }
+      companyId = co.id;
+      await db.from("demo_leads").update({ company_id: companyId, claimed_at: new Date().toISOString() }).eq("id", l.id);
+      await ping(`New promoter account: ${l.crew || l.full_name || l.email}`, l);
+    }
+    await db.from("company_staff").upsert({ company_id: companyId, subscriber_id: m.id, role: "owner" }, { onConflict: "company_id,subscriber_id", ignoreDuplicates: true });
+    // Signed straight in only with the key from their own inbox, and never for a staff email.
+    const proven = !!k && !!l.claim_hash && (await sha256(k)) === l.claim_hash && !(await admins()).includes(String(l.email).toLowerCase());
+    if (!proven) return json({ code_needed: true, email: l.email });
+    const session = hex(32);
+    await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(session), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
+    return json({ session });
   }
 
   if (b.a !== "start") return no("Bad request");

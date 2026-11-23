@@ -23,13 +23,13 @@
 
   // ---------- sign in ----------
   function signin() {
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Your email, then the 6-digit code we send you. No passwords.</p>" +
+    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Your email, then the 6-digit code we send you. No passwords.</p><p class=note>New here? <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off><button class=btn type=submit>Send my code</button></form>' +
       '<form id=f2 novalidate hidden><label for=cd>6-digit code</label><input type=text id=cd inputmode=numeric autocomplete=one-time-code maxlength=6><button class=btn type=submit>Sign in</button></form><p class=msg role=status></p>';
     var em = document.getElementById("em");
     document.getElementById("f1").onsubmit = function (e) {
       e.preventDefault(); say("Sending…");
-      call("login", { email: em.value.trim() }).then(function () { document.getElementById("f1").hidden = true; document.getElementById("f2").hidden = false; document.getElementById("cd").focus(); say("Check your email for the code."); })
+      call("login", { email: em.value.trim() }).then(function () { document.getElementById("f1").hidden = true; document.getElementById("f2").hidden = false; document.getElementById("cd").focus(); say("We sent a 6-digit code to " + em.value.trim() + ". Type it in above."); var nt = app.querySelector(".note"); if (nt) nt.hidden = true; })
         .catch(function (x) { say(x.message, true); });
     };
     document.getElementById("f2").onsubmit = function (e) {
@@ -37,6 +37,9 @@
       call("verify", { email: em.value.trim(), code: document.getElementById("cd").value }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (x) {} load().then(route); })
         .catch(function (x) { say(x.message, true); });
     };
+    // Coming from the demo: their email is already known, so the code goes out without asking again.
+    var pe = ""; try { pe = sessionStorage.getItem("promo_email") || ""; sessionStorage.removeItem("promo_email"); } catch (x) {}
+    if (pe) { em.value = pe; document.getElementById("f1").onsubmit({ preventDefault: function () {} }); }
   }
 
   // ---------- home: the checklist ----------
@@ -47,17 +50,17 @@
     var brandDone = !!(co.brand.logo || (co.brand.colors && co.brand.colors.main));
     var s = shows[0];
     var steps = [
-      { key: "brand", t: "Your brand", d: "Logo, colors, partner logos. Once, for every show.", done: brandDone, href: "#brand" },
       { key: "show", t: "Your show", d: s ? esc(s.name) : "5 quick questions: dates, place, age, tickets.", done: !!(s && s.checklist.details), href: "#show/" + (s ? s.id : "new") + "/1" },
-      { key: "art", t: "Show art", d: "Flyers and art for this show.", done: !!(s && s.checklist.art), href: s ? "#art/" + s.id : "#show/new/1" },
+      { key: "art", t: "Your flyer", d: "Drop in your flyer. Any size works.", done: !!(s && s.checklist.art), href: s ? "#art/" + s.id : "#show/new/1" },
       { key: "paid", t: "Get paid", d: "Connect where ticket money goes. Takes about 5 minutes.", done: co.paid_ready, href: "#paid" },
-      { key: "send", t: "Send to Subduction", d: s && s.checklist.submitted ? (s.live ? "Live!" : "We're building your page.") : "We build your page and tell you when it's live.", done: !!(s && s.checklist.submitted), href: s ? "#send/" + s.id : "#show/new/1" },
+      { key: "send", t: "Send it", d: s && s.checklist.submitted ? (s.live ? "Live!" : "We're building your page.") : "One tap. We build your page and tell you when it's live.", done: !!(s && s.checklist.submitted), href: s ? "#send/" + s.id : "#show/new/1" },
     ];
     var doneN = steps.filter(function (x) { return x.done; }).length, nextI = steps.findIndex(function (x) { return !x.done; });
     app.innerHTML = top(me.owner ? "#" : "") + (me.owner ? '<div class=qnum>Setting up for</div>' : "") +
       "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
+      '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and your page starts in our neon look.</small></div>' +
       (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "") +
       (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
       (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
@@ -94,8 +97,8 @@
   }
 
   // ---------- uploads: big drop boxes that check sizes in plain words ----------
-  var SIZES = { logo: [1400, 0, "1400px wide or more, transparent PNG"], hero: [2400, 1600, "2400×1600 or bigger, no text on it"], flyer: [1080, 1350, "1080×1350 or bigger"],
-    figure: [800, 0, "Transparent PNG, 800px or more"], partners: [1200, 0, "White logos on transparent, 1200px wide or more"], share: [1200, 630, "Exactly 1200×630"], icon: [300, 300, "Square, 300px or more"], video: [0, 0, "MP4, under 30 seconds"] };
+  var SIZES = { logo: [1400, 0, "Any logo works. A see-through PNG looks best."], hero: [2400, 1600, "Any wide image works. Bigger is sharper."], flyer: [1080, 1350, "Any size works. 1080×1350 looks best."],
+    figure: [800, 0, "A see-through PNG looks best."], partners: [1200, 0, "White logos on a see-through background look best."], share: [1200, 630, "Wide image, 1200×630 looks best."], icon: [300, 300, "Any square image."], video: [0, 0, "MP4, under 30 seconds"] };
   function drop(id, label, kind, url) {
     var sz = SIZES[kind] || [0, 0, ""];
     return '<div class="drop' + (url ? " has" : "") + '" id="d-' + id + '"><span class=thumb style="background-image:url(' + (url && kind !== "video" ? esc(url) : "") + ')"></span><span><b>' + esc(label) + "</b><small>" + esc(sz[2]) +

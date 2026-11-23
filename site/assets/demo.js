@@ -2,7 +2,7 @@
 (function () {
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/demo";
   var $ = function (id) { return document.getElementById(id); };
-  var KEY = "sub_demo", lead = null;
+  var KEY = "sub_demo", lead = null, claimKey = "";
   var time = function (iso) { return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); };
 
   // The light-burst that stands in for a show's art.
@@ -65,8 +65,20 @@
     }).catch(function () {}).then(function () { $("scan").disabled = false; });
   });
 
+  // The last button: open their promoter account. From the email link they're signed straight in;
+  // otherwise the promoter page sends the usual 6-digit code to the email they gave.
+  $("claim").addEventListener("click", function () {
+    if (!lead) { location.href = "promoter.html"; return; }
+    $("claim").disabled = true; $("cmsg").textContent = "Opening your account...";
+    post({ a: "claim", t: lead.token, k: claimKey || undefined }).then(function (r) {
+      try { if (r.session) localStorage.setItem("stack_admin", r.session); else sessionStorage.setItem("promo_email", r.email || lead.email); } catch (e) {}
+      location.href = "promoter.html";
+    }).catch(function (err) { $("cmsg").textContent = err.message; $("claim").disabled = false; });
+  });
+
   // Coming back from the email link (or a refresh): pick up at the ticket.
   var t = (new URLSearchParams(location.search).get("t") || "").toLowerCase();
+  claimKey = (new URLSearchParams(location.search).get("k") || "").replace(/[^0-9a-f]/gi, "").slice(0, 60);
   if (!/^[0-9a-f]{32}$/.test(t)) { try { t = localStorage.getItem(KEY) || ""; } catch (e) { t = ""; } }
   if (/^[0-9a-f]{32}$/.test(t)) {
     fetch(FN + "?t=" + t).then(function (r) { return r.ok ? r.json() : null; }).then(function (l) {
