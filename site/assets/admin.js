@@ -272,6 +272,19 @@
   // ---------- artists ----------
   var ART = BASE + "artist";
   function artGet() { var u = ART + "?a=list&e=" + encodeURIComponent(cur.event.slug); return cached(u, function () { return req(u); }); }
+  // What the artist filled in: public profile (on the lineup) and their private notes for you.
+  function aprofile(a) {
+    var p = a.profile || {}, links = Object.keys(p.links || {});
+    var has = p.photo_url || p.bio || p.hometown || p.genre || links.length;
+    if (!has && !p.rider) return "";
+    return '<div class="aprof">' + (p.photo_url ? '<img src="' + esc(p.photo_url) + '" alt="">' : "") + "<div>" +
+      (has ? '<div class="mono asub">' + (p.hidden ? "Profile hidden from the lineup" : "Profile live on the lineup") + ([p.hometown, p.genre].filter(Boolean).length ? " · " + [p.hometown, p.genre].filter(Boolean).map(esc).join(" · ") : "") + "</div>" : "") +
+      (p.bio ? '<p class="abio">' + esc(p.bio) + "</p>" : "") +
+      (links.length ? '<div class="alinks">' + links.map(function (k) { return '<a href="' + esc(p.links[k]) + '" target="_blank" rel="noopener nofollow">' + esc(k) + " ↗</a>"; }).join("") + "</div>" : "") +
+      (p.rider ? '<div class="arider"><b>Their notes for you</b>' + esc(p.rider) + "</div>" : "") +
+      (has && !a.revoked ? '<button type="button" class="mini" data-hide="' + esc(a.id) + '" data-h="' + (p.hidden ? "" : "1") + '">' + (p.hidden ? "Show on lineup" : "Hide from lineup") + "</button>" : "") +
+      "</div></div>";
+  }
   function artists() {
     $("artists").innerHTML = '<div class="empty">Loading...</div>';
     artGet().then(function (d) {
@@ -281,6 +294,7 @@
           (a.full_name || a.email || a.phone ? '<div class="mono asub">' + [a.full_name, a.email, a.phone].filter(Boolean).map(esc).join(" · ") + "</div>" : "") +
           '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used</div>" +
           (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
+          aprofile(a) +
           (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy link</button>' +
             '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
             '<span class="spin"><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + Math.max(0, a.spots - 1) + '" aria-label="Fewer spots">−</button><span>' + a.spots + ' spots</span><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + (a.spots + 1) + '" aria-label="More spots">+</button></span>' +
@@ -302,7 +316,8 @@
     }).catch(function (err) { say("amsg", err.message); });
   });
   $("artists").addEventListener("click", function (e) {
-    var c = e.target.closest("[data-copy]"), sp = e.target.closest("[data-spots]"), rv = e.target.closest("[data-revoke]");
+    var c = e.target.closest("[data-copy]"), sp = e.target.closest("[data-spots]"), rv = e.target.closest("[data-revoke]"), hd = e.target.closest("[data-hide]");
+    if (hd) { hd.disabled = true; (pre = {}, req)(ART, { a: "update", id: hd.getAttribute("data-hide"), profile_hidden: !!hd.getAttribute("data-h") }).then(artists).catch(function (err) { alert(err.message); }); }
     if (c) { var t = c.getAttribute("data-copy"); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { c.textContent = "Copied ✓"; }).catch(function () { prompt("Copy this link:", t); }); }
     if (sp) { sp.disabled = true; (pre = {}, req)(ART, { a: "update", id: sp.getAttribute("data-spots"), spots: Number(sp.getAttribute("data-n")) }).then(artists).catch(function (err) { alert(err.message); }); }
     if (rv) {

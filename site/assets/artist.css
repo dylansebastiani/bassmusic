@@ -50,3 +50,9 @@
 .trk .tbtns{flex:1 0 100%;display:flex;gap:8px;flex-wrap:wrap}
 .trk button[data-art]:hover{border-color:var(--gold,#F2C14E);color:var(--gold,#F2C14E)}
 label .opt{text-transform:none;letter-spacing:0;color:var(--lav);font-weight:400}
+/* artist profile */
+.aform textarea{width:100%;background:#050505;border:1px solid var(--uv);color:#fff;font-family:var(--text);font-size:16px;padding:12px;border-radius:0;outline:none;resize:vertical;line-height:1.5}
+.aform textarea:focus{border-color:var(--gold)}
+.pfphoto{display:flex;gap:14px;align-items:center;margin:4px 0 6px}
+.pfimg{width:88px;height:88px;flex:none;border:1px solid var(--gold);background:#0d0716}
+.pfimg img{width:100%;height:100%;object-fit:cover;display:block}

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <meta name="robots" content="noindex">
@@ -71,13 +71,34 @@
         <p class="fineprint">Each guest gets a real ticket by email with their own QR code. You can add or remove people until doors open for their night.</p>
       </div>
       <div class="acard">
+        <div class="row1"><h2>Your profile</h2><span class="spots" id="pfstate"></span></div>
+        <p class="lead">Fans see this when they tap your name in the lineup on the show page.</p>
+        <div class="pfphoto"><div class="pfimg" id="pfimg"></div><div><button class="btn ghost" type="button" id="pfpick">Add a photo</button><div class="hint">Square JPG, PNG or WebP, up to 5 MB.</div></div></div>
+        <input id="pffile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
+        <form id="pf" class="aform" novalidate>
+          <label for="pfhome">Hometown</label><input id="pfhome" type="text" maxlength="60" autocomplete="off" placeholder="e.g. Chicago, IL">
+          <label for="pfgenre">Sound</label><input id="pfgenre" type="text" maxlength="60" autocomplete="off" placeholder="e.g. riddim, dubstep, wave">
+          <label for="pfbio">Bio</label><textarea id="pfbio" maxlength="400" rows="4" placeholder="Two or three sentences about you and your sound."></textarea>
+          <div class="hint"><span id="pfbion">0</span>/400</div>
+          <label for="pfig">Instagram</label><input id="pfig" type="text" maxlength="300" autocomplete="off" autocapitalize="off" placeholder="@yourname">
+          <label for="pfsc">SoundCloud</label><input id="pfsc" type="url" maxlength="300" autocomplete="off" autocapitalize="off" placeholder="soundcloud.com/yourname">
+          <label for="pfsp">Spotify</label><input id="pfsp" type="url" maxlength="300" autocomplete="off" autocapitalize="off" placeholder="Paste your Spotify artist link">
+          <label for="pftt">TikTok</label><input id="pftt" type="text" maxlength="300" autocomplete="off" autocapitalize="off" placeholder="@yourname">
+          <label for="pfyt">YouTube</label><input id="pfyt" type="url" maxlength="300" autocomplete="off" autocapitalize="off" placeholder="Paste your channel link">
+          <label for="pfweb">Website</label><input id="pfweb" type="url" maxlength="300" autocomplete="off" autocapitalize="off" placeholder="yourname.com">
+          <label for="pfrider">Notes for the promoter <span class="opt">(private)</span></label><textarea id="pfrider" maxlength="1000" rows="3" placeholder="Gear, set length, arrival time, anything you need. Only the promoter sees this."></textarea>
+          <button class="btn gold" type="submit" id="pfgo">Save my profile</button>
+          <p class="msg" id="pfmsg" role="status"></p>
+        </form>
+      </div>
+      <div class="acard">
         <div class="row1"><h2>Your tracks</h2><span class="spots" id="tcount"></span></div>
         <p class="lead">Add your music to this show's playlist. It goes straight into the mix on the show's page.</p>
         <div class="glist" id="tlist"></div>
         <input id="tartpick" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
         <form id="tf" class="aform" novalidate>
           <label for="tfile">Add a track</label><input id="tfile" type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4">
-          <div class="hint">MP3, WAV or M4A, up to 40 MB.</div>
+          <div class="hint">MP3, WAV or M4A, up to 50 MB. A long WAV can run bigger: export it as a 320 kbps MP3 and it will fit.</div>
           <label for="tart">Cover art <span class="opt">(optional)</span></label><input id="tart" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
           <div class="hint">Square JPG, PNG or WebP, up to 5 MB. It shows in the player while your track plays.</div>
           <label for="ttitle">Track title</label><input id="ttitle" type="text" autocomplete="off" maxlength="80" placeholder="Track title">

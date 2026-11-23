@@ -11,11 +11,15 @@ import { SITE_URL } from "../_shared/config.ts";
 //   POST {a:"guest",k,...}   add a guest (name, email, phone, night) -> a real ticket, emailed
 //   POST {a:"remove",k,...}  take a guest off (before doors, and only if not scanned in)
 //   POST {a:"resend",k}      email their pass again
+//   POST {a:"profile",k,...} photo is separate; bio, hometown, genre, links (shown on the lineup), rider (private)
+//   POST {a:"photo-url",k,ext} / {a:"photo",k,path}   upload a press photo
+// Public:
+//   GET  ?a=lineup&e=slug    artists' public profiles for a show's lineup (never the rider, legal name or contact info)
 // Staff side (signed in on /admin, x-admin-token):
 //   GET  ?a=list&e=slug      every invite for a show with its guests
 //   POST {a:"create",e,...}  artist name + guest spots (+ optional real name, email, phone) -> the private link;
 //                            with all three contact fields the pass is issued and emailed right away
-//   POST {a:"update",id,...} change name or guest spots
+//   POST {a:"update",id,...} change name, guest spots, or hide/show their public profile
 //   POST {a:"revoke",id}     link stops working; their pass and their guests' tickets are cancelled
 const TOKEN = /^[0-9a-f]{48}$/, SLUG = /^[a-z0-9-]{1,80}$/;
 const CORS_A = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
@@ -23,6 +27,35 @@ const phoneOf = (v: unknown) => {
   const d = String(v ?? "").replace(/\D/g, "");
   return d.length === 10 ? "+1" + d : d.length === 11 && d[0] === "1" ? "+" + d : d.length >= 11 && d.length <= 15 ? "+" + d : null;
 };
+
+// ---- artist profiles ----
+const PHOTO_EXT: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" };
+const photoUrl = (path: string | null) => (path ? db.storage.from("artist-photos").getPublicUrl(path).data.publicUrl : null);
+// Links are stored as clean https addresses only, so nothing odd can ever end up behind a button on a public page.
+const LINK_HOSTS: Record<string, string[]> = {
+  instagram: ["instagram.com"], soundcloud: ["soundcloud.com", "on.soundcloud.com"], spotify: ["open.spotify.com", "spotify.link"],
+  tiktok: ["tiktok.com"], youtube: ["youtube.com", "youtu.be"], website: [],
+};
+function cleanLink(key: string, raw: unknown): string | null {
+  let v = (clean(raw, 300) || "").replace(/\s+/g, "");
+  if (!v) return null;
+  if (key === "instagram" && /^@?[A-Za-z0-9._]{1,30}$/.test(v)) v = "https://instagram.com/" + v.replace(/^@/, "");
+  if (key === "tiktok" && /^@?[A-Za-z0-9._]{1,30}$/.test(v)) v = "https://tiktok.com/@" + v.replace(/^@/, "");
+  if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+  let u: URL; try { u = new URL(v); } catch { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  u.protocol = "https:";
+  const host = u.hostname.toLowerCase().replace(/^(www|m)\./, "");
+  const ok = LINK_HOSTS[key];
+  if (!ok || (ok.length && !ok.some((h) => host === h || host.endsWith("." + h)))) return null;
+  return u.toString().slice(0, 300);
+}
+function cleanLinks(raw: unknown) {
+  const out: Record<string, string> = {};
+  const src = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  for (const k of Object.keys(LINK_HOSTS)) { const v = cleanLink(k, src[k]); if (v) out[k] = v; }
+  return out;
+}
 
 // The artist's legal name stays on the order (door list, member record). The ticket itself
 // carries their artist name, so the pass, the PDF and the email all say who they are on the bill.
@@ -59,6 +92,19 @@ Deno.serve(async (req) => {
   function ok(body: unknown) { return json(body, 200, { "Cache-Control": "no-store", ...CORS_A }); }
   function no(m: string, s = 400) { return json({ error: m }, s, CORS_A); }
 
+  // ================= public: artist profiles for a show's lineup =================
+  if (a === "lineup" && req.method === "GET") {
+    const slug = String(u.searchParams.get("e") || "");
+    if (!SLUG.test(slug)) return no("Bad request");
+    const { data: ev } = await db.from("events").select("id").eq("slug", slug).maybeSingle();
+    if (!ev) return json({ artists: [] }, 200, { "Cache-Control": "public, max-age=300", ...CORS_A });
+    const { data: rows } = await db.from("artist_invites").select("name,photo_path,bio,hometown,genre,links")
+      .eq("event_id", ev.id).is("revoked_at", null).not("claimed_at", "is", null).eq("profile_hidden", false);
+    const artists = (rows || []).filter((r) => r.photo_path || r.bio || r.hometown || r.genre || Object.keys(r.links || {}).length)
+      .map((r) => ({ name: r.name, photo_url: photoUrl(r.photo_path), bio: r.bio, hometown: r.hometown, genre: r.genre, links: cleanLinks(r.links) }));
+    return json({ artists }, 200, { "Cache-Control": "public, max-age=300", ...CORS_A });
+  }
+
   // ================= staff =================
   if (["list", "create", "update", "revoke"].includes(a)) {
     const admin = await requireAdmin(req);
@@ -87,7 +133,7 @@ Deno.serve(async (req) => {
         await log("artist_invite", { event: slug, name, spots, pass_sent: sent });
         return ok({ id: inv.id, link: `${SITE_URL}/artist.html?k=${inv.token}`, pass_sent: sent });
       }
-      const { data: invs } = await db.from("artist_invites").select("id,name,full_name,token,guest_spots,email,phone,claimed_at,revoked_at,order_id,created_at").eq("event_id", ev.id).order("created_at");
+      const { data: invs } = await db.from("artist_invites").select("id,name,full_name,token,guest_spots,email,phone,claimed_at,revoked_at,order_id,created_at,photo_path,bio,hometown,genre,links,rider,profile_hidden").eq("event_id", ev.id).order("created_at");
       const ids = (invs || []).map((i) => i.id);
       const { data: orders } = ids.length ? await db.from("ticket_orders").select("id,artist_invite_id,name,email,status").in("artist_invite_id", ids).eq("status", "comp") : { data: [] };
       const { data: tix } = orders?.length ? await db.from("tickets").select("order_id,status,type_id").in("order_id", orders.map((o) => o.id)).eq("status", "valid") : { data: [] };
@@ -95,7 +141,8 @@ Deno.serve(async (req) => {
       return ok({ artists: (invs || []).map((i) => {
         const guests = (orders || []).filter((o) => o.artist_invite_id === i.id && o.id !== i.order_id && live.has(o.id));
         return { id: i.id, name: i.name, full_name: i.full_name, phone: i.phone, spots: i.guest_spots, email: i.email, claimed: !!i.claimed_at, revoked: !!i.revoked_at,
-          link: `${SITE_URL}/artist.html?k=${i.token}`, guests: guests.map((g) => ({ name: g.name, email: g.email })) };
+          link: `${SITE_URL}/artist.html?k=${i.token}`, guests: guests.map((g) => ({ name: g.name, email: g.email })),
+          profile: { photo_url: photoUrl(i.photo_path), bio: i.bio, hometown: i.hometown, genre: i.genre, links: cleanLinks(i.links), rider: i.rider, hidden: i.profile_hidden } };
       }) });
     }
     const id = clean(b.id, 40) || "";
@@ -105,6 +152,7 @@ Deno.serve(async (req) => {
       const patch: Record<string, unknown> = {};
       if (b.spots !== undefined) patch.guest_spots = Math.max(0, Math.min(50, Math.floor(Number(b.spots))));
       if (typeof b.name === "string" && clean(b.name, 80)) patch.name = clean(b.name, 80);
+      if (typeof b.profile_hidden === "boolean") patch.profile_hidden = b.profile_hidden;
       if (!Object.keys(patch).length) return no("Nothing to change.");
       await db.from("artist_invites").update(patch).eq("id", id);
       await log("artist_update", { id, ...patch });
@@ -121,7 +169,7 @@ Deno.serve(async (req) => {
   // ================= artist (private link) =================
   const k = String(b.k || u.searchParams.get("k") || "").toLowerCase();
   if (!TOKEN.test(k)) return no("This link isn't valid.", 404);
-  const { data: inv } = await db.from("artist_invites").select("id,event_id,name,guest_spots,email,phone,order_id,claimed_at,revoked_at").eq("token", k).maybeSingle();
+  const { data: inv } = await db.from("artist_invites").select("id,event_id,name,guest_spots,email,phone,order_id,claimed_at,revoked_at,photo_path,bio,hometown,genre,links,rider").eq("token", k).maybeSingle();
   if (!inv || inv.revoked_at) return no("This link isn't active anymore. Reach out to the promoter.", 404);
   const [{ data: ev }, { data: nights }, { data: types }] = await Promise.all([
     db.from("events").select("id,slug,name,city,age,location_secret,address_reveal_at").eq("id", inv.event_id).single(),
@@ -154,6 +202,7 @@ Deno.serve(async (req) => {
     return {
       event: { name: ev!.name, city: ev!.city, age: ev!.age, nights: ns.map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at })) },
       artist: { name: inv!.name, claimed: !!inv!.claimed_at, email: inv!.email, spots: inv!.guest_spots, used: guests.length },
+      profile: { photo_url: photoUrl(inv!.photo_path), bio: inv!.bio, hometown: inv!.hometown, genre: inv!.genre, links: cleanLinks(inv!.links), rider: inv!.rider },
       pass: mine ? { code: mine.code, url: `${SITE_URL}/ticket.html?t=${mine.token}` } : null,
       guests, types: guestTypes.map(({ slug, name, open, nights }) => ({ slug, name, open, both: nights.length > 1 })),
     };
@@ -203,6 +252,37 @@ Deno.serve(async (req) => {
     if (!g) return no("Not found", 404);
     if (!g.can_remove) return no(g.in ? "They're already checked in." : "Doors are open for that night, so you can't change the list.");
     await db.from("tickets").update({ status: "void" }).eq("id", tid);
+    return ok(await state());
+  }
+
+  if (a === "profile") {
+    const links = cleanLinks(b.links);
+    // A link that was typed but couldn't be used gets named, so the artist can fix it.
+    const typed = (b.links && typeof b.links === "object" ? b.links : {}) as Record<string, unknown>;
+    const bad = Object.keys(LINK_HOSTS).filter((k) => clean(typed[k], 300) && !links[k]);
+    if (bad.length) return no("Check your " + bad.join(" and ") + " link. Paste the full address from the app.");
+    const patch = { bio: clean(b.bio, 400), hometown: clean(b.hometown, 60), genre: clean(b.genre, 60), links, rider: clean(b.rider, 1000) };
+    await db.from("artist_invites").update(patch).eq("id", inv.id);
+    Object.assign(inv, patch);
+    return ok({ ...(await state()), saved: true });
+  }
+
+  if (a === "photo-url") {
+    const ext = String(b.ext || "").toLowerCase().replace("jpeg", "jpg");
+    if (!PHOTO_EXT[ext]) return no("Use a JPG, PNG or WebP photo.");
+    const path = inv.id + "/" + Array.from(crypto.getRandomValues(new Uint8Array(6))).map((x) => x.toString(16).padStart(2, "0")).join("") + "." + ext;
+    const { data, error } = await db.storage.from("artist-photos").createSignedUploadUrl(path);
+    if (error || !data) { console.error("artist photo-url", error?.message); return no("Couldn't start the upload. Try again.", 500); }
+    return ok({ upload_url: data.signedUrl, content_type: PHOTO_EXT[ext], path });
+  }
+
+  if (a === "photo") {
+    const path = clean(b.path, 200) || "";
+    if (!new RegExp("^" + inv.id + "/[0-9a-f]{12}\\.(jpg|png|webp)$").test(path)) return no("That photo didn't finish uploading. Try again.");
+    const old = inv.photo_path;
+    await db.from("artist_invites").update({ photo_path: path }).eq("id", inv.id);
+    if (old && old !== path) await db.storage.from("artist-photos").remove([old]);
+    inv.photo_path = path;
     return ok(await state());
   }
 

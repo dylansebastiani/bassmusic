@@ -268,7 +268,7 @@
       app.innerHTML = top(homeHref()) + "<h1>Show music</h1><p class=lead>What plays on the page for <b>" + esc(s.name) + "</b>. It always plays in a random order.</p>" +
         '<div class=choice><button type=button data-mode=subduction aria-pressed="' + !own + '">Subduction tracks</button><button type=button data-mode=upload aria-pressed="' + own + '">My own tracks</button></div>' +
         (own ? pl.tracks.map(function (t, i) { return '<div class=card><label for=tt' + i + '>Track ' + (i + 1) + ' title</label><input type=text id=tt' + i + ' maxlength=80 value="' + esc(t.title) + '"><label for=ta' + i + '>Artist</label><input type=text id=ta' + i + ' maxlength=80 value="' + esc(t.artist || "") + '"><button type=button class=linkbtn data-rm="' + i + '">Remove</button></div>'; }).join("") +
-          (full ? "<p class=note>That's the most a show can have.</p>" : '<div class=drop id=d-track><span class=thumb></span><span><b>Add a track</b><small>MP3, WAV or M4A, up to 40 MB</small><small class=st>Tap to add</small><div class=bar2></div></span><input type=file accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Add a track"></div>') +
+          (full ? "<p class=note>That's the most a show can have.</p>" : '<div class=drop id=d-track><span class=thumb></span><span><b>Add a track</b><small>MP3, WAV or M4A, up to 50 MB</small><small class=st>Tap to add</small><div class=bar2></div></span><input type=file accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Add a track"></div>') +
           "<p class=note>Only upload music you have the right to share.</p>"
           : "<p class=note>Your page plays a random mix of Subduction's tracks. Nothing to upload.</p>") +
         '<button class=btn type=button id=save>Save music</button><p class=msg role=status></p>' +
@@ -289,7 +289,7 @@
       var f = input.files[0]; if (!f) return;
       var box = input.closest(".drop"), st = box.querySelector(".st"), bar = box.querySelector(".bar2"), ext = (f.name.split(".").pop() || "").toLowerCase();
       if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { st.textContent = "Use an MP3, WAV or M4A."; st.className = "st warn"; return; }
-      if (f.size > 40 * 1048576) { st.textContent = "That track is over 40 MB. Export an MP3 instead."; st.className = "st warn"; return; }
+      if (f.size > 50 * 1048576) { st.textContent = "That track is over 50 MB. Export it as a 320 kbps MP3 and it will fit."; st.className = "st warn"; return; }
       st.textContent = "Uploading…"; st.className = "st"; keep();
       api(PL, { a: "upload-url", show: s.id, ext: ext }).then(function (r) {
         return new Promise(function (ok, no) {

@@ -48,6 +48,7 @@
     if (!d.artist.claimed) return;
     $("passline").innerHTML = "Sent to <b>" + esc(d.artist.email || "") + "</b>. Good both nights" + (d.event.nights[0] ? ", doors " + time(d.event.nights[0].starts_at) : "") + ". Show the QR at the door.";
     if (d.pass) $("openpass").href = d.pass.url;
+    drawProfile(d.profile || {});
     var left = Math.max(0, d.artist.spots - d.artist.used);
     $("spots").textContent = d.artist.used + " of " + d.artist.spots + " spots";
     $("meter").style.width = (d.artist.spots ? Math.min(100, 100 * d.artist.used / d.artist.spots) : 100) + "%";
@@ -103,6 +104,43 @@
       .catch(function (err) { $("pmsg").textContent = err.message; $("resend").disabled = false; });
   });
 
+  // ---- your profile: what fans see when they tap your name in the lineup ----
+  var PF = { instagram: "pfig", soundcloud: "pfsc", spotify: "pfsp", tiktok: "pftt", youtube: "pfyt", website: "pfweb" };
+  var pfLoaded = false;
+  function drawProfile(p) {
+    $("pfimg").innerHTML = p.photo_url ? '<img src="' + esc(p.photo_url) + '" alt="">' : "";
+    $("pfpick").textContent = p.photo_url ? "Change photo" : "Add a photo";
+    var has = p.photo_url || p.bio || p.hometown || p.genre || Object.keys(p.links || {}).length;
+    $("pfstate").textContent = has ? "Live on the lineup" : "Not filled in yet";
+    if (pfLoaded) return;   // don't overwrite what they're typing when the page refreshes
+    pfLoaded = true;
+    $("pfhome").value = p.hometown || ""; $("pfgenre").value = p.genre || ""; $("pfbio").value = p.bio || ""; $("pfrider").value = p.rider || "";
+    Object.keys(PF).forEach(function (k) { $(PF[k]).value = (p.links || {})[k] || ""; });
+    $("pfbion").textContent = $("pfbio").value.length;
+  }
+  $("pfbio").addEventListener("input", function () { $("pfbion").textContent = $("pfbio").value.length; });
+  $("pf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var links = {}; Object.keys(PF).forEach(function (k) { links[k] = $(PF[k]).value.trim(); });
+    $("pfgo").disabled = true; $("pfmsg").textContent = "Saving...";
+    call("profile", { bio: $("pfbio").value, hometown: $("pfhome").value, genre: $("pfgenre").value, rider: $("pfrider").value, links: links })
+      .then(function (d) { pfLoaded = false; draw(d); $("pfmsg").textContent = "Saved. It's on the lineup now."; $("pfgo").disabled = false; })
+      .catch(function (err) { $("pfmsg").textContent = err.message; $("pfgo").disabled = false; });
+  });
+  $("pfpick").addEventListener("click", function () { $("pffile").click(); });
+  $("pffile").addEventListener("change", function () {
+    var f = $("pffile").files[0]; $("pffile").value = ""; if (!f) return;
+    var ext = (f.name.split(".").pop() || "").toLowerCase(); if (ext === "jpeg") ext = "jpg";
+    if (["jpg", "png", "webp"].indexOf(ext) < 0) { $("pfmsg").textContent = "Use a JPG, PNG or WebP photo."; return; }
+    if (f.size > 5 * 1048576) { $("pfmsg").textContent = "That photo is over 5 MB. Use a smaller one."; return; }
+    $("pfpick").disabled = true; $("pfmsg").textContent = "Uploading photo...";
+    call("photo-url", { ext: ext }).then(function (r) {
+      return fetch(r.upload_url, { method: "PUT", headers: { "Content-Type": r.content_type }, body: f }).then(function (x) { if (!x.ok) throw new Error("Upload failed. Try again."); return r.path; });
+    }).then(function (path) { return call("photo", { path: path }); })
+      .then(function (d) { draw(d); $("pfmsg").textContent = "Photo added."; $("pfpick").disabled = false; })
+      .catch(function (err) { $("pfmsg").textContent = err.message; $("pfpick").disabled = false; });
+  });
+
   // ---- your tracks: add music to this show's playlist ----
   var PL = (C.supabaseUrl || "") + "/functions/v1/playlist";
   function pl(a, body) {
@@ -155,7 +193,7 @@
     var f = $("tfile").files[0], title = $("ttitle").value.trim(), ext = f ? (f.name.split(".").pop() || "").toLowerCase() : "";
     if (!f) { $("tmsg").textContent = "Pick a track first."; return; }
     if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { $("tmsg").textContent = "Use an MP3, WAV or M4A."; return; }
-    if (f.size > 40 * 1048576) { $("tmsg").textContent = "That track is over 40 MB. Export an MP3 instead."; return; }
+    if (f.size > 50 * 1048576) { $("tmsg").textContent = "That track is over 50 MB (the most the site can take right now). Export it as a 320 kbps MP3 and it will fit."; return; }
     if (!title) { $("tmsg").textContent = "Give it a title."; $("ttitle").focus(); return; }
     var cover = $("tart").files[0], bad = cover ? artCheck(cover) : "";
     if (bad) { $("tmsg").textContent = bad; return; }
