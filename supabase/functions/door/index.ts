@@ -173,24 +173,32 @@ Deno.serve(async (req) => {
   // ---- guest list: comps are real tickets that scan, but never count toward sales or tiers ----
   if (a === "guests") {
     const { data: rows } = await db.from("tickets").select("id,code,holder_name,email,type_id,order_id,status").eq("event_id", ev.id).eq("is_comp", true).eq("status", "valid").order("holder_name");
-    const { data: orders } = await db.from("ticket_orders").select("id,comp_list").in("id", [...new Set((rows || []).map((r) => r.order_id))]);
-    return ok({ guests: (rows || []).map((r) => ({ ticket_id: r.id, code: r.code, name: r.holder_name, email: r.email, type: typeOf(r.type_id)?.name,
-      list: orders?.find((o) => o.id === r.order_id)?.comp_list || null })) });
+    const { data: orders } = await db.from("ticket_orders").select("id,comp_list,phone").in("id", [...new Set((rows || []).map((r) => r.order_id))]);
+    return ok({ guests: (rows || []).map((r) => { const o = orders?.find((x) => x.id === r.order_id); return { ticket_id: r.id, code: r.code, name: r.holder_name, email: r.email, type: typeOf(r.type_id)?.name,
+      list: o?.comp_list || null, phone: o?.phone || null }; }) });
   }
 
   if (a === "comp") {
-    const t = types.find((t) => t.slug === b.type);
+    // Guest list is always the both-nights pass when the show has one (the staff page sends no type).
+    const t = types.find((t) => t.slug === b.type) || types.find((t) => t.slug !== "test" && t.night_ids.length > 1);
     if (!t) return no("Pick which night.");
     const list = clean(b.list, 40);
+    const phoneOf = (v: unknown) => { const d = String(v ?? "").replace(/\D/g, ""); return d.length === 10 ? "+1" + d : d.length === 11 && d[0] === "1" ? "+" + d : d.length >= 11 && d.length <= 15 ? "+" + d : null; };
     const people = (Array.isArray(b.people) ? b.people : []).slice(0, 100)
-      .map((p: Record<string, unknown>) => ({ name: clean(p.name, 80), email: (clean(p.email, 254) || "").toLowerCase() || null }))
+      .map((p: Record<string, unknown>) => ({ name: clean(p.name, 80), email: (clean(p.email, 254) || "").toLowerCase() || null, phone: p.phone ? phoneOf(p.phone) : null, rawPhone: !!p.phone }))
       .filter((p) => p.name);
     if (!people.length) return no("Add at least one name.");
+    // The staff page's guest form checks like checkout: full name, a real email, a phone we can reach.
+    if (b.strict === true) for (const p of people) {
+      if (p.name!.trim().split(/\s+/).length < 2) return no("Enter their full name (first and last).");
+      if (!p.email || !EMAIL_RE.test(p.email)) return no("Enter the email their ticket should go to.");
+      if (!p.phone) return no("Enter a phone number we can reach them at.");
+    }
     let emailed = 0;
     for (const p of people) {
       const email = p.email && EMAIL_RE.test(p.email) ? p.email : null;
       const { data: o, error } = await db.from("ticket_orders").insert({
-        event_id: ev.id, status: "pending", email, name: p.name, comp_list: list, created_by: admin!.id,
+        event_id: ev.id, status: "pending", email, name: p.name, phone: p.phone, comp_list: list, created_by: admin!.id,
         items: [{ type_id: t.id, name: t.name, tier: "Guest list", unit_cents: 0, qty: 1 }],
       }).select("id").single();
       if (error || !o) return no("Couldn't add " + p.name);

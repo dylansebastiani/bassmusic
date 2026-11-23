@@ -181,24 +181,50 @@
 
   // ---------- guest list ----------
   function guests() {
-    $("gtype").innerHTML = cur.types.filter(function (t) { return t.slug !== "test"; }).map(function (t) { return '<option value="' + esc(t.slug) + '">' + esc(t.name) + "</option>"; }).join("");
+    // Guest list: the 2-Day Pass first (the default), then each single night. Never the hidden test ticket.
+    var gt = cur.types.filter(function (t) { return t.slug !== "test"; }).sort(function (a, b) { return (b.night_ids || []).length - (a.night_ids || []).length; });
+    if (!$("gtype").options.length || $("gtype").getAttribute("data-show") !== cur.event.slug) {
+      $("gtype").innerHTML = gt.map(function (t) { return '<option value="' + esc(t.slug) + '">' + esc(t.name) + ((t.night_ids || []).length > 1 ? " (both nights)" : " only") + "</option>"; }).join("");
+      $("gtype").setAttribute("data-show", cur.event.slug);
+    }
     $("guests").innerHTML = '<div class="empty">Loading...</div>';
     door("guests").then(function (d) {
       say("gcount", d.guests.length ? d.guests.length + " on the list" : "");
       $("guests").innerHTML = d.guests.length ? d.guests.map(function (g) {
-        return '<div class="person"><div><b>' + esc(g.name) + '</b><span class="mono">' + esc(g.type || "") + (g.list ? " · " + esc(g.list) + "'s list" : "") + " · " + esc(g.code) + (g.email ? " · " + esc(g.email) : "") + "</span></div>" +
+        return '<div class="person"><div><b>' + esc(g.name) + '</b><span class="mono">' + esc(g.type || "") + (g.list ? " · " + esc(g.list) + "'s list" : "") + " · " + esc(g.code) + (g.email ? " · " + esc(g.email) : "") + (g.phone ? " · " + esc(g.phone) : "") + "</span></div>" +
           '<span class="pa">' + (g.email ? '<button type="button" data-resend="' + esc(g.ticket_id) + '">Resend</button>' : "") + '<button type="button" data-void="' + esc(g.ticket_id) + '">Remove</button></span></div>';
       }).join("") : '<div class="empty">No one on the list yet.</div>';
     }).catch(function (err) { $("guests").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
   }
+  // Same checks as checkout: full name, a real email (with a nudge for common typos), a reachable phone.
+  var FIX = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gmail.co": "gmail.com", "gmail.con": "gmail.com", "yaho.com": "yahoo.com", "yahoo.con": "yahoo.com", "hotmial.com": "hotmail.com", "iclod.com": "icloud.com", "icloud.con": "icloud.com", "outlok.com": "outlook.com" };
+  function checkEmail() {
+    var v = $("gemail").value.trim().toLowerCase(), h = $("gemailh"), dom = v.split("@")[1] || "";
+    if (!v) { h.textContent = ""; return false; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v)) { h.textContent = "That email doesn't look complete."; h.className = "hint bad"; return false; }
+    if (FIX[dom]) { h.innerHTML = 'Did you mean <button type="button" class="mini" id="gfix">' + esc(v.split("@")[0] + "@" + FIX[dom]) + "</button>?"; h.className = "hint"; return true; }
+    h.textContent = ""; return true;
+  }
+  function checkPhone() {
+    var d = $("gphone").value.replace(/\D/g, ""), h = $("gphoneh");
+    if (d.length === 10) $("gphone").value = "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+    var ok = d.length === 10 || (d.length === 11 && d[0] === "1") || (d.length >= 11 && d.length <= 15);
+    h.textContent = d && !ok ? "Enter a 10-digit phone number." : ""; h.className = "hint bad"; return ok;
+  }
+  $("gemail").addEventListener("blur", checkEmail); $("gphone").addEventListener("blur", checkPhone);
+  $("gemailh").addEventListener("click", function (e) { var b = e.target.closest("#gfix"); if (b) { $("gemail").value = b.textContent; checkEmail(); } });
   $("gf").addEventListener("submit", function (e) {
     e.preventDefault();
-    var people = $("gnames").value.split(/\n+/).map(function (l) { var p = l.split(","); return { name: (p[0] || "").trim(), email: (p[1] || "").trim() || null }; }).filter(function (p) { return p.name; });
-    if (!people.length) return say("gmsg", "Add at least one name.");
-    say("gmsg", "Adding...");
-    door("comp", { type: $("gtype").value, list: $("glist").value.trim() || null, people: people }).then(function (r) {
-      say("gmsg", "Added " + r.added + (r.emailed ? ", emailed " + r.emailed + " a ticket" : "") + "."); $("gnames").value = ""; guests();
-    }).catch(function (err) { say("gmsg", err.message); });
+    var name = $("gname").value.trim().replace(/\s+/g, " ");
+    if (name.split(" ").length < 2) return say("gmsg", "Enter their full name (first and last).");
+    if (!checkEmail()) return say("gmsg", "Enter the email their ticket should go to.");
+    if (!checkPhone()) return say("gmsg", "Enter a phone number we can reach them at.");
+    say("gmsg", "Sending..."); $("ggo").disabled = true;
+    door("comp", { strict: true, type: $("gtype").value, list: $("glist").value.trim() || null, people: [{ name: name, email: $("gemail").value.trim().toLowerCase(), phone: $("gphone").value }] }).then(function (r) {
+      $("ggo").disabled = false;
+      say("gmsg", r.emailed ? "Sent. " + name + " has a " + $("gtype").options[$("gtype").selectedIndex].text.replace(" only", "").replace(" (both nights)", "") + " ticket in their email (tell them to check spam)." : "Added, but the email didn't go out. Use Resend below.");
+      $("gname").value = ""; $("gemail").value = ""; $("gphone").value = ""; guests();
+    }).catch(function (err) { $("ggo").disabled = false; say("gmsg", err.message); });
   });
   $("guests").addEventListener("click", function (e) {
     var v = e.target.closest("[data-void]"), r = e.target.closest("[data-resend]");

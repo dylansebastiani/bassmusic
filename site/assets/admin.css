@@ -183,3 +183,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 /* promo codes as a list */
 .codes{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .codes .person b{font-family:var(--mono);letter-spacing:.06em}
+.form .hint{font-size:13px;color:var(--mute);min-height:0}
+.form .hint.bad{color:#ff7a7a}
+.form .hint:empty{display:none}

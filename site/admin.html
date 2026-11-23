@@ -81,11 +81,15 @@
 
         <section class="sv" id="sv-guests" hidden>
           <form class="form" id="gf" novalidate>
+            <p class="lead">A free, real ticket, emailed with its QR code. It scans at the door like any other.</p>
             <label for="gtype">Ticket</label><select id="gtype"></select>
+            <label for="gname">Full name</label><input type="text" id="gname" autocomplete="off" placeholder="First and last name" maxlength="80">
+            <label for="gemail">Email</label><input type="email" id="gemail" autocomplete="off" inputmode="email" placeholder="Where their ticket goes" maxlength="254">
+            <div class="hint" id="gemailh"></div>
+            <label for="gphone">Phone</label><input type="tel" id="gphone" autocomplete="off" inputmode="tel" placeholder="(309) 555-0123" maxlength="20">
+            <div class="hint" id="gphoneh"></div>
             <label for="glist">Whose list</label><input type="text" id="glist" placeholder="Dylan, Mook, artist name..." maxlength="40">
-            <label for="gnames">Names, one per line. Add an email after a comma to send them a real ticket.</label>
-            <textarea id="gnames" rows="4" placeholder="Jane Doe, jane@email.com&#10;John Smith"></textarea>
-            <button type="submit" class="btn">Add to list</button>
+            <button type="submit" class="btn" id="ggo">Send guest ticket</button>
             <p class="msg" id="gmsg" role="status"></p>
           </form>
           <div class="sub mono" id="gcount"></div>
