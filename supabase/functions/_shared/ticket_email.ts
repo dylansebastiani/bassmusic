@@ -170,7 +170,7 @@ ${summary}
 <td width="25%" valign="bottom" align="right"><img src="${IMG}figure-sat.png" width="120" alt="" style="display:block;width:120px;max-width:100%;height:auto;border:0;margin-left:auto"></td>
 </tr></table></td></tr>
 
-<tr><td align="center" style="padding:26px 0 22px"><img src="${IMG}partners.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
+<tr><td align="center" style="padding:26px 0 22px"><img src="${IMG}partners-v3.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
 
 <tr><td style="padding:26px 0 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">
 Your ticket also makes you a Subduction member: unreleased tracks and first word on shows, by email. You can unsubscribe from those anytime.<br><br>
@@ -230,7 +230,7 @@ export function renderLocationEmail(d: LocationData): { subject: string; html: s
 ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
 </table></td></tr>
 </table></td></tr>
-<tr><td align="center" style="padding:6px 0 22px"><img src="${IMG}partners.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
+<tr><td align="center" style="padding:6px 0 22px"><img src="${IMG}partners-v3.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
 <tr><td style="padding:22px 24px 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">Questions? Reply to this email or write <a href="mailto:${esc(d.contactEmail)}" style="color:${LAV}">${esc(d.contactEmail)}</a>.</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [`The secret location for ${d.eventName}`, "", d.venue || "", d.address, "Keep it underground: please don't post the address.", "",

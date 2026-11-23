@@ -68,7 +68,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
   const eyes = [await doc.embedPng(eyeFB), await doc.embedPng(eyeSB)];
   const figs = [await doc.embedPng(figFB), await doc.embedPng(figSB)];
   // The partner logo row (sound, crews). Optional: a ticket still renders without it.
-  const partners = await get(base + "partners.png").then((b) => doc.embedPng(b)).catch(() => null);
+  const partners = await get(base + "partners-v3.png").then((b) => doc.embedPng(b)).catch(() => null);
 
   for (const [i, t] of d.tickets.entries()) {
     const p = doc.addPage([W, H]);
