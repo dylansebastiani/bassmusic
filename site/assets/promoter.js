@@ -19,6 +19,11 @@
   function showById(id) { return me.shows.find(function (s) { return s.id === id; }); }
   function homeHref() { return me && me.owner ? "#co/" + coId : "#"; }
   function top(back) { return '<div class="top"><span>' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : "Subduction") + "</span>" + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>"; }
+  // Setup is one straight line: 1 Your show, 2 Your flyer, 3 Get paid, then send. Every screen says where you are.
+  function stepHead(n, label, extra) {
+    return '<div class=wiz>' + [1, 2, 3].map(function (i) { return '<i class="' + (i <= n ? "on" : "") + '"></i>'; }).join("") + '</div><div class=qnum>Step ' + n + " of 3 · " + label + (extra ? " · " + extra : "") + "</div>";
+  }
+  function firstShow() { var co = company(); return co ? me.shows.filter(function (s) { return s.company_id === co.id; })[0] : null; }
   function wireTop() { var o = document.getElementById("out"); if (o) o.onclick = signOut; }
 
   // ---------- sign in ----------
@@ -56,8 +61,15 @@
       { key: "send", t: "Send it", d: s && s.checklist.submitted ? (s.live ? "Live!" : "We're building your page.") : "One tap. We build your page and tell you when it's live.", done: !!(s && s.checklist.submitted), href: s ? "#send/" + s.id : "#show/new/1" },
     ];
     var doneN = steps.filter(function (x) { return x.done; }).length, nextI = steps.findIndex(function (x) { return !x.done; });
+    if (!s && !me.owner) {
+      app.innerHTML = top() + "<div class=qnum>Welcome</div><h1>" + esc(co.name) + ", you're in.</h1><p class=lead>Three quick things and your show is ready to sell. About 5 minutes.</p>" +
+        '<ol class="steps plain"><li><span class=n>1</span><span><b>Your show</b><small>Name, date, place, ticket prices.</small></span></li><li><span class=n>2</span><span><b>Your flyer</b><small>Drop it in. Any size.</small></span></li><li><span class=n>3</span><span><b>Get paid</b><small>Connect your bank so ticket money goes straight to you.</small></span></li></ol>' +
+        '<a class=btn href="#show/new/1">Start with my show</a><p class=note>You can stop any time. It saves as you go.</p>';
+      wireTop(); return;
+    }
     app.innerHTML = top(me.owner ? "#" : "") + (me.owner ? '<div class=qnum>Setting up for</div>' : "") +
       "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
+      (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and your page starts in our neon look.</small></div>' +
@@ -175,7 +187,7 @@
   function question(id, step) {
     startDraft(id);
     var d = draft, n = +step || 1, body = "";
-    var head = top(homeHref()) + '<div class=qnum>Question ' + n + " of 5</div>";
+    var head = top(n > 1 ? "#show/" + id + "/" + (n - 1) : homeHref()) + stepHead(1, "Your show", n + " of 5");
     if (n === 1) body = "<h1>What's the show called?</h1><label for=q>Show name</label><input type=text id=q maxlength=100 value=\"" + esc(d.name) + '" placeholder="e.g. Basement Frequencies Vol. 3">';
     if (n === 2) body = "<h1>When is it?</h1><p class=lead>One block per night. Times are Central.</p>" + d.nights.map(function (x, i) {
       return '<div class=night-row><b>Night ' + (i + 1) + '</b><label for="nd' + i + '">Date</label><input type=date id="nd' + i + '" value="' + esc(x.date) + '"><div class=row2><div><label for="no' + i + '">Doors</label><input type=time id="no' + i + '" value="' + esc(x.doors) + '"></div><div><label for="ne' + i + '">Ends</label><input type=time id="ne' + i + '" value="' + esc(x.ends) + '"></div></div>' +
@@ -232,22 +244,28 @@
   function art(id) {
     var s = showById(id); if (!s) return go(homeHref());
     var k = JSON.parse(JSON.stringify(s.kit || {})); k.flyers = k.flyers || []; k.figures = k.figures || [];
+    var more = !!(k.hero || k.logo || k.video || k.links || k.figures.some(Boolean));
+    var onward = function () { return company().paid_ready ? "#send/" + s.id : "#paid"; };
     function draw(warnFor, warn) {
-      app.innerHTML = top(homeHref()) + "<h1>Show art</h1><p class=lead>For <b>" + esc(s.name) + "</b>. Add what you have. Your brand fills in the rest, and we finish the page.</p>" +
-        s.nights.map(function (n, i) { return drop("flyer" + i, n.label + " flyer", "flyer", k.flyers[i]); }).join("") +
+      var md = document.getElementById("more"); if (md) more = md.open;
+      var lk = document.getElementById("links"); if (lk) k.links = lk.value;
+      app.innerHTML = top(homeHref()) + stepHead(2, "Your flyer") + "<h1>Drop in your flyer</h1><p class=lead>For <b>" + esc(s.name) + "</b>. Any size works. We build the page around it.</p>" +
+        s.nights.map(function (n, i) { return drop("flyer" + i, s.nights.length > 1 ? n.label + " flyer" : "Your flyer", "flyer", k.flyers[i]); }).join("") +
+        "<details id=more" + (more ? " open" : "") + "><summary>Got more art? Add it here (optional)</summary>" +
         drop("hero", "Background art", "hero", k.hero) +
-        s.nights.map(function (n, i) { return drop("figure" + i, n.label + " cutout / character", "figure", k.figures[i]); }).join("") +
-        drop("logo", "A logo just for this show (optional)", "logo", k.logo) + drop("video", "Teaser video (optional)", "video", k.video) +
-        '<label for=links>Or send a link instead</label><textarea id=links rows=3 placeholder="Google Drive or Dropbox link with your art. We\'ll upload it for you.">' + esc(k.links || "") + "</textarea>" +
-        '<button class=btn type=button id=save>Save art</button><p class=msg role=status></p>';
+        s.nights.map(function (n, i) { return drop("figure" + i, (s.nights.length > 1 ? n.label + " " : "") + "cutout or character", "figure", k.figures[i]); }).join("") +
+        drop("logo", "A logo just for this show", "logo", k.logo) + drop("video", "Teaser video", "video", k.video) +
+        '<label for=links>Or paste a link to your art</label><textarea id=links rows=3 placeholder="Google Drive or Dropbox link. We\'ll upload it for you.">' + esc(k.links || "") + "</textarea></details>" +
+        '<button class=btn type=button id=save>Next</button><button class=linkbtn type=button id=skip>No flyer yet? Skip for now</button><p class=msg role=status></p>';
       wireTop();
+      document.getElementById("skip").onclick = function () { go(onward()); };
       if (warnFor) { if (warn) warns[warnFor] = warn; else delete warns[warnFor]; }
       Object.keys(warns).forEach(function (k) { var w = document.querySelector("#d-" + k + " .st"); if (w && w.textContent.indexOf("Uploaded") >= 0) { w.textContent = "✓ Uploaded. " + warns[k]; w.className = "st warn"; } });
       app.querySelectorAll(".drop input").forEach(function (i) { i.onchange = function () { upload(i, { show: s.id }, function (key, url, warn) { set(key, url); draw(key, warn); }); }; });
       app.querySelectorAll("[data-clear]").forEach(function (x) { x.onclick = function (e) { e.stopPropagation(); set(x.getAttribute("data-clear"), null); draw(); }; });
       document.getElementById("save").onclick = function () {
         k.links = document.getElementById("links").value; say("Saving…");
-        call("kit-save", { show: s.id, kit: k }).then(function (r) { s.kit = r.kit; say("Saved."); setTimeout(function () { go(homeHref()); }, 500); }).catch(function (x) { say(x.message, true); });
+        call("kit-save", { show: s.id, kit: k }).then(function (r) { s.kit = r.kit; return load(); }).then(function () { go(onward()); }).catch(function (x) { say(x.message, true); });
       };
     }
     function set(key, url) {
@@ -308,9 +326,11 @@
   // ---------- get paid ----------
   function paid() {
     var co = company();
-    app.innerHTML = top(homeHref()) + "<h1>Get paid</h1>" + (co.paid_ready ? "<p class=lead>&#10003; You're all set. Ticket money goes straight to your own account.</p>"
-      : "<p class=lead>Ticket money goes straight to your own account. Stripe (the payment company) checks who you are and where to send it. Subduction never holds your money.</p>" +
-        (company().can_manage ? '<button class=btn type=button id=st>Connect my bank with Stripe</button>' : "<p class=note>Only the crew's owner can do this step.</p>")) + "<p class=msg role=status></p>";
+    var fs = firstShow(), nextHref = fs ? "#send/" + fs.id : homeHref();
+    app.innerHTML = top(homeHref()) + stepHead(3, "Get paid") + "<h1>Get paid</h1>" + (co.paid_ready ? "<p class=lead>&#10003; You're all set. Ticket money goes straight to your own account.</p>" + '<a class=btn href="' + nextHref + '">' + (fs ? "Next: send my show" : "Done") + "</a>"
+      : "<p class=lead>Ticket money goes straight to your own bank. Stripe is the payment company that sends it. It takes about 5 minutes and you'll need your bank details.</p><p class=note>Subduction never holds your money.</p>" +
+        (company().can_manage ? '<button class=btn type=button id=st>Connect my bank</button>' : "<p class=note>Only the crew's owner can do this step.</p>") +
+        (fs ? '<a class=linkbtn href="' + nextHref + '">Do this later and send my show now</a>' : "")) + "<p class=msg role=status></p>";
     wireTop();
     // Just back from Stripe (or still waiting on it): ask Stripe where things stand.
     if (!co.paid_ready && co.can_manage) api(CONNECT + "?a=status&company=" + co.id).then(function (r) { if (r.charges_enabled) { co.paid_ready = true; paid(); } else if (r.connected) say("Stripe is still checking your details. This can take a few minutes."); }).catch(function () {});
@@ -321,11 +341,19 @@
   // ---------- send to Subduction ----------
   function send(id) {
     var s = showById(id); if (!s) return go(homeHref());
-    var missing = []; if (!s.checklist.details) missing.push("the show questions"); if (!company().paid_ready) missing.push("Get paid");
-    app.innerHTML = top(homeHref()) + (s.checklist.submitted ? "<h1>" + (s.live ? "You're live" : "We've got it") + "</h1><p class=lead>" + (s.live ? "Your page is up and selling." : "We're building your page now. We'll email you the moment it's live.") + "</p>"
-      : "<h1>Send to Subduction</h1><p class=lead>We'll build your page from your brand and show art, and let you know when it's live.</p>" +
-        (missing.length ? "<p class=note>Still to do first: " + missing.join(" and ") + ".</p>" : "") +
-        '<button class=btn type=button id=go' + (s.checklist.details ? "" : " disabled") + ">Send it</button>") + "<p class=msg role=status></p>";
+    var co = company(), hasFlyer = !!(s.kit && ((s.kit.flyers || []).some(Boolean) || s.kit.links));
+    var line = function (ok, t, d, href) { return '<li class="' + (ok ? "done" : "") + '"' + (href ? ' data-href="' + href + '"' : "") + '><span class=n>' + (ok ? "&#10003;" : "!") + "</span><span><b>" + t + "</b><small>" + d + "</small></span></li>"; };
+    app.innerHTML = top(homeHref()) + (s.checklist.submitted
+      ? "<h1>" + (s.live ? "You're live" : "We've got it") + "</h1><p class=lead>" + (s.live ? "Your page is up and selling." : "Nothing else you need to do right now.") + "</p>" +
+        (s.live ? "" : '<ol class="steps plain"><li><span class=n>1</span><span><b>We build your page</b><small>Usually within a day.</small></span></li><li><span class=n>2</span><span><b>You get an email to look it over</b><small>Tell us what to change.</small></span></li><li><span class=n>3</span><span><b>It goes live</b><small>You get your own link to share.</small></span></li></ol>') +
+        (!co.paid_ready ? '<a class=btn href="#paid">Connect my bank</a>' : "") +
+        '<h2>While you wait (optional)</h2><div class=card data-href="#brand"><b>Add your logo and colors</b><small>So the page looks like you.</small></div><div class=card data-href="#music/' + s.id + '"><b>Pick your show music</b><small>Your own tracks, or ours.</small></div>'
+      : "<div class=qnum>Last thing</div><h1>Ready to send?</h1><p class=lead>We build your page and email you when it's ready to look over.</p><ol class=steps>" +
+        line(!!s.checklist.details, "Your show", esc(s.name), "#show/" + s.id + "/1") +
+        line(hasFlyer, "Your flyer", hasFlyer ? "Added" : "None yet. Your page starts in our neon look.", "#art/" + s.id) +
+        line(co.paid_ready, "Get paid", co.paid_ready ? "Bank connected" : "Not connected yet. You need this before tickets go on sale.", "#paid") + "</ol>" +
+        '<button class=btn type=button id=go' + (s.checklist.details ? "" : " disabled") + ">Send my show</button>") + "<p class=msg role=status></p>";
+    app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     wireTop();
     var b = document.getElementById("go");
     if (b) b.onclick = function () { say("Sending…"); call("submit", { show: s.id }).then(function () { return load(); }).then(function () { send(id); }).catch(function (x) { say(x.message, true); }); };
