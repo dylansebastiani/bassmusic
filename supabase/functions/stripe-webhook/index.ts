@@ -1,16 +1,23 @@
 import { db } from "../_shared/db.ts";
-import { verifyStripe, sendTickets } from "../_shared/tickets.ts";
+import { verifyStripe, sendTickets, stripe } from "../_shared/tickets.ts";
 
 // Stripe calls this when a checkout finishes, expires, or a payment is refunded.
 // Every event is checked against the signing secret first; anything unsigned is dropped.
 //   checkout.session.completed -> make the tickets and email them
 //   checkout.session.expired   -> release the hold so those tickets go back on sale
 //   charge.refunded            -> void that order's tickets (full refunds only)
+// The same endpoint also takes Stripe's Connect webhook (promoters' own accounts), signed with its own
+// secret. Those events carry `account` (acct_...). Extra Connect-only events:
+//   account.updated                    -> remember whether the promoter can take payments
+//   account.application.deauthorized   -> the promoter disconnected Subduction: stop sales
+// and on a full refund, Subduction's fee goes back to the buyer too.
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("POST only", { status: 405 });
   const raw = await req.text();
-  if (!(await verifyStripe(raw, req.headers.get("stripe-signature")))) return new Response("bad signature", { status: 400 });
-  let ev: { type: string; data: { object: Record<string, any> } };
+  const sig = req.headers.get("stripe-signature");
+  const okSig = (await verifyStripe(raw, sig)) || (await verifyStripe(raw, sig, Deno.env.get("STRIPE_CONNECT_WEBHOOK_SECRET")));
+  if (!okSig) return new Response("bad signature", { status: 400 });
+  let ev: { type: string; account?: string; data: { object: Record<string, any> } };
   try { ev = JSON.parse(raw); } catch { return new Response("bad json", { status: 400 }); }
   const obj = ev.data?.object || {};
 
@@ -19,6 +26,13 @@ Deno.serve(async (req) => {
     const orderId = obj.metadata?.order_id || obj.client_reference_id;
     const { data: o } = await db.from("ticket_orders").select("id,status,total_cents").eq("id", orderId).maybeSingle();
     if (!o) { console.error("webhook: no order for session", obj.id); return new Response("no order", { status: 200 }); }
+    // A Connect order only counts when the payment landed on the account the order was opened for.
+    // (Looked up on its own so a missing column can never stop tickets on the legacy path.)
+    const { data: oa } = await db.from("ticket_orders").select("stripe_account_id").eq("id", o.id).maybeSingle();
+    if (((oa as { stripe_account_id?: string | null } | null)?.stripe_account_id || null) !== (ev.account || null)) {
+      console.error("webhook: account mismatch", o.id, ev.account);
+      return new Response("account mismatch", { status: 200 });
+    }
     if (o.status === "refunded") return new Response("refunded", { status: 200 });
     // Belt and braces: tickets only for a payment that covers the whole order.
     if (typeof obj.amount_total === "number" && obj.amount_total < o.total_cents) {
@@ -45,6 +59,23 @@ Deno.serve(async (req) => {
       await db.from("ticket_orders").update({ status: "refunded" }).eq("id", o.id);
       await db.from("tickets").update({ status: "void" }).eq("order_id", o.id);
     }
+    // Connect: a promoter's full refund doesn't return Subduction's fee on its own, so return it here.
+    if (ev.account && typeof obj.application_fee === "string") {
+      try { await stripe(`application_fees/${obj.application_fee}/refunds`, {}); }
+      catch (e) { console.error("webhook: fee refund failed", obj.application_fee, (e as Error).message); }
+    }
+    return new Response("ok", { status: 200 });
+  }
+
+  if (ev.type === "account.updated" && typeof obj.id === "string") {
+    await db.from("companies").update({ stripe_charges_enabled: !!obj.charges_enabled, stripe_details_submitted: !!obj.details_submitted })
+      .eq("stripe_account_id", obj.id);
+    return new Response("ok", { status: 200 });
+  }
+
+  if (ev.type === "account.application.deauthorized" && ev.account) {
+    await db.from("companies").update({ stripe_charges_enabled: false }).eq("stripe_account_id", ev.account);
+    console.error("webhook: promoter disconnected Stripe", ev.account);
     return new Response("ok", { status: 200 });
   }
 

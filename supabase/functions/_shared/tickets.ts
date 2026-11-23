@@ -54,11 +54,15 @@ function form(obj: Record<string, unknown>, prefix = "", out: string[] = []) {
   }
   return out.join("&");
 }
-export async function stripe(path: string, params?: Record<string, unknown>, method = "POST") {
+// `account` (acct_...) runs the call on a promoter's connected Stripe account (Connect direct charges).
+// Left out, it runs on the platform's own account, exactly as before.
+export async function stripe(path: string, params?: Record<string, unknown>, method = "POST", account?: string | null) {
   const key = Deno.env.get("STRIPE_SECRET_KEY");
   if (!key) throw new Error("Stripe isn't connected yet.");
+  const headers: Record<string, string> = { Authorization: "Bearer " + key, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2024-06-20" };
+  if (account) { if (!/^acct_[A-Za-z0-9]{6,}$/.test(account)) throw new Error("Bad Stripe account."); headers["Stripe-Account"] = account; }
   const r = await fetch("https://api.stripe.com/v1/" + path, {
-    method, headers: { Authorization: "Bearer " + key, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2024-06-20" },
+    method, headers,
     body: method === "GET" ? undefined : form(params || {}),
     signal: AbortSignal.timeout(20_000),
   });
@@ -67,8 +71,8 @@ export async function stripe(path: string, params?: Record<string, unknown>, met
   return j;
 }
 // Stripe-Signature: t=..., v1=... ; signed payload is `${t}.${raw body}`. 5-minute tolerance.
-export async function verifyStripe(raw: string, header: string | null) {
-  const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+// `secret` defaults to the platform webhook's secret; the Connect webhook passes its own.
+export async function verifyStripe(raw: string, header: string | null, secret = Deno.env.get("STRIPE_WEBHOOK_SECRET")) {
   if (!secret || !header) return false;
   const parts = Object.fromEntries(header.split(",").map((p) => p.split("=", 2)).filter((p) => p.length === 2)) as Record<string, string>;
   const sigs = header.split(",").filter((p) => p.startsWith("v1=")).map((p) => p.slice(3));

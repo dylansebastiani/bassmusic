@@ -4,6 +4,7 @@ import { json, err, preflight, EMAIL_RE, clean, ipHash } from "../_shared/util.t
 import { SITE_URL } from "../_shared/config.ts";
 import { loadEvent, availability, stripe, TICKET_PAGE } from "../_shared/tickets.ts";
 import { ticketsPdf, sendLocation, revealLabel } from "../_shared/send.ts";
+import { loadCompany, feeFor, connectTotals, allInPrice } from "../_shared/company.ts";
 
 // Card fee for an amount so the show still nets the full amount after Stripe's 2.9% + 30c.
 // tickets.js uses the same formula to show all-in prices.
@@ -128,6 +129,21 @@ Deno.serve(async (req) => {
   const { ev, types } = x;
   if (!ev.sales_open) return err("Ticket sales aren't open yet.");
 
+  // Which company runs this show, and whether it sells through its own Stripe (Connect) or the
+  // platform's account (legacy: T.O.F.T.U. and earlier shows). Any doubt = legacy, which is today's behaviour.
+  const { data: evCo, error: evCoErr } = await db.from("events").select("company_id,review_status").eq("id", ev.id).maybeSingle();
+  const co = !evCoErr && evCo?.company_id ? await loadCompany(evCo.company_id) : null;
+  const connect = !!co && !co.legacy_stripe;
+  let feePer = 0;
+  if (connect) {
+    if (co!.status !== "active" || evCo!.review_status !== "approved") return err("Ticket sales aren't open yet.");
+    if (!co!.stripe_account_id || !co!.stripe_charges_enabled) return err("This show can't take payments yet. Try again soon.");
+    const f = await feeFor(co!);
+    if (f === null) { console.error("checkout: platform_fee_cents not set", co!.slug); return err("Ticket sales aren't open yet."); }
+    feePer = f;
+  }
+  const acct = connect ? co!.stripe_account_id! : undefined;
+
   const want = (Array.isArray(b.items) ? b.items : []).slice(0, 10).map((i: Record<string, unknown>) => {
     const t = types.find((t) => t.slug === i.slug);
     const qty = Math.floor(Number(i.qty) || 0);
@@ -152,9 +168,23 @@ Deno.serve(async (req) => {
   // page does it, and a buyer never pays more than the all-in prices they saw. With a promo code
   // the fee is figured on the discounted order instead, which only ever comes out lower.
   const net = o!.subtotal_cents - o!.discount_cents;
-  const perTicket = (o!.items as { unit_cents: number; qty: number }[]).reduce((s, it) => s + it.qty * cardFee(it.unit_cents), 0);
-  const fee = net <= 0 ? 0 : o!.discount_cents > 0 ? Math.min(cardFee(net), perTicket) : perTicket;
-  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee, ip_hash: ip, phone }).eq("id", o!.id);
+  const items = o!.items as { unit_cents: number; qty: number }[];
+  const paidTickets = items.reduce((n, it) => n + it.qty, 0);
+  //   Legacy (T.O.F.T.U.): card fee only, on the platform's own Stripe.
+  //   Connect (promoters): card fee plus Subduction's per-ticket fee, routed to the platform by Stripe.
+  let fee: number, platformFee = 0;
+  if (connect) {
+    const perTicket = items.reduce((s, it) => s + it.qty * (allInPrice(it.unit_cents, feePer) - it.unit_cents), 0);
+    const whole = connectTotals(net, paidTickets, feePer);
+    fee = net <= 0 ? 0 : o!.discount_cents > 0 ? Math.min(whole.card + whole.platform, perTicket) : perTicket;
+    platformFee = net <= 0 ? 0 : feePer * paidTickets;
+  } else {
+    const perTicket = items.reduce((s, it) => s + it.qty * cardFee(it.unit_cents), 0);
+    fee = net <= 0 ? 0 : o!.discount_cents > 0 ? Math.min(cardFee(net), perTicket) : perTicket;
+  }
+  const ct = connect ? { platform: platformFee } : null;
+  await db.from("ticket_orders").update({ fee_cents: fee, total_cents: net + fee, ip_hash: ip, phone,
+    ...(ct ? { platform_fee_cents: ct.platform, stripe_account_id: acct } : {}) }).eq("id", o!.id);
 
   try {
     const line_items: Record<string, unknown> = {};
@@ -164,12 +194,16 @@ Deno.serve(async (req) => {
         price_data: { currency: "usd", unit_amount: it.unit_cents, product_data: { name: `${ev.name}: ${it.name}`, description: it.tier } },
       };
     });
-    if (fee > 0) {
+    if (fee > 0 && ct) {
+      // One clearly described fee line (the FTC rule frowns on vague "processing fee" labels).
+      line_items[Object.keys(line_items).length] = { quantity: 1, price_data: { currency: "usd", unit_amount: fee,
+        product_data: { name: "Ticketing fee", description: `Subduction platform fee (${paidTickets} ticket${paidTickets === 1 ? "" : "s"}) plus card processing by Stripe` } } };
+    } else if (fee > 0) {
       line_items[Object.keys(line_items).length] = { quantity: 1, price_data: { currency: "usd", unit_amount: fee, product_data: { name: "Card processing fee" } } };
     }
     let discounts: Record<string, unknown> | undefined;
     if (o!.discount_cents > 0) {
-      const c = await stripe("coupons", { amount_off: o!.discount_cents, currency: "usd", duration: "once", max_redemptions: 1, name: "Promo code" });
+      const c = await stripe("coupons", { amount_off: o!.discount_cents, currency: "usd", duration: "once", max_redemptions: 1, name: "Promo code" }, "POST", acct);
       discounts = { 0: { coupon: c.id } };
     }
     const session = await stripe("checkout/sessions", {
@@ -179,8 +213,9 @@ Deno.serve(async (req) => {
       expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
       client_reference_id: o!.id,
       metadata: { order_id: o!.id, event: ev.slug },
-      payment_intent_data: { metadata: { order_id: o!.id, event: ev.slug }, description: `${ev.name} tickets` },
-    });
+      payment_intent_data: { metadata: { order_id: o!.id, event: ev.slug }, description: `${ev.name} tickets`,
+        application_fee_amount: ct && ct.platform > 0 ? ct.platform : undefined },
+    }, "POST", acct);
     await db.from("ticket_orders").update({ stripe_session_id: session.id }).eq("id", o!.id);
     return json({ client_secret: session.client_secret, session_id: session.id });
   } catch (e) {
