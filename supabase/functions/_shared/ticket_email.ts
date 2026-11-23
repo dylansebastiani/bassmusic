@@ -67,8 +67,9 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   // Ticket emails are transactional, so the postal address is only shown once a real one is set.
   const addr = /TBD/i.test(d.mailingAddress || "") ? "" : d.mailingAddress;
   const IMG = d.siteUrl.replace(/\/$/, "") + "/assets/toftu/email/";
-  const first = (d.buyerName || "").trim().split(/\s+/)[0];
   const artist = !!d.artistUrl;
+  // An artist is greeted by their whole artist name ("You're in, Treegaud."); everyone else by first name.
+  const first = artist ? (d.buyerName || "").trim() : (d.buyerName || "").trim().split(/\s+/)[0];
   const subject = artist ? `Your artist pass: ${d.eventName}` : d.comp ? `You're on the list: ${d.eventName}` : `Your tickets: ${d.eventName}`;
   const pre = artist ? "Your artist pass and your guest list link are inside." : d.comp ? (d.address ? "You're on the guest list. Your QR code and the secret location are inside." : `You're on the guest list. The location drops ${d.revealText || "before the show"}.`)
     : `${d.tickets.length} ticket${d.tickets.length > 1 ? "s" : ""} inside${d.address ? ", plus the secret location" : `. The location drops ${d.revealText || "before the show"}`}.`;

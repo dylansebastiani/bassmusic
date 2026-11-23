@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
     const { data: rows } = await db.from("tickets").select("id,code,holder_name,email,type_id,order_id,status,is_comp").eq("event_id", ev.id).eq("status", "valid").order("holder_name").limit(5000);
     // Whole-show lookups (not long id lists), so a big list stays one quick request.
     const [{ data: orders }, { data: scans }] = await Promise.all([
-      db.from("ticket_orders").select("id,comp_list,phone,artist_invite_id").eq("event_id", ev.id).in("status", ["paid", "comp"]).limit(5000),
+      db.from("ticket_orders").select("id,name,comp_list,phone,artist_invite_id").eq("event_id", ev.id).in("status", ["paid", "comp"]).limit(5000),
       db.from("ticket_scans").select("ticket_id,night_id").in("night_id", nights.map((n) => n.id)).limit(10000),
     ]);
     const om = new Map((orders || []).map((o) => [o.id, o]));
@@ -187,6 +187,8 @@ Deno.serve(async (req) => {
       const kind = ty?.slug === "artist" ? "artist" : r.is_comp && o?.artist_invite_id ? "artist_guest" : r.is_comp ? "guest" : "paid";
       return { ticket_id: r.id, code: r.code, name: r.holder_name, email: r.email, type: ty?.name, kind, comp: r.is_comp,
         list: o?.comp_list || null, phone: o?.phone || null,
+        // An artist's ticket carries their artist name; staff also see the legal name, to match an ID.
+        real_name: kind === "artist" && o?.name && o.name !== r.holder_name ? o.name : null,
         nights: (ty?.night_ids || []).map((id) => ({ label: nights.find((n) => n.id === id)?.label || "", in: (inN.get(r.id) || []).includes(id) })) };
     }) });
   }

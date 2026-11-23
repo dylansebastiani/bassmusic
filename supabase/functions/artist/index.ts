@@ -13,7 +13,8 @@ import { SITE_URL } from "../_shared/config.ts";
 //   POST {a:"resend",k}      email their pass again
 // Staff side (signed in on /admin, x-admin-token):
 //   GET  ?a=list&e=slug      every invite for a show with its guests
-//   POST {a:"create",e,...}  name + guest spots -> the private link to text them
+//   POST {a:"create",e,...}  artist name + guest spots (+ optional real name, email, phone) -> the private link;
+//                            with all three contact fields the pass is issued and emailed right away
 //   POST {a:"update",id,...} change name or guest spots
 //   POST {a:"revoke",id}     link stops working; their pass and their guests' tickets are cancelled
 const TOKEN = /^[0-9a-f]{48}$/, SLUG = /^[a-z0-9-]{1,80}$/;
@@ -22,6 +23,31 @@ const phoneOf = (v: unknown) => {
   const d = String(v ?? "").replace(/\D/g, "");
   return d.length === 10 ? "+1" + d : d.length === 11 && d[0] === "1" ? "+" + d : d.length >= 11 && d.length <= 15 ? "+" + d : null;
 };
+
+// The artist's legal name stays on the order (door list, member record). The ticket itself
+// carries their artist name, so the pass, the PDF and the email all say who they are on the bill.
+type Inv = { id: string; event_id: string; name: string };
+async function issueOrder(inv: Inv, p: { name: string; email: string; phone: string }, t: { id: string; name: string }, tier: string, list: string, own: boolean) {
+  const { data: o, error } = await db.from("ticket_orders").insert({
+    event_id: inv.event_id, status: "pending", email: p.email, name: p.name, phone: p.phone, comp_list: list, artist_invite_id: inv.id,
+    items: [{ type_id: t.id, name: t.name, tier, unit_cents: 0, qty: 1 }],
+  }).select("id").single();
+  if (error || !o) return null;
+  if (own) await db.from("artist_invites").update({ order_id: o.id }).eq("id", inv.id);
+  await db.rpc("ticket_issue", { p_order: o.id, p_status: "comp" });
+  if (own) await db.from("tickets").update({ holder_name: inv.name }).eq("order_id", o.id);
+  return { id: o.id, sent: await sendTickets(o.id) };
+}
+// Real name (first and last), email and phone, as checkout asks for them.
+function contact(b: Record<string, unknown>, key = "name") {
+  const name = (clean(b[key], 80) || "").replace(/\s+/g, " ");
+  const email = (clean(b.email, 254) || "").toLowerCase();
+  const phone = phoneOf(b.phone);
+  if (name.split(" ").length < 2) return { err: "Enter the full name (first and last)." };
+  if (!EMAIL_RE.test(email)) return { err: "Enter a real email address." };
+  if (!phone) return { err: "Enter a phone number we can reach." };
+  return { name, email, phone };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_A } }); }
@@ -47,19 +73,28 @@ Deno.serve(async (req) => {
       if (a === "create") {
         const name = clean(b.name, 80); if (!name) return no("Add the artist's name.");
         const spots = Math.max(0, Math.min(50, Math.floor(Number(b.spots ?? 2))));
-        const { data: inv, error } = await db.from("artist_invites").insert({ event_id: ev.id, name, guest_spots: spots, created_by: admin.id }).select("id,token").single();
+        // Contact info is optional here; if any of it is filled in, all of it has to be right.
+        const any = [b.full_name, b.email, b.phone].some((v) => typeof v === "string" && v.trim());
+        const p = any ? contact(b, "full_name") : null;
+        if (p && "err" in p) return no(p.err + " Or leave all three blank and the artist fills them in from their link.");
+        const t = p ? (await db.from("ticket_types").select("id,name").eq("event_id", ev.id).eq("slug", "artist").maybeSingle()).data : null;
+        if (p && !t) return no("Artist passes aren't set up for this show yet.");
+        const { data: inv, error } = await db.from("artist_invites").insert({ event_id: ev.id, name, guest_spots: spots, created_by: admin.id,
+          ...(p && !("err" in p) ? { full_name: p.name, email: p.email, phone: p.phone, claimed_at: new Date().toISOString() } : {}) }).select("id,event_id,name,token").single();
         if (error || !inv) return no("Couldn't save that artist.", 500);
-        await log("artist_invite", { event: slug, name, spots });
-        return ok({ id: inv.id, link: `${SITE_URL}/artist.html?k=${inv.token}` });
+        let sent: boolean | null = null;
+        if (p && !("err" in p) && t) { const r = await issueOrder(inv, p, t, "Artist", "Artist", true); sent = r ? r.sent : false; }
+        await log("artist_invite", { event: slug, name, spots, pass_sent: sent });
+        return ok({ id: inv.id, link: `${SITE_URL}/artist.html?k=${inv.token}`, pass_sent: sent });
       }
-      const { data: invs } = await db.from("artist_invites").select("id,name,token,guest_spots,email,claimed_at,revoked_at,order_id,created_at").eq("event_id", ev.id).order("created_at");
+      const { data: invs } = await db.from("artist_invites").select("id,name,full_name,token,guest_spots,email,phone,claimed_at,revoked_at,order_id,created_at").eq("event_id", ev.id).order("created_at");
       const ids = (invs || []).map((i) => i.id);
       const { data: orders } = ids.length ? await db.from("ticket_orders").select("id,artist_invite_id,name,email,status").in("artist_invite_id", ids).eq("status", "comp") : { data: [] };
       const { data: tix } = orders?.length ? await db.from("tickets").select("order_id,status,type_id").in("order_id", orders.map((o) => o.id)).eq("status", "valid") : { data: [] };
       const live = new Set((tix || []).map((t) => t.order_id));
       return ok({ artists: (invs || []).map((i) => {
         const guests = (orders || []).filter((o) => o.artist_invite_id === i.id && o.id !== i.order_id && live.has(o.id));
-        return { id: i.id, name: i.name, spots: i.guest_spots, email: i.email, claimed: !!i.claimed_at, revoked: !!i.revoked_at,
+        return { id: i.id, name: i.name, full_name: i.full_name, phone: i.phone, spots: i.guest_spots, email: i.email, claimed: !!i.claimed_at, revoked: !!i.revoked_at,
           link: `${SITE_URL}/artist.html?k=${i.token}`, guests: guests.map((g) => ({ name: g.name, email: g.email })) };
       }) });
     }
@@ -131,32 +166,15 @@ Deno.serve(async (req) => {
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 20) return no("Too many tries. Wait a minute and try again.", 429);
 
-  const person = () => {
-    const name = (clean(b.name, 80) || "").replace(/\s+/g, " ");
-    const email = (clean(b.email, 254) || "").toLowerCase();
-    const phone = phoneOf(b.phone);
-    if (name.split(" ").length < 2) return { err: "Enter the full name (first and last)." };
-    if (!EMAIL_RE.test(email)) return { err: "Enter a real email address." };
-    if (!phone) return { err: "Enter a phone number we can reach." };
-    return { name, email, phone };
-  };
-  async function issue(name: string, email: string, phone: string, typeId: string, typeName: string, tier: string, list: string, own: boolean) {
-    const { data: o, error } = await db.from("ticket_orders").insert({
-      event_id: ev!.id, status: "pending", email, name, phone, comp_list: list, artist_invite_id: inv!.id,
-      items: [{ type_id: typeId, name: typeName, tier, unit_cents: 0, qty: 1 }],
-    }).select("id").single();
-    if (error || !o) return null;
-    if (own) await db.from("artist_invites").update({ order_id: o.id }).eq("id", inv!.id);
-    await db.rpc("ticket_issue", { p_order: o.id, p_status: "comp" });
-    const sent = await sendTickets(o.id);
-    return { id: o.id, sent };
-  }
+  const person = () => contact(b);
+  const issue = (name: string, email: string, phone: string, typeId: string, typeName: string, tier: string, list: string, own: boolean) =>
+    issueOrder(inv!, { name, email, phone }, { id: typeId, name: typeName }, tier, list, own);
 
   if (a === "claim") {
     if (inv.claimed_at && inv.order_id) return ok(await state());
     const p = person(); if ("err" in p) return no(p.err!);
     const t = ts.find((x) => x.slug === "artist"); if (!t) return no("Artist passes aren't set up for this show yet.");
-    await db.from("artist_invites").update({ email: p.email, phone: p.phone, claimed_at: new Date().toISOString() }).eq("id", inv.id).is("claimed_at", null);
+    await db.from("artist_invites").update({ full_name: p.name, email: p.email, phone: p.phone, claimed_at: new Date().toISOString() }).eq("id", inv.id).is("claimed_at", null);
     const r = await issue(p.name, p.email, p.phone, t.id, t.name, "Artist", "Artist", true);
     if (!r) return no("Couldn't make your pass. Try again.", 500);
     inv.claimed_at = new Date().toISOString(); inv.email = p.email; inv.order_id = r.id;

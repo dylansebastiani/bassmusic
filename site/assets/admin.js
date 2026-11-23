@@ -217,12 +217,13 @@
       return '<button type="button" data-k="' + k[0] + '" aria-pressed="' + (GF === k[0]) + '">' + k[1] + " <i>" + n(k[0]) + "</i></button>";
     }).join("");
     var q = $("gsearch").value.trim().toLowerCase();
-    var rows = GL.filter(function (g) { return (GF === "all" || g.kind === GF) && (!q || [g.name, g.email, g.code, g.list].join(" ").toLowerCase().indexOf(q) >= 0); });
+    var rows = GL.filter(function (g) { return (GF === "all" || g.kind === GF) && (!q || [g.name, g.real_name, g.email, g.code, g.list].join(" ").toLowerCase().indexOf(q) >= 0); });
     var inside = rows.filter(function (g) { return g.nights.some(function (x) { return x.in; }); }).length;
     say("gcount", rows.length ? rows.length + " shown" + (inside ? " · " + inside + " checked in" : "") : "");
     $("guests").innerHTML = rows.length ? rows.map(function (g) {
       var badges = g.nights.map(function (x) { return '<em class="nt' + (x.in ? " in" : "") + '">' + esc(x.label.split(" ")[0]) + (x.in ? " ✓" : "") + "</em>"; }).join("");
       return '<div class="person k-' + g.kind + '"><div><b>' + esc(g.name || "No name") + ' <small class="kind">' + KLABEL[g.kind] + "</small></b>" +
+        (g.real_name ? '<span class="mono">ID name: ' + esc(g.real_name) + "</span>" : "") +
         '<span class="mono">' + esc(g.type || "") + (g.list && g.kind !== "artist" ? " · " + esc(g.list) + "'s list" : "") + " · " + esc(g.code) + (g.email ? " · " + esc(g.email) : "") + (g.phone ? " · " + esc(g.phone) : "") + "</span>" +
         '<span class="nts">' + badges + "</span></div>" +
         '<span class="pa">' + (g.email ? '<button type="button" data-resend="' + esc(g.ticket_id) + '">Resend</button>' : "") +
@@ -277,7 +278,8 @@
       $("artists").innerHTML = d.artists.length ? d.artists.map(function (a) {
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
         return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
-          '<div class="mono asub">' + (a.email ? esc(a.email) + " · " : "") + a.guests.length + " of " + a.spots + " guest spots used</div>" +
+          (a.full_name || a.email || a.phone ? '<div class="mono asub">' + [a.full_name, a.email, a.phone].filter(Boolean).map(esc).join(" · ") + "</div>" : "") +
+          '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used</div>" +
           (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
           (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy link</button>' +
             '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
@@ -288,10 +290,14 @@
   }
   $("af").addEventListener("submit", function (e) {
     e.preventDefault(); say("amsg", "Saving...");
-    (pre = {}, req)(ART, { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0 }).then(function (r) {
-      $("aname").value = ""; $("aspots").value = "2";
-      var copied = function () { say("amsg", "Invite made and link copied. Text it to the artist."); };
-      (navigator.clipboard ? navigator.clipboard.writeText(r.link) : Promise.reject()).then(copied).catch(function () { say("amsg", "Invite made. Link: " + r.link); });
+    var body = { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0,
+      full_name: $("afull").value.trim(), email: $("aemail").value.trim().toLowerCase(), phone: $("aphone").value.trim() };
+    (pre = {}, req)(ART, body).then(function (r) {
+      ["aname", "afull", "aemail", "aphone"].forEach(function (id) { $(id).value = ""; }); $("aspots").value = "2";
+      var lead = r.pass_sent === true ? "Pass sent to " + body.email + ". Link copied too, in case you want to text it."
+        : r.pass_sent === false ? "Invite made, but the pass email didn't go out. Use Resend on the Door List. Link copied."
+        : "Invite made and link copied. Text it to the artist.";
+      (navigator.clipboard ? navigator.clipboard.writeText(r.link) : Promise.reject()).then(function () { say("amsg", lead); }).catch(function () { say("amsg", lead.replace(/ ?Link copied[^.]*\./, "") + " Link: " + r.link); });
       artists();
     }).catch(function (err) { say("amsg", err.message); });
   });

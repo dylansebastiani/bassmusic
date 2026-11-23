@@ -61,10 +61,11 @@ export async function sendTickets(orderId: string) {
   const { data: o } = await db.from("ticket_orders").select("id,event_id,email,name,status,subtotal_cents,discount_cents,fee_cents,total_cents,emailed_at,artist_invite_id").eq("id", orderId).maybeSingle();
   if (!o || !o.email || o.emailed_at) return false;
   // An artist's own pass carries the link to their private guest-list page.
-  let artistUrl: string | null = null;
+  // It greets them by their artist name, not their legal name.
+  let artistUrl: string | null = null, greet = o.name;
   if (o.artist_invite_id) {
-    const { data: inv } = await db.from("artist_invites").select("token,order_id").eq("id", o.artist_invite_id).maybeSingle();
-    if (inv && inv.order_id === o.id) artistUrl = `${SITE_URL}/artist.html?k=${inv.token}`;
+    const { data: inv } = await db.from("artist_invites").select("token,order_id,name").eq("id", o.artist_invite_id).maybeSingle();
+    if (inv && inv.order_id === o.id) { artistUrl = `${SITE_URL}/artist.html?k=${inv.token}`; greet = inv.name; }
   }
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
     db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at").eq("id", o.event_id).single(),
@@ -75,7 +76,7 @@ export async function sendTickets(orderId: string) {
   if (!ev || !tix?.length) return false;
   const ns = nights || [];
   const r = renderTicketEmail({
-    comp: o.status === "comp", buyerName: o.name, eventName: ev.name, venue: ev.venue, address: ev.address, age: ev.age, revealText: heldBack(ev),
+    comp: o.status === "comp", buyerName: greet, eventName: ev.name, venue: ev.venue, address: ev.address, age: ev.age, revealText: heldBack(ev),
     nights: ns.map((n) => ({ label: n.label, doors: doorsText(n.starts_at, n.ends_at) })),
     tickets: tix.map((t) => {
       const ty = types?.find((x) => x.id === t.type_id);
