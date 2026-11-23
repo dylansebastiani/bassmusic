@@ -238,6 +238,21 @@ input::placeholder{color:#8a8486}
   .bar.solid{background:#000;border-bottom:1px solid #1c1c1c}
   @media (prefers-reduced-motion:reduce){.hero-art picture{animation:none}}
   #fans .art{margin-top:16px;margin-bottom:44px}
+  /* centre everything on phones; lists keep their left edge but sit as a centred block */
+  .hero,.sec,.copy,.gets,.yours{align-items:center;text-align:center}
+  .split,.steps,.bars,.box,.gets{align-self:stretch}
+  .steps,.bars,.checks{text-align:left}
+  .checks{width:fit-content;max-width:100%;margin-inline:auto}
+  .ctas{justify-content:center}
+  .lead,.fine{margin-inline:auto}
+  .hero .kick{margin-left:0;align-self:center}
+  .laser{margin-inline:auto}
+  .yours{border-left:0;border-top:3px solid var(--hot);padding:16px 0 0;max-width:34ch}
+  .doors a{grid-template-columns:1fr;text-align:center}
+  .doors i{display:none}
+  .box form{margin-inline:auto}
+  .join{text-align:center}
+  .price-big small{margin-left:0}
   /* section art = a clean strip centred in the gap between sections */
   .art,.art.wide,.art.tall{height:auto;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) 28px;overflow:hidden;-webkit-mask-image:none;mask-image:none}
   .art picture{display:block}
@@ -325,7 +340,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   <figure class="art tall" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-promoters-m.webp"><img src="assets/art-promoters.webp" alt="" loading="lazy"></picture></figure>
   </div>
   <div class="yours rv">
-    <h3 class="disp">Your brand. <em>Not ours.</em></h3>
+    <h3 class="disp">Your brand. <em style="white-space:nowrap">Not ours.</em></h3>
     <p>Every page is built from scratch for your show: your art, your colors, your name. No template. No Subduction logo on it. It looks like your site, because it is.</p>
   </div>
   <div class="gets rv">
