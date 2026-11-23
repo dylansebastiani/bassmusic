@@ -26,6 +26,7 @@ const phoneOf = (v: unknown) => {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_A } }); }
   const u = new URL(req.url);
+  if (u.searchParams.get("a") === "ping") return new Response("ok", { headers: { "Access-Control-Allow-Origin": "*" } });   // staff page warm-up
   let b: Record<string, unknown> = {};
   if (req.method === "POST") { try { b = await req.json(); } catch { return no("Bad request"); } }
   const a = String(b.a || u.searchParams.get("a") || "");

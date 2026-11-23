@@ -19,13 +19,32 @@ export async function newSession(subscriberId: string) {
 }
 
 // The admin behind a request, or null. Also re-checks the allow list, so removing an
-// email from it ends that person's access at once.
+// email from it ends that person's access (within a minute: a warm server remembers a
+// confirmed session for 60 seconds so every staff click doesn't repeat these lookups).
+const seen = new Map<string, { v: { id: string; email: string }; exp: number }>();
 export async function requireAdmin(req: Request): Promise<{ id: string; email: string } | null> {
   const token = (req.headers.get("x-admin-token") || "").trim();
   if (!/^[0-9a-f]{64}$/.test(token)) return null;
-  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(token)).maybeSingle();
-  if (!s || new Date(s.expires_at).getTime() < Date.now()) return null;
-  const { data: m } = await db.from("subscribers").select("id,email,status").eq("id", s.subscriber_id).maybeSingle();
-  if (!m || m.status === "deleted" || !(await isAdminEmail(m.email))) return null;
-  return { id: m.id, email: m.email };
+  const hit = seen.get(token);
+  if (hit && hit.exp > Date.now()) return hit.v;
+  // One round trip for the session and its member, in parallel with the allow list.
+  const th = await sha256(token);
+  const [r, list] = await Promise.all([
+    db.from("admin_sessions").select("expires_at, m:subscribers(id,email,status)").eq("token_hash", th).maybeSingle(),
+    setting<string[]>("admin_emails", []),
+  ]);
+  let s = r.data as { expires_at: string; m?: unknown } | null;
+  let m = (s?.m ?? null) as { id: string; email: string; status: string } | null;
+  if (r.error) {
+    // Fallback: two plain lookups, in case the joined read is ever unavailable.
+    const { data: s2 } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", th).maybeSingle();
+    const { data: m2 } = s2 ? await db.from("subscribers").select("id,email,status").eq("id", s2.subscriber_id).maybeSingle() : { data: null };
+    s = s2; m = m2;
+  }
+  if (!s || !m || new Date(s.expires_at).getTime() < Date.now() || m.status === "deleted") return null;
+  if (!list.map((e) => e.toLowerCase()).includes(m.email.toLowerCase())) return null;
+  const v = { id: m.id, email: m.email };
+  if (seen.size > 500) seen.clear();
+  seen.set(token, { v, exp: Math.min(Date.now() + 60_000, new Date(s.expires_at).getTime()) });
+  return v;
 }

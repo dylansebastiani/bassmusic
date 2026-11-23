@@ -25,9 +25,20 @@
     });
   }
   function call(a, body, raw) { return req(FN + "?a=" + a, body, raw); }
+  // Show data is fetched once and reused for 30 seconds, so switching tabs is instant.
+  // Any change (a POST) clears it, so the next tab shows fresh numbers.
+  var pre = {};
+  function cached(key, fn) {
+    var hit = pre[key];
+    if (hit && Date.now() - hit.t < 30000) return hit.p;
+    var p = fn(); pre[key] = { t: Date.now(), p: p };
+    p.catch(function () { delete pre[key]; });
+    return p;
+  }
   function door(a, body, params) {
     var qs = "?e=" + encodeURIComponent(cur.event.slug) + "&a=" + a + Object.keys(params || {}).map(function (k) { return "&" + k + "=" + encodeURIComponent(params[k]); }).join("");
-    return req(DOOR + qs, body);
+    if (body) { pre = {}; return req(DOOR + qs, body); }
+    return cached(qs, function () { return req(DOOR + qs); });
   }
   function say(id, t) { $(id).textContent = t || ""; }
   function signedOut() { tok = null; try { localStorage.removeItem(AKEY); } catch (e) {} $("app").hidden = true; $("login").hidden = false; $("signout").hidden = true; say("lmsg", "Signed out. Sign in again."); }
@@ -86,6 +97,8 @@
       var segs = d.ticketed ? SEGS : [["details", "Details"]];
       $("seg").innerHTML = segs.map(function (s) { return '<button type="button" data-seg="' + s[0] + '">' + s[1] + "</button>"; }).join("");
       seg(keepTab && segs.some(function (s) { return s[0] === curTab; }) ? curTab : segs[0][0]);
+      // Load the other tabs in the background so they open instantly.
+      if (d.ticketed) { door("sales").catch(function () {}); door("guests").catch(function () {}); artGet().catch(function () {}); }
     }).catch(function (err) { $("svName").textContent = err.message; });
   }
   function closeShow() { cur = null; $("showView").hidden = true; $("showList").hidden = false; }
@@ -257,9 +270,10 @@
 
   // ---------- artists ----------
   var ART = BASE + "artist";
+  function artGet() { var u = ART + "?a=list&e=" + encodeURIComponent(cur.event.slug); return cached(u, function () { return req(u); }); }
   function artists() {
     $("artists").innerHTML = '<div class="empty">Loading...</div>';
-    req(ART + "?a=list&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
+    artGet().then(function (d) {
       $("artists").innerHTML = d.artists.length ? d.artists.map(function (a) {
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
         return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
@@ -274,7 +288,7 @@
   }
   $("af").addEventListener("submit", function (e) {
     e.preventDefault(); say("amsg", "Saving...");
-    req(ART, { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0 }).then(function (r) {
+    (pre = {}, req)(ART, { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0 }).then(function (r) {
       $("aname").value = ""; $("aspots").value = "2";
       var copied = function () { say("amsg", "Invite made and link copied. Text it to the artist."); };
       (navigator.clipboard ? navigator.clipboard.writeText(r.link) : Promise.reject()).then(copied).catch(function () { say("amsg", "Invite made. Link: " + r.link); });
@@ -284,10 +298,10 @@
   $("artists").addEventListener("click", function (e) {
     var c = e.target.closest("[data-copy]"), sp = e.target.closest("[data-spots]"), rv = e.target.closest("[data-revoke]");
     if (c) { var t = c.getAttribute("data-copy"); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { c.textContent = "Copied ✓"; }).catch(function () { prompt("Copy this link:", t); }); }
-    if (sp) { sp.disabled = true; req(ART, { a: "update", id: sp.getAttribute("data-spots"), spots: Number(sp.getAttribute("data-n")) }).then(artists).catch(function (err) { alert(err.message); }); }
+    if (sp) { sp.disabled = true; (pre = {}, req)(ART, { a: "update", id: sp.getAttribute("data-spots"), spots: Number(sp.getAttribute("data-n")) }).then(artists).catch(function (err) { alert(err.message); }); }
     if (rv) {
       if (!confirm("Cancel " + rv.getAttribute("data-name") + "? Their link stops working, and their artist pass and every guest ticket they added are cancelled.")) return;
-      req(ART, { a: "revoke", id: rv.getAttribute("data-revoke") }).then(artists).catch(function (err) { alert(err.message); });
+      (pre = {}, req)(ART, { a: "revoke", id: rv.getAttribute("data-revoke") }).then(artists).catch(function (err) { alert(err.message); });
     }
   });
 
@@ -575,6 +589,8 @@
 
   // ---------- boot ----------
   function boot() {
+    // Wake the door and artist services while the overview loads, so the first tab click isn't a cold start.
+    fetch(DOOR + "?a=ping").catch(function () {}); fetch(BASE + "artist?a=ping").catch(function () {});
     call("overview").then(function (d) {
       $("login").hidden = true; $("app").hidden = false; $("signout").hidden = false;
       try { $("who").textContent = localStorage.getItem("stack_admin_email") || ""; } catch (e) {}
