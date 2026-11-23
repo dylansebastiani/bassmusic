@@ -25,7 +25,7 @@
 :root{--bg:#000;--fg:#f4f1ee;--mute:#9a9490;--line:#2a2627;--hot:#b6ff00;
   --disp:"Anton","Arial Narrow",Impact,sans-serif;--text:"Archivo",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
 *{box-sizing:border-box;margin:0}
-html{background:var(--bg);scroll-behavior:smooth;scroll-padding-top:64px}
+html{overflow-x:clip;background:var(--bg);scroll-behavior:smooth;scroll-padding-top:64px}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.55;overflow-x:hidden;-webkit-text-size-adjust:100%}
 img{display:block}
@@ -209,6 +209,33 @@ input::placeholder{color:#8a8486}
   .hero .kick{background:none;padding:0}
 }
 
+
+/* ===== phones: one clean rhythm. Solid bar, bold cropped art bands, tight type, buttons above the fold. ===== */
+@media (max-width:899px){
+  .bar{background:#000;border-bottom:1px solid #1c1c1c;padding-top:calc(env(safe-area-inset-top,0px) + 8px);padding-bottom:8px}
+  .bar .go{font-size:15px;padding:7px 12px 5px}
+  .sec{padding-top:0;padding-bottom:56px;gap:16px}
+  .sec h2{font-size:clamp(38px,10.4vw,56px);max-width:none}
+  .hero{padding-top:52px;gap:14px;padding-bottom:40px}
+  .hero h1{font-size:clamp(44px,12.4vw,64px);max-width:none;line-height:.9}
+  .hero .lead{font-size:15px}
+  .hero-art{height:min(58svh,96vw);margin-bottom:-6px;overflow:hidden}
+  .hero-art img{object-fit:cover;object-position:50% 30%;transform:scale(1.15)}
+  .art,.art.wide,.art.tall{height:64vw;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) 8px;
+    -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 70%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0,#000 70%,transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
+  .art{overflow:hidden}
+  .art img{object-fit:cover;object-position:var(--pos,50% 50%)}
+  .art.tall img{transform:scale(1.25)}
+  .doors{margin-bottom:56px}
+  .doors b{font-size:22px}
+  .price-big{font-size:clamp(84px,24vw,120px)}
+  .price-big small{display:block;font-size:.2em;margin:.5em 0 0;color:#cfc9c5;letter-spacing:.12em}
+  .steps li h3{font-size:28px}
+  .gets{padding-top:18px}
+  .btn{font-size:20px;padding:13px 20px 11px}
+  .ghost{font-size:18px;padding:11px 16px 9px}
+}
+
 /* reveals */
 .rv{opacity:0;transform:translateY(14px)}
 @supports (animation-timeline:view()){
@@ -254,7 +281,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 <section class="sec hero" id="top" aria-label="Subduction">
   <figure class="hero-art" aria-hidden="true"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></figure>
   <p class="kick rv">Ticketing for the underground</p>
-  <h1 class="disp rv">Your show. Your page. Your <em>money.</em></h1>
+  <h1 class="disp rv">Your show.<br>Your page.<br>Your <em>money.</em></h1>
   <p class="lead rv">Tickets for underground shows. Promoters keep their money, artists get a free page, fans get free music.</p>
   <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a><a class="ghost" href="#promoters">How it works</a></div>
 </section>
@@ -271,7 +298,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   <div class="split">
   <div class="copy">
   <p class="kick rv">For promoters</p>
-  <h2 class="disp rv">Sell tickets in <em>4 steps.</em></h2>
+  <h2 class="disp rv">Sell tickets<br>in <em>4 steps.</em></h2>
   <ol class="steps">
     <li class="rv"><i>01</i><h3>Sign up</h3><p>Your email, then a 6-digit code. No password.</p></li>
     <li class="rv"><i>02</i><h3>Upload your kit</h3><p>Logo, flyers, colors, dates, lineup and ticket prices.</p></li>
@@ -279,7 +306,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
   </ol>
   </div>
-  <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy"></figure>
+  <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy" style="--pos:50% 62%"></figure>
   </div>
   <div class="gets rv">
     <p class="kick">Every show gets</p>
@@ -311,7 +338,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   </div>
   <p class="fine rv">Card processing included for everyone. Published US rates, Nov 2026: Eventbrite 3.7% + $1.79 plus 2.9%; Posh 10% + $0.99; DICE 13%; Subduction $1.50 plus Stripe's 2.9% + 30¢.</p>
   </div>
-  <figure class="art wide" aria-hidden="true"><img src="assets/art-pricing.webp" alt="" loading="lazy"></figure>
+  <figure class="art wide" aria-hidden="true"><img src="assets/art-pricing.webp" alt="" loading="lazy" style="--pos:50% 50%"></figure>
   </div>
 </section>
 
@@ -320,7 +347,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   <div class="split">
   <div class="copy">
   <p class="kick rv">For artists</p>
-  <h2 class="disp rv">Playing a show? Get a <em>free page.</em></h2>
+  <h2 class="disp rv">Playing a show?<br>Get a <em>free page.</em></h2>
   <ul class="checks big">
     <li class="rv"><b>Artist pass</b>Your pass and guest list spots, sent to your phone.</li>
     <li class="rv"><b>Your own page <span class="tag">Soon</span></b>Photo, links, music and every show you're on.</li>
@@ -328,7 +355,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   </ul>
   <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the list</a></div>
   </div>
-  <figure class="art wide" aria-hidden="true"><img src="assets/art-artists.webp" alt="" loading="lazy"></figure>
+  <figure class="art wide" aria-hidden="true"><img src="assets/art-artists.webp" alt="" loading="lazy" style="--pos:50% 50%"></figure>
   </div>
 </section>
 
@@ -337,7 +364,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   <div class="split flip">
   <div class="copy">
   <p class="kick rv">For fans</p>
-  <h2 class="disp rv" id="fanH">Buy a ticket. Get free <em>music.</em></h2>
+  <h2 class="disp rv" id="fanH">Buy a ticket.<br>Get free <em>music.</em></h2>
   <ul class="checks big" id="fanSub">
     <li class="rv"><b>Free unreleased tracks</b>From the artists you came to see.</li>
     <li class="rv"><b>Your collection</b>Play them anytime or download the WAV.</li>
@@ -369,7 +396,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div class="proof" id="proof" hidden></div>
   </div>
   </div>
-  <figure class="art tall" aria-hidden="true"><img src="assets/art-fans.webp" alt="" loading="lazy"></figure>
+  <figure class="art tall" aria-hidden="true"><img src="assets/art-fans.webp" alt="" loading="lazy" style="--pos:50% 38%"></figure>
   </div>
 </section>
 
