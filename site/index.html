@@ -400,20 +400,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><b>Your own page <span class="tag">Soon</span></b>Photo, links, music and every show you're on.</li>
     <li class="rv"><b>Free downloads <span class="tag">Soon</span></b>Give a track to everyone with a ticket.</li>
   </ul>
-  <div class="box rv">
-    <p class="join">Artist pages are coming. Get on the waitlist.</p>
-    <form id="aw" novalidate>
-      <label for="awName" class="sr">Artist name</label>
-      <label for="awEmail" class="sr">Email address</label>
-      <div class="unit stack">
-        <input type="text" id="awName" name="artist_name" placeholder="artist name" autocomplete="off" maxlength="80" spellcheck="false">
-        <input type="email" id="awEmail" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
-        <button type="submit" class="btn" id="awBtn">Join the waitlist</button>
-      </div>
-      <input type="text" id="awHp" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-    </form>
-    <div id="awMsg" class="msg" role="status"></div>
-  </div>
+  <div class="ctas rv"><a class="btn" href="artists.html">Join the waitlist</a></div>
   </div>
   <figure class="art wide" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-artists-m.webp"><img src="assets/art-artists.webp" alt="" loading="lazy"></picture></figure>
   </div>
@@ -681,18 +668,6 @@ window.Stack = (function () {
       .then(function (r) { if (r && r.access_token) go(r); else say(""); }).catch(function () { say(""); });
   }
 
-
-  // ---------- Artist waitlist ----------
-  $("aw").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var em = $("awEmail").value.trim(), m = $("awMsg");
-    function tell(t, ok) { m.textContent = t; m.className = "msg" + (ok ? " ok" : ""); }
-    if (!EMAIL_OK.test(em)) { tell("That email doesn't look right."); $("awEmail").focus(); return; }
-    $("awBtn").disabled = true; tell("One sec...");
-    S.api("artist-waitlist", { email: em, artist_name: $("awName").value.trim(), hp: $("awHp").value })
-      .then(function () { $("aw").hidden = true; tell("You're on the list. We'll email you when artist pages open.", true); })
-      .catch(function (err) { $("awBtn").disabled = false; tell(err.status ? (err.message || "Couldn't save that. Try again.") : "No signal. Try again in a sec."); });
-  });
 
   // ---------- Phones: fly into the machine as the first screen scrolls away; the bar goes solid after it ----------
   (function () {

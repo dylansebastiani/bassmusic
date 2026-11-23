@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/people.css">
+<!--CONFIG-->
+<title>People · Subduction</title>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="admin.html"><img src="assets/logo.png" alt=""><b>People</b></a>
+  <a class="back" href="admin.html">Staff page</a>
+</header>
+<main>
+  <p class="msg" id="msg" role="status">Loading…</p>
+  <div id="app" hidden>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <p class="what" id="what"></p>
+    <div class="tools">
+      <label class="sr" for="q">Search</label>
+      <input type="search" id="q" placeholder="Search name, email, show…" autocomplete="off" spellcheck="false">
+      <label class="sr" for="own">Whose</label>
+      <select id="own"></select>
+      <button type="button" id="csv">Export</button>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="scroll"><table id="t"></table></div>
+  </div>
+</main>
+<script src="assets/stack.js"></script>
+<script src="assets/people.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-// Artist waitlist: an artist leaves their name and email so we can tell them when artist pages open.
+// Artist waitlist: an artist leaves their artist name, full name, email and phone so we can tell them when artist pages open.
 // Self-contained on purpose (no shared imports) so deploying it can never disturb the ticketing functions.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
   if ((n ?? 0) > 20) return json({ error: "Slow down a sec and try again." }, 429);
 
   // Same email twice just updates the name; the answer is the same either way, so the form never reveals who is on the list.
-  const { error } = await db.from("artist_waitlist").upsert({ email, artist_name: clean(b.artist_name, 80), ip_hash: ip }, { onConflict: "email" });
+  const { error } = await db.from("artist_waitlist").upsert({ email, artist_name: clean(b.artist_name, 80), full_name: clean(b.full_name, 80), phone: (clean(b.phone, 30) || "").replace(/[^0-9+()\-. ]/g, "") || null, ip_hash: ip }, { onConflict: "email" });
   if (error) { console.error("artist_waitlist", error.message); return json({ error: "Couldn't save that. Try again." }, 500); }
   return json({ ok: true });
 });
