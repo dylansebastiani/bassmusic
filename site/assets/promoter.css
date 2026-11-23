@@ -45,7 +45,13 @@
 .choice button{background:none;border:1px solid var(--line);color:var(--fg);font-family:var(--disp);font-size:22px;text-transform:uppercase;padding:16px;cursor:pointer}
 .choice button[aria-pressed=true]{border-color:var(--hot);background:color-mix(in srgb,var(--hot) 14%,transparent)}
 .night-row,.tier-row{border:1px solid var(--line);padding:12px;margin-top:10px}
+html,body{background:#050505}
 .row3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
+.row3>div{min-width:0}
+.row3 input{width:100%;min-width:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row2>div{min-width:0}
+.row2 input{width:100%;min-width:0}
 .row3 label{margin-top:8px}
 .ticket{border:1px solid var(--line);padding:12px;margin-top:12px}
 .ticket .nights{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}

@@ -34,10 +34,10 @@ Deno.serve(async (req) => {
   const a = req.method === "GET" ? u.searchParams.get("a") || "" : "";
 
   if (req.method === "GET" && a === "list") {
-    const { data } = await db.from("events").select("slug,name,starts_at,page_published_at,page_draft_at,company_id,page,page_draft").order("created_at", { ascending: false }).limit(200);
+    const { data } = await db.from("events").select("slug,name,starts_at,page_published_at,page_draft_at,company_id,page,page_draft,review_status").order("created_at", { ascending: false }).limit(200);
     const { data: cos } = await db.from("companies").select("id,name");
     return ok({ shows: (data || []).map((e) => ({ slug: e.slug, name: e.name, starts_at: e.starts_at, company: cos?.find((c) => c.id === e.company_id)?.name || null,
-      has_page: !!e.page, has_draft: !!e.page_draft, published_at: e.page_published_at, draft_at: e.page_draft_at })) });
+      waiting: e.review_status === "submitted", has_page: !!e.page, has_draft: !!e.page_draft, published_at: e.page_published_at, draft_at: e.page_draft_at })) });
   }
 
   if (req.method === "GET" && (a === "get" || a === "draft-at")) {

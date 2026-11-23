@@ -5,7 +5,7 @@
   var app = document.getElementById("app");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
-  var me = null, coId = "", draft = null;
+  var me = null, coId = "", draft = null, warns = {};
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
@@ -117,7 +117,8 @@
         '<label for=ig>Instagram</label><input type=text id=ig placeholder="@yourcrew" value="' + esc(b.socials.instagram || "") + '"><label for=tt>TikTok</label><input type=text id=tt placeholder="@yourcrew" value="' + esc(b.socials.tiktok || "") + '">' +
         '<button class=btn type=button id=save>Save my brand</button><p class=msg role=status></p>';
       wireTop();
-      if (warnFor) { var w = document.querySelector("#d-" + warnFor + " .st"); if (w && warn) { w.textContent = "✓ Uploaded. " + warn; w.className = "st warn"; } }
+      if (warnFor) { if (warn) warns[warnFor] = warn; else delete warns[warnFor]; }
+      Object.keys(warns).forEach(function (k) { var w = document.querySelector("#d-" + k + " .st"); if (w && w.textContent.indexOf("Uploaded") >= 0) { w.textContent = "✓ Uploaded. " + warns[k]; w.className = "st warn"; } });
       app.querySelectorAll(".drop input").forEach(function (i) { i.onchange = function () { upload(i, { company: co.id }, function (id, url, warn) { if (id.indexOf("fig") === 0) b.figures[+id.slice(3)] = url; else b[id] = url; collect(); draw(id, warn); }); }; });
       app.querySelectorAll("[data-clear]").forEach(function (x) { x.onclick = function (e) { e.stopPropagation(); var id = x.getAttribute("data-clear"); if (id.indexOf("fig") === 0) b.figures.splice(+id.slice(3), 1); else delete b[id]; collect(); draw(); }; });
       document.getElementById("save").onclick = function () {
@@ -150,8 +151,8 @@
     var head = top("#") + '<div class=qnum>Question ' + n + " of 5</div>";
     if (n === 1) body = "<h1>What's the show called?</h1><label for=q>Show name</label><input type=text id=q maxlength=100 value=\"" + esc(d.name) + '" placeholder="e.g. Basement Frequencies Vol. 3">';
     if (n === 2) body = "<h1>When is it?</h1><p class=lead>One block per night. Times are Central.</p>" + d.nights.map(function (x, i) {
-      return '<div class=night-row><b>Night ' + (i + 1) + '</b><label for="nd' + i + '">Date</label><input type=date id="nd' + i + '" value="' + esc(x.date) + '"><div class=row3><div><label for="no' + i + '">Doors</label><input type=time id="no' + i + '" value="' + esc(x.doors) + '"></div><div><label for="ne' + i + '">Ends</label><input type=time id="ne' + i + '" value="' + esc(x.ends) + '"></div><div>' +
-        (d.nights.length > 1 ? '<label>&nbsp;</label><button type=button class=ghost data-rmn="' + i + '">Remove</button>' : "") + "</div></div></div>"; }).join("") + (d.nights.length < 6 ? "<button type=button class=ghost id=addn>+ Add another night</button>" : "");
+      return '<div class=night-row><b>Night ' + (i + 1) + '</b><label for="nd' + i + '">Date</label><input type=date id="nd' + i + '" value="' + esc(x.date) + '"><div class=row2><div><label for="no' + i + '">Doors</label><input type=time id="no' + i + '" value="' + esc(x.doors) + '"></div><div><label for="ne' + i + '">Ends</label><input type=time id="ne' + i + '" value="' + esc(x.ends) + '"></div></div>' +
+        (d.nights.length > 1 ? '<button type=button class=linkbtn data-rmn="' + i + '">Remove this night</button>' : "") + "</div>"; }).join("") + (d.nights.length < 6 ? "<button type=button class=ghost id=addn>+ Add another night</button>" : "");
     if (n === 3) body = "<h1>Where?</h1><label for=city>City</label><input type=text id=city value=\"" + esc(d.city) + '" placeholder="Peoria, IL"><label class=toggle><input type=checkbox id=sec' + (d.secret ? " checked" : "") + "> It's a secret location</label>" +
       '<div id=vbox' + (d.secret ? " hidden" : "") + '><label for=venue>Venue</label><input type=text id=venue value="' + esc(d.venue) + '"></div>' +
       '<div id=rbox' + (d.secret ? "" : " hidden") + '><label for=rev>Day the address goes out to ticket holders</label><input type=date id=rev value="' + esc(d.reveal_date) + '"><p class=note>Send us the address privately. It never shows on the page.</p></div>';
@@ -213,7 +214,8 @@
         '<label for=links>Or send a link instead</label><textarea id=links rows=3 placeholder="Google Drive or Dropbox link with your art. We\'ll upload it for you.">' + esc(k.links || "") + "</textarea>" +
         '<button class=btn type=button id=save>Save art</button><p class=msg role=status></p>';
       wireTop();
-      if (warnFor) { var w = document.querySelector("#d-" + warnFor + " .st"); if (w && warn) { w.textContent = "✓ Uploaded. " + warn; w.className = "st warn"; } }
+      if (warnFor) { if (warn) warns[warnFor] = warn; else delete warns[warnFor]; }
+      Object.keys(warns).forEach(function (k) { var w = document.querySelector("#d-" + k + " .st"); if (w && w.textContent.indexOf("Uploaded") >= 0) { w.textContent = "✓ Uploaded. " + warns[k]; w.className = "st warn"; } });
       app.querySelectorAll(".drop input").forEach(function (i) { i.onchange = function () { upload(i, { show: s.id }, function (key, url, warn) { set(key, url); draw(key, warn); }); }; });
       app.querySelectorAll("[data-clear]").forEach(function (x) { x.onclick = function (e) { e.stopPropagation(); set(x.getAttribute("data-clear"), null); draw(); }; });
       document.getElementById("save").onclick = function () {
@@ -257,7 +259,7 @@
 
   function load() { return api(FN + "?a=me").then(function (r) { me = r; if (!coId || !me.companies.some(function (c) { return c.id === coId; })) coId = (me.companies[0] || {}).id || ""; }); }
   function route() {
-    app.onclick = null;
+    app.onclick = null; warns = {};
     if (!tok) return signin();
     if (!me) return load().then(route).catch(function (e) { if (tok) app.innerHTML = '<p class="msg bad">' + esc(e.message) + "</p>"; });
     var h = location.hash.replace(/^#/, "").split("/");

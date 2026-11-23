@@ -129,7 +129,7 @@
   // ---- shows, loading, saving, publishing ----
   function loadShows() {
     return req(FN + "?a=list").then(function (r) {
-      var o = r.shows.map(function (s) { return '<option value="' + esc(s.slug) + '">' + esc(s.name) + (s.company ? " · " + esc(s.company) : "") + (s.has_page ? "" : " (no page yet)") + "</option>"; }).join("");
+      var o = r.shows.slice().sort(function (a, b) { return (b.waiting ? 1 : 0) - (a.waiting ? 1 : 0); }).map(function (s) { return '<option value="' + esc(s.slug) + '">' + esc(s.name) + (s.company ? " · " + esc(s.company) : "") + (s.waiting ? " · SENT, WAITING FOR YOU" : s.has_page ? "" : " (no page yet)") + "</option>"; }).join("");
       $("show").innerHTML = '<option value="">Pick a show…</option>' + o;
       $("fromShow").innerHTML = r.shows.filter(function (s) { return s.has_page; }).map(function (s) { return '<option value="' + esc(s.slug) + '">' + esc(s.name) + "</option>"; }).join("");
       var want = new URLSearchParams(location.search).get("e");
