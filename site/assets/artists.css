@@ -12,6 +12,7 @@ img{display:block}
 .lead{font-size:16px;color:#e6e1dd;max-width:36ch}
 .fine{font-size:13px;line-height:1.6;color:var(--mute)}
 .bar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,.85),rgba(0,0,0,0));padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px}
+.bar.solid{background:#000;border-bottom:1px solid #1c1c1c}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
 .brand img{width:26px;height:auto}
 .brand b{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;letter-spacing:.08em}
@@ -25,7 +26,7 @@ img{display:block}
 .hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding:0 18px max(26px,calc(env(safe-area-inset-bottom,0px) + 22px))}
 .hero-art{position:absolute;inset:0;margin:0}
 .hero-art picture{position:absolute;left:0;right:0;top:0;height:64%;display:block;animation:breathe 9s ease-in-out infinite alternate}
-.hero-art img{width:100%;height:100%;object-fit:cover;object-position:50% 12%}
+.hero-art img{width:100%;height:100%;object-fit:cover;object-position:42% 40%;transform-origin:50% 40%;will-change:transform}
 @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.07) translate3d(0,-1.2%,0)}}
 @media (prefers-reduced-motion:reduce){.hero-art picture{animation:none}}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.3) 0,rgba(0,0,0,0) 12%,rgba(0,0,0,0) 38%,rgba(0,0,0,.75) 52%,#000 61%);pointer-events:none}
@@ -35,7 +36,7 @@ img{display:block}
 
 .strip{margin:0 0 28px}
 .strip img{width:100%;height:auto}
-.cols{padding:0 18px;display:flex;flex-direction:column;gap:56px}
+.cols{padding:24px 18px 0;display:flex;flex-direction:column;gap:56px}
 .what,.join{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px}
 .what h2,.join h2{font-size:clamp(40px,11vw,64px)}
 .steps{list-style:none;padding:0;border-top:1px solid var(--line);width:100%;text-align:left}
