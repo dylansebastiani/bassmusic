@@ -20,8 +20,19 @@
 
   function load() {
     var h = PREVIEW && staffToken() ? { "x-admin-token": staffToken() } : {};
-    return fetch(FN + "?e=" + slug + (PREVIEW ? "&preview=1" : ""), { headers: h })
+    // The show itself is fetched like any visitor would (no staff header), so this works with any ticket backend.
+    var show = fetch(FN + "?e=" + slug)
       .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return vis(j); }); });
+    if (!PREVIEW || !staffToken()) return show;
+    // Preview: the working draft (and the fee) come from the studio's own backend, so previews work
+    // whichever version of the ticket backend is running.
+    var draft = fetch((C.supabaseUrl || "") + "/functions/v1/page?a=get&e=" + slug, { headers: h })
+      .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    return Promise.all([show, draft]).then(function (x) {
+      var d = x[0], p = x[1];
+      if (p && p.draft) { d.page = p.draft; d.preview = true; if (!d.fee && p.fee) d.fee = p.fee; }
+      return d;
+    });
   }
 
   // ---------- prices: every price shown is the all-in total (FTC fee rule), same formula as checkout ----------

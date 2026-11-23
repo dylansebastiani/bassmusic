@@ -3,6 +3,7 @@ import { json, err, preflight, clean } from "../_shared/util.ts";
 import { requireAdmin } from "../_shared/admin.ts";
 import { cleanPage, DEFAULT_THEME, FONTS, SECTIONS, type Page } from "../_shared/page_spec.ts";
 import { buildDraft, cleanBrand, cleanKit } from "../_shared/kits.ts";
+import { loadCompany, feeFor, CARD_PCT, CARD_FIXED } from "../_shared/company.ts";
 
 // The page studio's backend. Dylan (anyone on the platform staff list) builds and publishes show pages here;
 // Claude can edit the same draft from chat. Every save goes through cleanPage(), so nothing unsafe is stored.
@@ -43,12 +44,15 @@ Deno.serve(async (req) => {
   if (req.method === "GET" && (a === "get" || a === "draft-at")) {
     const slug = u.searchParams.get("e") || "";
     if (!SLUG.test(slug)) return no("Not found", 404);
-    const { data: ev } = await db.from("events").select("slug,name,page,page_draft,page_draft_at,page_published_at,page_published_by").eq("slug", slug).maybeSingle();
+    const { data: ev } = await db.from("events").select("slug,name,company_id,page,page_draft,page_draft_at,page_published_at,page_published_by").eq("slug", slug).maybeSingle();
     if (!ev) return no("Not found", 404);
     if (a === "draft-at") return ok({ draft_at: ev.page_draft_at });
     const draft = ev.page_draft ?? ev.page;
+    // The show's per-ticket fee, so the studio preview shows the same all-in prices the public page will.
+    const co = ev.company_id ? await loadCompany(ev.company_id) : null;
+    const fee = { platform_cents: co && !co.legacy_stripe ? (await feeFor(co)) ?? 0 : 0, card_pct: CARD_PCT, card_fixed_cents: CARD_FIXED };
     return ok({ slug: ev.slug, name: ev.name, draft: draft ? cleanPage(draft, STORAGE_HOSTS) : STARTER(), is_new: !draft,
-      published: ev.page ? cleanPage(ev.page, STORAGE_HOSTS) : null, draft_at: ev.page_draft_at, published_at: ev.page_published_at, published_by: ev.page_published_by,
+      published: ev.page ? cleanPage(ev.page, STORAGE_HOSTS) : null, draft_at: ev.page_draft_at, published_at: ev.page_published_at, published_by: ev.page_published_by, fee,
       options: { fonts: FONTS, sections: SECTIONS, frames: ["angled", "square", "rounded"], titles: ["outline", "solid"] } });
   }
 
