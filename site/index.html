@@ -65,10 +65,10 @@ img.mark{object-fit:contain}
 @media (min-width:760px){.nav{display:flex}.bar .go{margin-left:8px}}
 
 /* ===== sections ===== */
-.sec{position:relative;z-index:2;display:flex;flex-direction:column;gap:22px;
-  padding:96px max(18px,env(safe-area-inset-right,0px)) 72px max(18px,env(safe-area-inset-left,0px))}
+.sec{position:relative;z-index:2;display:flex;flex-direction:column;gap:20px;
+  padding:72px max(18px,env(safe-area-inset-right,0px)) 72px max(18px,env(safe-area-inset-left,0px))}
 .sec>*{position:relative;z-index:1}
-.sec h2{font-size:clamp(44px,12vw,104px);max-width:12ch}
+.sec h2{font-size:clamp(40px,11vw,104px);max-width:11ch}
 
 
 /* hero */
@@ -88,9 +88,9 @@ img.mark{object-fit:contain}
 
 /* numbered steps and feature lists */
 ol.steps{list-style:none;padding:0;border-top:1px solid var(--line);max-width:860px}
-.steps li{display:grid;grid-template-columns:5ch 1fr;gap:12px;align-items:baseline;border-bottom:1px solid var(--line);padding:14px 0}
+.steps li{display:grid;grid-template-columns:4ch 1fr;gap:10px;align-items:baseline;border-bottom:1px solid var(--line);padding:12px 0}
 .steps li i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
-.steps li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(28px,7.6vw,48px);line-height:.95}
+.steps li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(26px,7vw,44px);line-height:.95}
 .steps li p{grid-column:2;font-size:14px;line-height:1.5;color:#b5afab;margin-top:5px;max-width:46ch}
 .grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);border:1px solid var(--line);max-width:1100px}
 .grid div{background:#050505;padding:18px 18px 20px}
@@ -102,7 +102,7 @@ ol.steps{list-style:none;padding:0;border-top:1px solid var(--line);max-width:86
 
 /* pricing */
 .price-big{font-family:var(--disp);font-size:clamp(88px,26vw,240px);line-height:.85;color:var(--hot);white-space:nowrap}
-.price-big small{font-size:.24em;color:#fff;letter-spacing:.06em;margin-left:.2em}
+.price-big small{font-size:.2em;color:#fff;letter-spacing:.06em;margin-left:.2em}
 table.cmp{width:100%;max-width:720px;border-collapse:collapse;font-size:15px}
 .cmp caption{text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding-bottom:10px}
 .cmp th,.cmp td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line)}
@@ -145,6 +145,37 @@ input::placeholder{color:#8a8486}
 .fsocial a:hover,.flinks a:hover{color:var(--hot)}
 .fcopy{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:#555;text-transform:uppercase}
 
+
+
+/* three doors */
+.doors{position:relative;z-index:2;display:grid;grid-template-columns:1fr;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#000}
+.doors a{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;padding:18px max(18px,env(safe-area-inset-left,0px));text-decoration:none;border-bottom:1px solid var(--line)}
+.doors a:last-child{border-bottom:0}
+.doors .kick{grid-column:1}
+.doors b{grid-column:1;font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:24px;line-height:1.05;letter-spacing:.01em}
+.doors i{grid-column:2;grid-row:1/3;font-style:normal;font-size:22px;color:var(--hot)}
+.doors a:hover b{color:var(--hot)}
+@media (min-width:900px){.doors{grid-template-columns:1fr 1fr 1fr}.doors a{border-bottom:0;border-right:1px solid var(--line);padding:26px max(40px,5vw) 26px 32px}.doors a:first-child{padding-left:max(40px,5vw)}.doors a:last-child{border-right:0}.doors b{font-size:28px}}
+/* checklists */
+.checks{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr;gap:10px 28px}
+.checks li{position:relative;padding-left:26px;font-size:15px;line-height:1.45;color:#e6e1dd}
+.checks li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:7px;border-left:2px solid var(--hot);border-bottom:2px solid var(--hot);transform:rotate(-45deg)}
+.checks.big{gap:16px}
+.checks.big li{color:#b5afab;font-size:14px}
+.checks.big b{display:block;color:#fff;font-size:17px;font-weight:700;margin-bottom:2px}
+.gets{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:24px;max-width:1100px}
+@media (min-width:640px){.gets .checks{grid-template-columns:1fr 1fr}}
+@media (min-width:1000px){.gets .checks{grid-template-columns:1fr 1fr 1fr}}
+/* fee bars */
+.bars{display:flex;flex-direction:column;gap:10px;max-width:560px;width:100%}
+.bars-h{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:2px}
+.fee{display:grid;grid-template-columns:92px 1fr 56px;gap:12px;align-items:center;font-size:15px}
+.fee .track{height:12px;background:#151515}
+.fee .track b{display:block;height:100%;background:#4a4644}
+.fee span:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.fee.us{color:var(--hot);font-weight:700}
+.fee.us .track b{background:var(--hot)}
+.join{font-weight:700;font-size:16px;margin-bottom:10px}
 
 /* section art: the image is part of the section, not a box. It bleeds off the edge and fades into the black. */
 .split{position:relative;display:flex;flex-direction:column}
@@ -189,6 +220,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   .hero h1{font-size:clamp(84px,8vw,140px)}
   .lead{font-size:19px}
   .sec h2{font-size:clamp(64px,6.4vw,112px)}
+  .price-big{font-size:clamp(110px,10vw,180px)}
 }
 </style>
 <!--CONFIG-->
@@ -208,103 +240,106 @@ html:not(.js) .rv{opacity:1;transform:none}
   <a class="go" href="promoter.html">Sell tickets</a>
 </header>
 
-<!-- 1. Promoters: the pitch -->
+<!-- 1. The pitch, for everyone -->
 <section class="sec hero" id="top" aria-label="Subduction">
   <figure class="hero-art" aria-hidden="true"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></figure>
   <p class="kick rv">Ticketing for the underground</p>
   <h1 class="disp rv">Your show. Your page. Your <em>money.</em></h1>
-  <p class="lead rv">Subduction sells tickets for bass and underground promoters. Every show gets a custom event page, tickets, emails and a door scanner. Ticket money goes straight to your own Stripe. Buyers pay a flat $1.50.</p>
+  <p class="lead rv">Tickets for underground shows. Promoters keep their money, artists get a free page, fans get free music.</p>
   <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a><a class="ghost" href="#promoters">How it works</a></div>
-  <div class="who rv"><a href="#artists">I'm an artist</a><a href="#fans">I'm a fan</a></div>
 </section>
 
-<!-- 2. Promoters: how it works + what you get -->
-<section class="sec panel" id="promoters" aria-label="For promoters">
+<!-- 2. Three doors: what each person gets, in one line -->
+<nav class="doors" aria-label="Who it's for">
+  <a href="#promoters"><span class="kick">Promoters</span><b>Sell tickets. Keep your money.</b><i aria-hidden="true">&rarr;</i></a>
+  <a href="#artists"><span class="kick">Artists</span><b>Get a free artist page.</b><i aria-hidden="true">&rarr;</i></a>
+  <a href="#fans"><span class="kick">Fans</span><b>Get free music with every ticket.</b><i aria-hidden="true">&rarr;</i></a>
+</nav>
+
+<!-- 3. Promoters -->
+<section class="sec" id="promoters" aria-label="For promoters">
   <div class="split">
   <div class="copy">
   <p class="kick rv">For promoters</p>
-  <h2 class="disp rv">Hand us the art. We build the <em>page.</em></h2>
-  <div class="laser rv"></div>
+  <h2 class="disp rv">Sell tickets in <em>4 steps.</em></h2>
   <ol class="steps">
-    <li class="rv"><i>001</i><h3>Sign up</h3><p>Just your email. No passwords, we send you a 6-digit code.</p></li>
-    <li class="rv"><i>002</i><h3>Try a demo show</h3><p>Sell yourself a test ticket, add a guest, scan it at the door. See all of it before anything is real.</p></li>
-    <li class="rv"><i>003</i><h3>Upload your kit</h3><p>Logo, flyers, colors, dates, lineup and ticket tiers. The form tells you what's missing as you go.</p></li>
-    <li class="rv"><i>004</i><h3>Get paid</h3><p>Connect your own Stripe in about 10 minutes. Ticket money lands with you, never with us.</p></li>
-    <li class="rv"><i>005</i><h3>Go live</h3><p>We finish your page, check every detail and switch it on, usually within a day.</p></li>
+    <li class="rv"><i>01</i><h3>Sign up</h3><p>Your email, then a 6-digit code. No password.</p></li>
+    <li class="rv"><i>02</i><h3>Upload your kit</h3><p>Logo, flyers, colors, dates, lineup and ticket prices.</p></li>
+    <li class="rv"><i>03</i><h3>Go live</h3><p>We build your page and check it. Usually live within a day.</p></li>
+    <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
   </ol>
-</div>
+  </div>
   <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy"></figure>
   </div>
-  <p class="kick rv" style="margin-top:18px">Every show gets</p>
-  <div class="grid rv">
-    <div><h3>A custom event page</h3><p>Built from your art and colors, not a template with your logo slapped on.</p></div>
-    <div><h3>Tiers and promo codes</h3><p>Early bird sells out, then GA opens. Codes for your street team.</p></div>
-    <div><h3>Tickets and emails</h3><p>PDF tickets and confirmation emails in your show's look.</p></div>
-    <div><h3>A door scanner</h3><p>Any phone becomes the scanner. Locked with a PIN.</p></div>
-    <div><h3>Guest list and artist passes</h3><p>Comps and passes go out by link. No fee on free tickets.</p></div>
-    <div><h3>Secret location reveal</h3><p>Keep the address quiet and email it to ticket holders when you're ready.</p></div>
-    <div><h3>Your buyer list</h3><p>Export everyone who bought. They're your fans.</p></div>
-    <div><h3>No art yet?</h3><p>We'll connect you with a scene designer who uploads straight into your kit.</p></div>
+  <div class="gets rv">
+    <p class="kick">Every show gets</p>
+    <ul class="checks">
+      <li>Its own event page, built from your art</li>
+      <li>Ticket tiers and promo codes</li>
+      <li>PDF tickets and emails</li>
+      <li>A door scanner on any phone</li>
+      <li>Guest list and artist passes</li>
+      <li>Your buyer list, yours to export</li>
+    </ul>
   </div>
+  <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a></div>
 </section>
 
-<!-- 3. Pricing -->
-<section class="sec panel" id="pricing" aria-label="Pricing">
+<!-- 4. Pricing -->
+<section class="sec" id="pricing" aria-label="Pricing">
   <div class="split flip">
   <div class="copy">
   <p class="kick rv">Pricing</p>
-  <div class="price-big rv">$1.50<small>/ ticket</small></div>
-  <p class="lead rv">One flat fee, paid by the buyer and built into the price they see. You keep your ticket price. No monthly fee, no setup fee. Free tickets cost nothing, and a refund gives the fee back.</p>
-  <table class="cmp rv">
-    <caption>What a buyer pays in fees on a $25 ticket, card processing included</caption>
-    <thead><tr><th scope="col">Platform</th><th scope="col">Fees</th><th scope="col">Buyer pays</th></tr></thead>
-    <tbody>
-      <tr><td>Eventbrite<span class="rate">3.7% + $1.79, plus 2.9% processing</span></td><td>$3.52</td><td>$28.52</td></tr>
-      <tr><td>Posh<span class="rate">10% + $0.99</span></td><td>$3.49</td><td>$28.49</td></tr>
-      <tr><td>DICE<span class="rate">13% of face value (self sign-up)</span></td><td>$3.25</td><td>$28.25</td></tr>
-      <tr class="us"><td>Subduction<span class="rate">$1.50, plus Stripe's 2.9% + 30¢</span></td><td>$2.60</td><td>$27.60</td></tr>
-    </tbody>
-  </table>
-  <p class="fine rv">Based on each platform's published US rates, November 2026. Stripe's card fee is the standard rate on your own Stripe account.</p>
-  <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a></div>
-</div>
+  <div class="price-big rv">$1.50<small>per ticket</small></div>
+  <p class="lead rv">Paid by the buyer, shown in the ticket price. No monthly fee. No setup fee. Free tickets stay free.</p>
+  <div class="bars rv" role="table" aria-label="Fees a buyer pays on a $25 ticket">
+    <p class="bars-h" role="caption">Fees on a $25 ticket</p>
+    <div class="fee" role="row"><span role="cell">Eventbrite</span><span class="track" aria-hidden="true"><b style="width:100%"></b></span><span role="cell">$3.52</span></div>
+    <div class="fee" role="row"><span role="cell">Posh</span><span class="track" aria-hidden="true"><b style="width:99%"></b></span><span role="cell">$3.49</span></div>
+    <div class="fee" role="row"><span role="cell">DICE</span><span class="track" aria-hidden="true"><b style="width:92%"></b></span><span role="cell">$3.25</span></div>
+    <div class="fee us" role="row"><span role="cell">Subduction</span><span class="track" aria-hidden="true"><b style="width:74%"></b></span><span role="cell">$2.60</span></div>
+  </div>
+  <p class="fine rv">Card processing included for everyone. Published US rates, Nov 2026: Eventbrite 3.7% + $1.79 plus 2.9%; Posh 10% + $0.99; DICE 13%; Subduction $1.50 plus Stripe's 2.9% + 30¢.</p>
+  </div>
   <figure class="art wide" aria-hidden="true"><img src="assets/art-pricing.webp" alt="" loading="lazy"></figure>
   </div>
 </section>
 
-<!-- 4. Artists -->
-<section class="sec panel" id="artists" aria-label="For artists">
+<!-- 5. Artists -->
+<section class="sec" id="artists" aria-label="For artists">
   <div class="split">
   <div class="copy">
   <p class="kick rv">For artists</p>
-  <h2 class="disp rv">Booked on a show? Your page is <em>free.</em></h2>
-  <div class="laser rv"></div>
-  <ol class="steps">
-    <li class="rv"><i>001</i><h3>Artist pass</h3><p>Your promoter sends you a link. Grab your pass and your guest list spots from your phone.</p></li>
-    <li class="rv"><i>002</i><h3>Your own page <span class="tag">Coming next</span></h3><p>Your photo, your links, your music and every show you're booked on, in one place.</p></li>
-    <li class="rv"><i>003</i><h3>Free track drops <span class="tag">Coming next</span></h3><p>Put a free download in front of everyone who buys a ticket to your show.</p></li>
-  </ol>
-  <p class="lead rv">Every artist on a Subduction show gets one, free. Want yours first, or want your promoter on Subduction?</p>
-  <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the artist list</a></div>
-</div>
+  <h2 class="disp rv">Playing a show? Get a <em>free page.</em></h2>
+  <ul class="checks big">
+    <li class="rv"><b>Artist pass</b>Your pass and guest list spots, sent to your phone.</li>
+    <li class="rv"><b>Your own page <span class="tag">Soon</span></b>Photo, links, music and every show you're on.</li>
+    <li class="rv"><b>Free downloads <span class="tag">Soon</span></b>Give a track to everyone with a ticket.</li>
+  </ul>
+  <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the list</a></div>
+  </div>
   <figure class="art wide" aria-hidden="true"><img src="assets/art-artists.webp" alt="" loading="lazy"></figure>
   </div>
 </section>
 
-<!-- 5. Fans -->
-<section class="sec panel" id="fans" aria-label="For fans">
+<!-- 6. Fans -->
+<section class="sec" id="fans" aria-label="For fans">
   <div class="split flip">
   <div class="copy">
   <p class="kick rv">For fans</p>
   <h2 class="disp rv" id="fanH">Buy a ticket. Get free <em>music.</em></h2>
-  <p class="lead rv" id="fanSub">Every ticket to a Subduction show makes you a member. Unreleased tracks land in your collection for free, and you hear about shows first. No ticket yet? Get in with your email.</p>
-  <div class="perks rv"><span>Unreleased tracks, free</span><span>Play or download the WAV</span><span>Shows first</span></div>
+  <ul class="checks big" id="fanSub">
+    <li class="rv"><b>Free unreleased tracks</b>From the artists you came to see.</li>
+    <li class="rv"><b>Your collection</b>Play them anytime or download the WAV.</li>
+    <li class="rv"><b>Shows first</b>Hear about the next one before anyone else.</li>
+  </ul>
   <div class="box rv">
+    <p class="join">No ticket yet? Join free.</p>
     <form id="f" novalidate method="post" action="collection.html">
     <label for="email" class="sr">Email address</label>
     <div class="unit">
       <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
-      <button type="submit" class="btn" id="btn">Get in</button>
+      <button type="submit" class="btn" id="btn">Join</button>
     </div>
     <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
     <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -323,7 +358,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     </form>
     <div class="proof" id="proof" hidden></div>
   </div>
-</div>
+  </div>
   <figure class="art tall" aria-hidden="true"><img src="assets/art-fans.webp" alt="" loading="lazy"></figure>
   </div>
 </section>
@@ -424,7 +459,7 @@ window.Stack = (function () {
     Object.keys(map).forEach(function (k) { var h = (so[k] || "").replace(/^@/, ""); if (h) out.push('<a href="' + esc(map[k][1] + h) + '" target="_blank" rel="noopener">' + map[k][0] + "</a>"); });
     $("fsocial").innerHTML = out.join(""); })();
   all(".contact").forEach(function (a) { var s = a.getAttribute("data-subject"); a.href = "mailto:" + (C.contactEmail || "") + (s ? "?subject=" + encodeURIComponent(s) : ""); });
-  $("fine").textContent = "Your first unreleased track is waiting on the other side. " + (C.microcopy || "") + " Already in? Same box, we'll email you a code.";
+  $("fine").textContent = "Your first free track unlocks right away. " + (C.microcopy || "") + " Already a member? Same box, we'll email you a code.";
 
   // Fans arriving from a show QR (?e=) or a friend link (?r=) skip the promoter pitch and land on the email box.
   var fanVisit = !!(S.q.get("e") || S.q.get("r") || S.q.get("src"));
@@ -433,7 +468,6 @@ window.Stack = (function () {
   S.get("meta", { e: S.attr.e || null }).then(function (m) {
     if (m.event) {
       $("fanH").innerHTML = esc(S.fill(C.eventHeadline || "You made it to {{EVENT_NAME}}.", { EVENT_NAME: m.event.name }));
-      $("fanSub").textContent = S.fill(C.eventSubhead || "", { EVENT_NAME: m.event.name }) || $("fanSub").textContent;
     }
     if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " members"; $("proof").hidden = false; }
   }).catch(function () {});
