@@ -17,7 +17,7 @@
   function go(h) { if (location.hash === h) route(); else location.hash = h; }
   function company() { return me.companies.find(function (c) { return c.id === coId; }) || me.companies[0]; }
   function showById(id) { return me.shows.find(function (s) { return s.id === id; }); }
-  function top(back) { return '<div class="top"><span>' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : "Subduction") + "</span><button type=button id=out>Sign out</button></div>"; }
+  function top(back) { return '<div class="top"><span>' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : "Subduction") + "</span>" + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>"; }
   function wireTop() { var o = document.getElementById("out"); if (o) o.onclick = signOut; }
 
   // ---------- sign in ----------
