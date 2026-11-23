@@ -183,6 +183,10 @@ input::placeholder{color:#8a8486}
 .fee.us{color:var(--hot);font-weight:700}
 .fee.us .track b{background:var(--hot)}
 .join{font-weight:700;font-size:16px;margin-bottom:10px}
+.unit.stack{flex-direction:column}
+.unit.stack input+input{border-top:1px solid #6c6567}
+.unit.stack .btn{width:100%;border-left:0;border-top:1px solid #6c6567}
+.box{width:100%;max-width:460px}
 
 /* section art: the image is part of the section, not a box. It bleeds off the edge and fades into the black. */
 .split{position:relative;display:flex;flex-direction:column}
@@ -256,6 +260,7 @@ input::placeholder{color:#8a8486}
   .doors a{grid-template-columns:1fr;text-align:center}
   .doors i{display:none}
   .box form{margin-inline:auto}
+  .box{margin-inline:auto}
   .join{text-align:center}
   .price-big small{margin-left:0}
   /* section art = a clean strip centred in the gap between sections */
@@ -395,7 +400,20 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><b>Your own page <span class="tag">Soon</span></b>Photo, links, music and every show you're on.</li>
     <li class="rv"><b>Free downloads <span class="tag">Soon</span></b>Give a track to everyone with a ticket.</li>
   </ul>
-  <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the list</a></div>
+  <div class="box rv">
+    <p class="join">Artist pages are coming. Get on the waitlist.</p>
+    <form id="aw" novalidate>
+      <label for="awName" class="sr">Artist name</label>
+      <label for="awEmail" class="sr">Email address</label>
+      <div class="unit stack">
+        <input type="text" id="awName" name="artist_name" placeholder="artist name" autocomplete="off" maxlength="80" spellcheck="false">
+        <input type="email" id="awEmail" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+        <button type="submit" class="btn" id="awBtn">Join the waitlist</button>
+      </div>
+      <input type="text" id="awHp" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    </form>
+    <div id="awMsg" class="msg" role="status"></div>
+  </div>
   </div>
   <figure class="art wide" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-artists-m.webp"><img src="assets/art-artists.webp" alt="" loading="lazy"></picture></figure>
   </div>
@@ -663,6 +681,18 @@ window.Stack = (function () {
       .then(function (r) { if (r && r.access_token) go(r); else say(""); }).catch(function () { say(""); });
   }
 
+
+  // ---------- Artist waitlist ----------
+  $("aw").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var em = $("awEmail").value.trim(), m = $("awMsg");
+    function tell(t, ok) { m.textContent = t; m.className = "msg" + (ok ? " ok" : ""); }
+    if (!EMAIL_OK.test(em)) { tell("That email doesn't look right."); $("awEmail").focus(); return; }
+    $("awBtn").disabled = true; tell("One sec...");
+    S.api("artist-waitlist", { email: em, artist_name: $("awName").value.trim(), hp: $("awHp").value })
+      .then(function () { $("aw").hidden = true; tell("You're on the list. We'll email you when artist pages open.", true); })
+      .catch(function (err) { $("awBtn").disabled = false; tell(err.status ? (err.message || "Couldn't save that. Try again.") : "No signal. Try again in a sec."); });
+  });
 
   // ---------- Phones: fly into the machine as the first screen scrolls away; the bar goes solid after it ----------
   (function () {
