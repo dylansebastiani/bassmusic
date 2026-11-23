@@ -22,46 +22,53 @@
 </header>
 <main>
   <section class="hero">
-    <figure class="art" aria-hidden="true"><img src="assets/art-artists.webp" alt=""></figure>
-    <p class="kick">For artists</p>
-    <h1 class="disp">The artist portal. <em>Free.</em></h1>
-    <p class="lead">Your own home on Subduction, built for artists. Promoters book you, fans find you, and your music goes out with every ticket. Get on the waitlist and you're first in.</p>
-    <a class="btn" href="#join">Join the waitlist</a>
-  </section>
-
-  <section class="what">
-    <p class="kick">What you're waiting on</p>
-    <ol class="steps">
-      <li><i>01</i><h2>Your artist page</h2><p>One link for everything: your photo, bio, music and socials.</p></li>
-      <li><i>02</i><h2>Free downloads that build your list</h2><p>Give away a track. Every fan who grabs it lands on your list, and you keep that list.</p></li>
-      <li><i>03</i><h2>Your shows in one place</h2><p>Every show you're booked on, with a ticket link, on your page.</p></li>
-    </ol>
-    <p class="fine">Free for artists. No card, nothing to pay to be on the waitlist.</p>
-  </section>
-
-  <section class="join" id="join">
-    <p class="kick">Get on the list</p>
-    <h2 class="disp">Be first <em>in.</em></h2>
-    <form id="aw" novalidate>
-      <label for="awArtist">Artist name</label>
-      <input type="text" id="awArtist" name="artist_name" autocomplete="off" maxlength="80" spellcheck="false" required>
-      <label for="awFull">Full name</label>
-      <input type="text" id="awFull" name="full_name" autocomplete="name" maxlength="80" required>
-      <label for="awEmail">Email</label>
-      <input type="email" id="awEmail" name="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
-      <label for="awPhone">Phone number</label>
-      <input type="tel" id="awPhone" name="phone" autocomplete="tel" inputmode="tel" maxlength="30" required>
-      <input type="text" id="awHp" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button type="submit" class="btn" id="awBtn">Join the waitlist</button>
-      <p class="fine">We only use this to tell you when the artist portal opens and to set yours up. <a href="privacy.html">Privacy</a></p>
-    </form>
-    <div id="awMsg" class="msg" role="status"></div>
-    <div id="done" class="done" hidden>
-      <h3 class="disp">You're on <em>the list.</em></h3>
-      <p>We'll reach out as soon as the artist portal opens. Nothing else to do.</p>
-      <a class="ghost" href="./">Back to Subduction</a>
+    <figure class="hero-art" aria-hidden="true"><picture><img src="assets/art-hero.webp" alt="" fetchpriority="high"></picture></figure>
+    <div class="hero-copy">
+      <p class="kick">For artists</p>
+      <h1 class="disp">The artist portal.<br><em>Free.</em></h1>
+      <p class="lead">Your own home on Subduction. Promoters book you, fans find you, and your music goes out with every ticket.</p>
+      <a class="btn" href="#join">Join the waitlist</a>
     </div>
   </section>
+
+  <figure class="strip" aria-hidden="true"><img src="assets/art-artists-m.webp" alt="" loading="lazy"></figure>
+
+  <div class="cols">
+    <section class="what">
+      <p class="kick">What you're waiting on</p>
+      <h2 class="disp">Built for <em>artists.</em></h2>
+      <ol class="steps">
+        <li><i>01</i><h3>Your artist page</h3><p>One link for everything: your photo, bio, music and socials.</p></li>
+        <li><i>02</i><h3>Free downloads that build your list</h3><p>Give away a track. Every fan who grabs it lands on your list, and you keep that list.</p></li>
+        <li><i>03</i><h3>Your shows in one place</h3><p>Every show you're booked on, with a ticket link, on your page.</p></li>
+      </ol>
+      <p class="fine">Free for artists. No card, nothing to pay to be on the waitlist.</p>
+    </section>
+
+    <section class="join" id="join">
+      <p class="kick">Get on the list</p>
+      <h2 class="disp">Be first <em>in.</em></h2>
+      <form id="aw" novalidate>
+        <label for="awArtist">Artist name</label>
+        <input type="text" id="awArtist" name="artist_name" autocomplete="off" maxlength="80" spellcheck="false" required>
+        <label for="awFull">Full name</label>
+        <input type="text" id="awFull" name="full_name" autocomplete="name" maxlength="80" required>
+        <label for="awEmail">Email</label>
+        <input type="email" id="awEmail" name="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
+        <label for="awPhone">Phone number</label>
+        <input type="tel" id="awPhone" name="phone" autocomplete="tel" inputmode="tel" maxlength="30" required>
+        <input type="text" id="awHp" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button type="submit" class="btn" id="awBtn">Join the waitlist</button>
+        <p class="fine">We only use this to tell you when the artist portal opens and to set yours up. <a href="privacy.html">Privacy</a></p>
+      </form>
+      <div id="awMsg" class="msg" role="status"></div>
+      <div id="done" class="done" hidden>
+        <h3 class="disp">You're on <em>the list.</em></h3>
+        <p>We'll reach out as soon as the artist portal opens. Nothing else to do.</p>
+        <a class="ghost" href="./">Back to Subduction</a>
+      </div>
+    </section>
+  </div>
 </main>
 <footer class="foot"><a href="./">Subduction</a><a href="privacy.html">Privacy</a></footer>
 <script src="assets/stack.js"></script>

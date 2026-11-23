@@ -1,35 +1,48 @@
-/* Artist waitlist page: what's coming, then four fields. Same black, white and acid green. */
+/* Artist waitlist page. Same opening as the homepage (full-bleed machine melting into black), then what's coming beside the form. */
 :root{--bg:#000;--fg:#f4f1ee;--mute:#9a9490;--line:#2a2627;--hot:#b6ff00;--disp:"Anton","Arial Narrow",Impact,sans-serif;--text:"Archivo",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,Menlo,monospace;color-scheme:dark}
 *{box-sizing:border-box;margin:0}
 html{background:var(--bg);scroll-behavior:smooth;scroll-padding-top:70px;overflow-x:clip}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
 a{color:inherit}
+img{display:block}
 .disp{font-family:var(--disp);font-weight:400;text-transform:uppercase;line-height:.92}
 .disp em{font-style:normal;color:var(--hot)}
 .kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot)}
 .lead{font-size:16px;color:#e6e1dd;max-width:36ch}
 .fine{font-size:13px;line-height:1.6;color:var(--mute)}
-.bar{position:sticky;top:0;z-index:10;display:flex;align-items:center;background:#000;border-bottom:1px solid #1c1c1c;padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 8px}
+.bar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,.85),rgba(0,0,0,0));padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
 .brand img{width:26px;height:auto}
 .brand b{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:20px;letter-spacing:.08em}
 .go{margin-left:auto;font-family:var(--disp);font-size:15px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;background:var(--hot);color:#000;padding:7px 12px 5px}
-main{max-width:640px;margin:0 auto;padding:0 18px}
-section{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;padding:0 0 56px}
-.art{margin:0 -18px;width:calc(100% + 36px);max-width:520px;aspect-ratio:900/642}
-.art img{width:100%;height:100%;object-fit:contain;display:block}
-.hero h1{font-size:clamp(46px,13vw,84px)}
 .btn{display:inline-block;background:var(--hot);color:#000;border:0;border-radius:0;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:13px 22px 11px;text-decoration:none;cursor:pointer}
 .btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
 .btn:disabled{opacity:.5;cursor:default}
 .ghost{display:inline-block;color:#fff;border:1px solid #6c6567;font-family:var(--disp);font-size:18px;letter-spacing:.08em;text-transform:uppercase;padding:11px 16px 9px;text-decoration:none}
+
+/* hero: phones */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding:0 18px max(26px,calc(env(safe-area-inset-bottom,0px) + 22px))}
+.hero-art{position:absolute;inset:0;margin:0}
+.hero-art picture{position:absolute;left:0;right:0;top:0;height:64%;display:block;animation:breathe 9s ease-in-out infinite alternate}
+.hero-art img{width:100%;height:100%;object-fit:cover;object-position:50% 12%}
+@keyframes breathe{from{transform:scale(1)}to{transform:scale(1.07) translate3d(0,-1.2%,0)}}
+@media (prefers-reduced-motion:reduce){.hero-art picture{animation:none}}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.3) 0,rgba(0,0,0,0) 12%,rgba(0,0,0,0) 38%,rgba(0,0,0,.75) 52%,#000 61%);pointer-events:none}
+.hero-copy{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+.hero h1{font-size:clamp(38px,11vw,64px);white-space:nowrap}
+.hero .kick{display:none}
+
+.strip{margin:0 0 28px}
+.strip img{width:100%;height:auto}
+.cols{padding:0 18px;display:flex;flex-direction:column;gap:56px}
+.what,.join{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px}
+.what h2,.join h2{font-size:clamp(40px,11vw,64px)}
 .steps{list-style:none;padding:0;border-top:1px solid var(--line);width:100%;text-align:left}
 .steps li{display:grid;grid-template-columns:4ch 1fr;gap:10px;align-items:baseline;border-bottom:1px solid var(--line);padding:14px 0}
 .steps i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
-.steps h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(24px,6.6vw,34px);line-height:1}
+.steps h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(24px,6.6vw,34px);line-height:1}
 .steps p{grid-column:2;font-size:14px;color:#b5afab;margin-top:5px}
-.join h2{font-size:clamp(40px,11vw,64px)}
 form{width:100%;max-width:460px;display:flex;flex-direction:column;gap:6px;text-align:left}
 form[hidden]{display:none}
 form label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-top:8px}
@@ -42,5 +55,28 @@ form .fine{text-align:center;margin-top:6px}
 .done{display:flex;flex-direction:column;align-items:center;gap:14px;border:1px solid var(--hot);padding:28px 20px;width:100%;max-width:460px}
 .done[hidden]{display:none}
 .done h3{font-size:40px}
-.foot{display:flex;gap:26px;justify-content:center;border-top:1px solid #1c1c1c;padding:28px 18px calc(env(safe-area-inset-bottom,0px) + 36px)}
+.foot{display:flex;gap:26px;justify-content:center;border-top:1px solid #1c1c1c;margin-top:64px;padding:28px 18px calc(env(safe-area-inset-bottom,0px) + 36px)}
 .foot a{color:var(--mute);font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
+
+/* desktop: words left, machine right; then what's coming beside the form */
+@media (min-width:900px){
+  .bar{padding-inline:max(40px,5vw)}
+  .hero{min-height:92svh;justify-content:center;padding:0 max(40px,5vw)}
+  .hero-art{left:40%}
+  .hero-art picture{position:absolute;inset:0;height:auto;animation:none;-webkit-mask-image:radial-gradient(ellipse 65% 70% at 55% 48%,#000 50%,transparent 100%);mask-image:radial-gradient(ellipse 65% 70% at 55% 48%,#000 50%,transparent 100%)}
+  .hero-art img{object-fit:contain;object-position:50% 50%}
+  .hero::after{background:linear-gradient(to right,rgba(0,0,0,.9) 0,rgba(0,0,0,.5) 40%,rgba(0,0,0,0) 60%)}
+  .hero-copy{align-items:flex-start;text-align:left;gap:20px;max-width:min(640px,52vw)}
+  .hero .kick{display:block}
+  .hero h1{font-size:clamp(84px,8vw,140px);white-space:normal}
+  .lead{font-size:19px}
+  .strip{display:none}
+  .cols{flex-direction:row;align-items:flex-start;gap:6vw;padding:40px max(40px,5vw) 0}
+  .what{flex:1.15;align-items:flex-start;text-align:left;gap:22px}
+  .what h2{font-size:clamp(56px,5.2vw,92px)}
+  .steps h3{font-size:36px}
+  .join{flex:.85;position:sticky;top:90px;align-items:stretch;text-align:left;border:1px solid var(--line);background:#070707;padding:32px}
+  .join h2{font-size:56px}
+  form{max-width:none}
+  .done{max-width:none}
+}
