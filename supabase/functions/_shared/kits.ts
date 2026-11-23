@@ -64,7 +64,7 @@ export function buildDraft(brand: Brand, kit: Kit, nightCount: number, opts: { s
   const D = DEFAULT_THEME.colors, c = brand.colors || {};
   const bg = c.background || D.bg, main = c.main || D.accent, second = c.second || (c.main ? mix(c.main, "#ffffff", 0.35) : D.nights[1]);
   const dark = lum(bg) < 0.4;
-  const text = dark ? "#f4f1ee" : "#111111";
+  const text = dark ? "#f3effa" : "#111111";
   const colors = { bg, text, accent: main, nights: [main, second], muted: mix(text, bg, 0.35), line: mix(second, bg, 0.6) };
   const n = Math.max(1, Math.min(6, nightCount));
   const figs = (i: number) => kit.figures?.[i] || (brand.figures?.length ? brand.figures[i % brand.figures.length] : undefined);
@@ -84,5 +84,5 @@ export function buildDraft(brand: Brand, kit: Kit, nightCount: number, opts: { s
     { type: "tickets", variant: "cards" },
     has(art.partners) && { type: "partners", variant: "strip" },
   ].filter(Boolean);
-  return cleanPage({ theme: { ...DEFAULT_THEME, colors }, art, sections, custom_css: "", meta: {} }, hosts);
+  return cleanPage({ theme: { ...DEFAULT_THEME, colors, glow: dark }, art, sections, custom_css: "", meta: {} }, hosts);
 }

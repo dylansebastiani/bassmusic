@@ -35,11 +35,11 @@ export interface Art { wordmark?: string; subtitle?: string; hero?: string; hero
 export interface Section { type: string; variant: string; [k: string]: unknown }
 export interface Page { v: 1; theme: Theme; art: Art; sections: Section[]; custom_css: string; meta: { title?: string; description?: string } }
 
-// The plain starting look for a new show: black and off-white, no one else's colours or lettering.
+// The starting look for a new show: neon on black, angled frames, glow. A promoter's own colours replace these.
 export const DEFAULT_THEME: Theme = {
-  colors: { bg: "#0a0a0a", text: "#f4f1ee", muted: "#9a958f", line: "#2b2927", accent: "#f4f1ee", nights: ["#f4f1ee", "#c9c4bd"] },
-  fonts: { display: "Anton", body: "Archivo" },
-  frame: "square", titles: "solid", glow: false, dots: false,
+  colors: { bg: "#050505", text: "#f3effa", muted: "#a9a3bd", line: "#1f2a44", accent: "#00e5ff", nights: ["#00e5ff", "#ff2bd6"] },
+  fonts: { display: "Bungee", body: "Archivo" },
+  frame: "angled", titles: "outline", glow: true, dots: false,
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;

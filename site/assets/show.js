@@ -69,7 +69,7 @@
       return '<header class="s-brand">' + top + '<h1 class="sr">' + esc(ev.name) + "</h1>" + sub + "</header>";
     },
     hero: function (s) {
-      var a = data.page.art; if (!a.hero) return "";
+      var a = data.page.art; if (!a.hero) return data.page.plain ? '<div class="s-hero">' + burst() + "</div>" : "";
       var set = a.hero_small ? ' srcset="' + esc(a.hero_small) + " 720w, " + esc(a.hero) + ' 1200w" sizes="(max-width:760px) 100vw, 760px"' : "";
       return '<div class="s-hero v-' + s.variant + '"><img src="' + esc(a.hero) + '"' + set + ' alt="" fetchpriority="high"></div>';
     },
@@ -131,6 +131,7 @@
   function icons(idx) { return '<span class="icons">' + idx.map(function (i) { var a = nightArt(i); return a.icon ? img(a.icon, "", "", ' loading="lazy" decoding="async"') : ""; }).join("") + "</span>"; }
   function renderTypes() {
     var open = data.event.sales_open && data.stripe_key, f = fee();
+    if (!data.types.length) { $("types").innerHTML = '<p class="msg" style="text-align:center">Tickets go on sale soon.</p>'; $("buy").hidden = true; return; }
     $("types").innerHTML = data.types.map(function (t) {
       var n = cart[t.slug] || 0, tier = t.tier, max = Math.min(t.left, data.event.max_per_order);
       var line = !open ? "On sale soon" : t.sold_out ? "Sold out" :
@@ -271,14 +272,20 @@
     data.page = e.data.page; data.preview = true; render();
   });
 
-  // The plain starting look: black, off-white, no brand art. Used until a show publishes its own design.
+  // The starting look, used until a show publishes its own design: neon on black with a drawn light-burst
+  // where the show's art will go. No one else's art or colours.
   function plainPage(d) {
-    var poster = d.event && d.event.poster_url, art = poster ? { hero: poster } : {};
-    return { v: 1, art: art, custom_css: "", meta: {},
-      theme: { colors: { bg: "#0a0a0a", text: "#f4f1ee", muted: "#9a958f", line: "#2b2927", accent: "#f4f1ee", nights: ["#f4f1ee", "#c9c4bd"] },
-        fonts: { display: "Anton", body: "Archivo" }, frame: "square", titles: "solid", glow: false, dots: false },
-      sections: [{ type: "brand", variant: "text", subtitle_text: "" }].concat(poster ? [{ type: "hero", variant: "fade" }] : [],
-        [{ type: "dates", variant: "flyer", note: "" }, { type: "nights", variant: "cards", soon_text: "Lineup coming soon" }, { type: "tickets", variant: "cards", title: "Tickets", fineprint: "" }]) };
+    var poster = d.event && d.event.poster_url;
+    return { v: 1, plain: true, art: poster ? { hero: poster } : {}, custom_css: "", meta: {},
+      theme: { colors: { bg: "#050505", text: "#f3effa", muted: "#a9a3bd", line: "#1f2a44", accent: "#00e5ff", nights: ["#00e5ff", "#ff2bd6"] },
+        fonts: { display: "Bungee", body: "Archivo" }, frame: "angled", titles: "outline", glow: true, dots: false },
+      sections: [{ type: "brand", variant: "text", subtitle_text: "" }, { type: "hero", variant: "fade" }, { type: "dates", variant: "flyer", note: "" },
+        { type: "nights", variant: "cards", soon_text: "Lineup coming soon" }, { type: "tickets", variant: "cards", title: "Tickets", fineprint: "" }] };
+  }
+  function burst() {
+    var L = "", i, x;
+    for (i = 0; i <= 44; i++) { x = (i / 44 * 800).toFixed(0); L += '<line x1="400" y1="250" x2="' + x + '" y2="0" stroke="var(--n1)"/><line x1="400" y1="250" x2="' + x + '" y2="500" stroke="var(--n2)"/>'; }
+    return '<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display:block;width:100%;height:auto;background:radial-gradient(ellipse at 50% 50%,color-mix(in srgb,var(--n2) 22%,var(--bg)),var(--bg) 75%);-webkit-mask-image:linear-gradient(transparent,#000 14%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 14%,#000 80%,transparent)"><g stroke-width="1" opacity=".75">' + L + "</g></svg>";
   }
 
   if (!slug) { $("page").innerHTML = '<p class="msg">No show picked.</p>'; return; }
