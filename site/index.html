@@ -219,13 +219,14 @@ input::placeholder{color:#8a8486}
   .hero{padding-top:52px;gap:14px;padding-bottom:40px}
   .hero h1{font-size:clamp(44px,12.4vw,64px);max-width:none;line-height:.9}
   .hero .lead{font-size:15px}
-  .hero-art{height:min(58svh,96vw);margin-bottom:-6px;overflow:hidden}
-  .hero-art img{object-fit:cover;object-position:50% 30%;transform:scale(1.15)}
-  .art,.art.wide,.art.tall{height:64vw;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) 8px;
-    -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 70%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0,#000 70%,transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
-  .art{overflow:hidden}
-  .art img{object-fit:cover;object-position:var(--pos,50% 50%)}
-  .art.tall img{transform:scale(1.25)}
+  .hero-art{height:min(50svh,84vw);margin-bottom:0;overflow:hidden}
+  .hero-art img{object-fit:contain;object-position:50% 50%;transform:none}
+  /* section art = a thin strip that breaks up the page, never beside the words */
+  .art,.art.wide,.art.tall{height:30vw;margin:8px calc(-1 * max(18px,env(safe-area-inset-right,0px))) 36px;overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 22%,#000 78%,transparent 100%),linear-gradient(to right,transparent 0,#000 10%,#000 90%,transparent 100%);-webkit-mask-composite:source-in;
+    mask-image:linear-gradient(to bottom,transparent 0,#000 22%,#000 78%,transparent 100%),linear-gradient(to right,transparent 0,#000 10%,#000 90%,transparent 100%);mask-composite:intersect}
+  .art img{object-fit:cover;object-position:var(--pos,50% 50%);transform:none}
+  .art.tall img{transform:none}
   .doors{margin-bottom:56px}
   .doors b{font-size:22px}
   .price-big{font-size:clamp(84px,24vw,120px)}
@@ -306,7 +307,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
   </ol>
   </div>
-  <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy" style="--pos:50% 62%"></figure>
+  <figure class="art tall" aria-hidden="true"><img src="assets/art-promoters.webp" alt="" loading="lazy" style="--pos:50% 66%"></figure>
   </div>
   <div class="gets rv">
     <p class="kick">Every show gets</p>
@@ -396,7 +397,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div class="proof" id="proof" hidden></div>
   </div>
   </div>
-  <figure class="art tall" aria-hidden="true"><img src="assets/art-fans.webp" alt="" loading="lazy" style="--pos:50% 38%"></figure>
+  <figure class="art tall" aria-hidden="true"><img src="assets/art-fans.webp" alt="" loading="lazy" style="--pos:50% 30%"></figure>
   </div>
 </section>
 
