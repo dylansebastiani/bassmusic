@@ -27,7 +27,7 @@ for (const f of readdirSync(out)) {
   if (!f.endsWith(".html")) continue;
   const p = join(out, f);
   // The music bar rides along on every public page; staff pages (door, admin) stay quiet.
-  const bar = /^(door|admin)\.html$/.test(f) ? "" : PLAYER;
+  const bar = /^(door|admin|studio|promoter)\.html$/.test(f) ? "" : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
   // (otherwise a phone can pair a fresh page with a cached old script and the form breaks).
   const html = readFileSync(p, "utf8").replace("<!--CONFIG-->", inject + bar)
@@ -52,6 +52,9 @@ writeFileSync(join(out, "_redirects"), [
   "/admin /admin.html 200",
   "/privacy /privacy.html 200",
   "/tickets /tickets.html 200",
+  "/show /show.html 200",
+  "/studio /studio.html 200",
+  "/promoter /promoter.html 200",
   "/ticket /ticket.html 200",
   "/door /door.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,

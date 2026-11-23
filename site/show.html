@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com; connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://*.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta name="description" content="Tickets on Subduction.">
+<meta name="theme-color" content="#050505">
+<link rel="preconnect" href="https://hxfuelulxsituzcgsvhg.supabase.co" crossorigin>
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/show.css">
+<style id="customCss"></style>
+<!--CONFIG-->
+<script>/* Ask for the show while the rest of the page loads (not for draft previews, which need the staff sign-in). */
+try{var _q=new URLSearchParams(location.search),_e=(_q.get("e")||"").replace(/[^a-z0-9-]/gi,"").toLowerCase();
+if(_e&&_q.get("preview")!=="1"){window.__tix=fetch((window.STACK||{}).supabaseUrl+"/functions/v1/tickets?e="+_e).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||"Not found");return j})});window.__tix.catch(function(){})}}catch(e){}</script>
+<title>Tickets · Subduction</title>
+</head>
+<body class="show">
+<div class="preview-bar" id="preview" hidden>Draft preview · not live yet</div>
+<main class="wrap" id="page"><p class="msg" role="status">Loading...</p></main>
+<script src="assets/stack.js"></script>
+<script src="assets/show.js"></script>
+</body>
+</html>
