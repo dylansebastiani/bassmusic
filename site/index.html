@@ -146,25 +146,27 @@ input::placeholder{color:#8a8486}
 .fcopy{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:#555;text-transform:uppercase}
 
 
-/* section art: one big image per section, the green tech set */
-.art{position:relative;margin:0;overflow:hidden;background:#000}
-.art img{width:100%;height:100%;object-fit:cover;display:block}
-.art::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 70% at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.85) 100%)}
-.art.tall{aspect-ratio:4/5}
-.art.wide{aspect-ratio:16/10}
-.hero-art{position:absolute;inset:0;z-index:0;margin:0}
+/* section art: the image is part of the section, not a box. It bleeds off the edge and fades into the black. */
+.split{position:relative;display:flex;flex-direction:column}
+.copy{position:relative;z-index:1;display:flex;flex-direction:column;gap:22px;min-width:0}
+.art{order:-1;position:relative;z-index:0;margin:-40px calc(-1 * max(18px,env(safe-area-inset-right,0px))) -42vw;height:100vw;pointer-events:none;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 14%,#000 50%,transparent 95%);mask-image:linear-gradient(to bottom,transparent 0,#000 14%,#000 50%,transparent 95%)}
+.art img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}
+.art.wide{height:70vw;margin-bottom:-14vw}
+.art.wide img{object-fit:contain;object-position:50% 40%}
+.hero-art{position:absolute;inset:0;z-index:0;margin:0;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent 100%);mask-image:linear-gradient(to bottom,#000 55%,transparent 100%)}
 .hero-art img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
-.split{display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
-.split .art{order:-1}
 @media (min-width:900px){
-  .split{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:5vw}
-  .split .art{order:0}
-  .split.flip{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
-  .split.flip .art{order:-1}
-  .hero-art{left:40%}
+  .split{display:block}
+  .art,.art.wide{position:absolute;top:-8%;bottom:-8%;right:calc(-1 * max(40px,5vw));left:auto;width:58%;height:auto;margin:0;
+    -webkit-mask-image:radial-gradient(ellipse 70% 62% at 55% 50%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 70% 62% at 55% 50%,#000 45%,transparent 100%)}
+  .split.flip .art{right:auto;left:calc(-1 * max(40px,5vw))}
+  .art img,.art.wide img{object-fit:contain;object-position:50% 50%}
+  .copy{max-width:50%}
+  .split.flip .copy{margin-left:auto}
+  .hero-art{left:38%;-webkit-mask-image:radial-gradient(ellipse 65% 70% at 55% 48%,#000 50%,transparent 100%);mask-image:radial-gradient(ellipse 65% 70% at 55% 48%,#000 50%,transparent 100%)}
   .hero-art img{object-fit:contain;object-position:50% 50%}
 }
-.copy{display:flex;flex-direction:column;gap:22px;min-width:0}
 
 /* reveals */
 .rv{opacity:0;transform:translateY(14px)}
@@ -231,7 +233,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><i>005</i><h3>Go live</h3><p>We finish your page, check every detail and switch it on, usually within a day.</p></li>
   </ol>
 </div>
-  <figure class="art tall rv" aria-hidden="true"><img src="assets/offer.webp" alt="" loading="lazy"></figure>
+  <figure class="art tall" aria-hidden="true"><img src="assets/offer.webp" alt="" loading="lazy"></figure>
   </div>
   <p class="kick rv" style="margin-top:18px">Every show gets</p>
   <div class="grid rv">
@@ -266,7 +268,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   <p class="fine rv">Based on each platform's published US rates, November 2026. Stripe's card fee is the standard rate on your own Stripe account.</p>
   <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a></div>
 </div>
-  <figure class="art wide rv" style="aspect-ratio:16/9" aria-hidden="true"><img src="assets/ticket-art.webp" alt="" loading="lazy"></figure>
+  <figure class="art wide" aria-hidden="true"><img src="assets/ticket-art.webp" alt="" loading="lazy"></figure>
   </div>
 </section>
 
@@ -285,7 +287,7 @@ html:not(.js) .rv{opacity:1;transform:none}
   <p class="lead rv">Every artist on a Subduction show gets one, free. Want yours first, or want your promoter on Subduction?</p>
   <div class="ctas rv"><a class="ghost contact" data-subject="Artist page" href="#">Get on the artist list</a></div>
 </div>
-  <figure class="art wide rv" aria-hidden="true"><img src="assets/inside.webp" alt="" loading="lazy"></figure>
+  <figure class="art wide" aria-hidden="true"><img src="assets/inside.webp" alt="" loading="lazy"></figure>
   </div>
 </section>
 
@@ -322,7 +324,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div class="proof" id="proof" hidden></div>
   </div>
 </div>
-  <figure class="art tall rv" aria-hidden="true"><img src="assets/flyer-2.webp" alt="" loading="lazy"></figure>
+  <figure class="art tall" aria-hidden="true"><img src="assets/flyer-2.webp" alt="" loading="lazy"></figure>
   </div>
 </section>
 
