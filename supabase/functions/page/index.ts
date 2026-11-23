@@ -2,6 +2,7 @@ import { db } from "../_shared/db.ts";
 import { json, err, preflight, clean } from "../_shared/util.ts";
 import { requireAdmin } from "../_shared/admin.ts";
 import { cleanPage, DEFAULT_THEME, FONTS, SECTIONS, type Page } from "../_shared/page_spec.ts";
+import { buildDraft, cleanBrand, cleanKit } from "../_shared/kits.ts";
 
 // The page studio's backend. Dylan (anyone on the platform staff list) builds and publishes show pages here;
 // Claude can edit the same draft from chat. Every save goes through cleanPage(), so nothing unsafe is stored.
@@ -11,6 +12,7 @@ import { cleanPage, DEFAULT_THEME, FONTS, SECTIONS, type Page } from "../_shared
 //   POST {a:"save", e, page}         clean + store the draft
 //   POST {a:"publish", e}            the draft goes live
 //   POST {a:"start", e, from}        a new draft styled like another show's page (art and words not copied)
+//   POST {a:"from-kits", e}          a fresh draft built from the promoter's brand kit + this show's event kit
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
 const SLUG = /^[a-z0-9-]{1,80}$/;
 const STORAGE_HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
@@ -54,7 +56,7 @@ Deno.serve(async (req) => {
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return no("Bad request"); }
   const slug = clean(b.e, 80) || "";
   if (!SLUG.test(slug)) return no("Not found", 404);
-  const { data: ev } = await db.from("events").select("id,page,page_draft").eq("slug", slug).maybeSingle();
+  const { data: ev } = await db.from("events").select("id,page,page_draft,kit,company_id,location_secret").eq("slug", slug).maybeSingle();
   if (!ev) return no("Not found", 404);
   const log = (type: string, meta: Record<string, unknown>) => db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:" + type, meta });
 
@@ -86,6 +88,14 @@ Deno.serve(async (req) => {
     // The look carries over (theme, section order and looks, custom styling); art and show-specific words don't.
     const page = cleanPage({ theme: s.theme, art: {}, custom_css: s.custom_css, meta: {},
       sections: s.sections.map((x) => ({ type: x.type, variant: x.variant, show: (x as Record<string, unknown>).show })) }, STORAGE_HOSTS);
+    const { data: row } = await db.from("events").update({ page_draft: page }).eq("id", ev.id).select("page_draft_at").single();
+    return ok({ draft: page, draft_at: row?.page_draft_at ?? null });
+  }
+
+  if (b.a === "from-kits") {
+    const { data: co } = ev.company_id ? await db.from("companies").select("brand").eq("id", ev.company_id).maybeSingle() : { data: null };
+    const { count } = await db.from("ticket_nights").select("id", { count: "exact", head: true }).eq("event_id", ev.id);
+    const page = buildDraft(cleanBrand(co?.brand, STORAGE_HOSTS), cleanKit(ev.kit, STORAGE_HOSTS), count || 1, { secret: ev.location_secret }, STORAGE_HOSTS);
     const { data: row } = await db.from("events").update({ page_draft: page }).eq("id", ev.id).select("page_draft_at").single();
     return ok({ draft: page, draft_at: row?.page_draft_at ?? null });
   }

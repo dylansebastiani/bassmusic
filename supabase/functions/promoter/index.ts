@@ -1,0 +1,209 @@
+import { db, setting } from "../_shared/db.ts";
+import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE } from "../_shared/util.ts";
+import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
+import { isAdminEmail, newSession } from "../_shared/admin.ts";
+import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
+import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
+
+// Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
+// event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
+//   POST {a:"login", email} / {a:"verify", email, code}   email + 6-digit code; company staff (or Dylan) only
+//   GET  ?a=me                                            my companies (brand kit), their shows and checklists
+//   POST {a:"company-create", name, owner_email}          Dylan only: add a promoter company and its owner
+//   POST {a:"brand-save", company, brand}                 brand kit (files + 3 colours + socials)
+//   POST {a:"upload-url", company, kind, ext, show?}      one-time link to upload one kit file
+//   POST {a:"show-save", company, show}                   the five questions (create or edit while not yet approved)
+//   POST {a:"kit-save", show, kit}                        event kit
+//   POST {a:"submit", show}                               ready for Dylan: builds the first page draft if none exists
+const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
+const HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
+const TZ = "America/Chicago";   // show times are entered as local Central time for now
+const KINDS = ["logo", "partners", "figure", "hero", "hero_small", "flyer", "icon", "subtitle", "video", "share"];
+const EXT: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4" };
+const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(6))).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+// "2027-01-08" + "18:00" in Central time -> an exact moment, daylight saving included.
+function local(date: string, time: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
+  const guess = new Date(`${date}T${time}:00Z`);
+  const off = (d: Date) => { const p = new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "longOffset" }).formatToParts(d).find((x) => x.type === "timeZoneName")?.value || "GMT";
+    const m = p.match(/GMT([+-])(\d{2}):(\d{2})/); return m ? (m[1] === "-" ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0; };
+  return new Date(guess.getTime() - off(guess) * 60000);
+}
+const label = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }).format(d).replace(",", "");
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_P } }); }
+  const ok = (body: unknown) => json(body, 200, { "Cache-Control": "no-store", ...CORS_P });
+  const no = (m: string, s = 400) => json({ error: m }, s, CORS_P);
+  const u = new URL(req.url);
+  let b: Record<string, any> = {};
+  if (req.method === "POST") { try { b = await req.json(); } catch { return no("Bad request"); } }
+  const a = req.method === "GET" ? u.searchParams.get("a") || "" : String(b.a || "");
+
+  // ---- sign in: same email + code as everyone else, for company staff (and Dylan) ----
+  if (a === "login" || a === "verify") {
+    const email = (clean(b.email, 254) || "").toLowerCase();
+    if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
+    const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, (await setting("ip_salt", "unset")) + "|promoter") });
+    if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
+    const { data: m } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
+    const { count } = m ? await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id) : { count: 0 };
+    const allowed = !!m && m.status !== "deleted" && ((count ?? 0) > 0 || await isAdminEmail(email));
+    // Same answer either way, so this can't be used to find out who's a promoter.
+    if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
+    if (a === "login") { await sendSignin(m as SigninMember); return ok({ code_sent: true }); }
+    const code = (clean(b.code, 12) || "").replace(/\D/g, "");
+    const { data: c } = await db.from("signin_codes").select("id,code_hash,expires_at,attempts").eq("subscriber_id", m!.id).is("used_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (!c || new Date(c.expires_at).getTime() < Date.now() || c.attempts >= 5) return no("That code expired. Send a new one.");
+    if (c.code_hash !== await codeHash(m!.id, code)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); return no("That code didn't match."); }
+    await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
+    return ok({ token: await newSession(m!.id), email });
+  }
+
+  const st = await staffAuth(req);
+  if (!st) return no("Sign in again.", 401);
+
+  if (a === "me") {
+    const ids = st.owner ? null : st.companies.map((c) => c.id);
+    let cq = db.from("companies").select("id,slug,name,status,brand,stripe_charges_enabled,legacy_stripe").order("created_at");
+    if (ids) cq = cq.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    const { data: cos } = await cq;
+    const { data: shows } = await db.from("events").select("id,slug,name,company_id,review_status,review_note,sales_open,kit,page,page_draft,city,venue,age,location_secret,address_reveal_at,starts_at")
+      .in("company_id", (cos || []).map((c) => c.id).concat(["00000000-0000-0000-0000-000000000000"])).order("created_at", { ascending: false });
+    const sIds = (shows || []).map((s) => s.id).concat(["00000000-0000-0000-0000-000000000000"]);
+    const [{ data: nights }, { data: types }] = await Promise.all([
+      db.from("ticket_nights").select("id,event_id,slug,label,starts_at,ends_at,sort").in("event_id", sIds).order("sort"),
+      db.from("ticket_types").select("id,event_id,slug,name,night_ids,tiers,on_sale,sort").in("event_id", sIds).order("sort"),
+    ]);
+    return ok({ email: st.email, owner: st.owner,
+      companies: (cos || []).map((c) => ({ id: c.id, slug: c.slug, name: c.name, status: c.status, brand: c.brand || {}, paid_ready: c.legacy_stripe || c.stripe_charges_enabled,
+        can_manage: canManage(st, c.id) })),
+      shows: (shows || []).map((s) => {
+        const ns = (nights || []).filter((n) => n.event_id === s.id), ts = (types || []).filter((t) => t.event_id === s.id && t.slug !== "test" && t.slug !== "artist");
+        const kit = s.kit || {};
+        return { id: s.id, slug: s.slug, name: s.name, company_id: s.company_id, review_status: s.review_status, review_note: s.review_note, live: !!s.page && s.sales_open,
+          city: s.city, venue: s.venue, age: s.age, secret: s.location_secret, reveal_at: s.address_reveal_at, kit,
+          nights: ns.map((n) => ({ id: n.id, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at })),
+          tickets: ts.map((t) => ({ name: t.name, nights: t.night_ids.map((id: string) => ns.findIndex((n) => n.id === id)), tiers: t.tiers })),
+          checklist: { details: ns.length > 0 && ts.length > 0, art: !!(kit.flyers || []).some(Boolean) || !!kit.hero || !!kit.links, submitted: s.review_status !== "draft" } };
+      }) });
+  }
+
+  if (a === "company-create") {
+    if (!st.owner) return no("Only Subduction can add companies.", 403);
+    const name = clean(b.name, 80) || "", email = (clean(b.owner_email, 254) || "").toLowerCase();
+    if (!name || !EMAIL_RE.test(email)) return no("Company name and the owner's email, please.");
+    let slug = slugify(name) || "crew";
+    if ((await db.from("companies").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
+    const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email }).select("id,slug").single();
+    if (error || !co) return no("Couldn't add that company.", 500);
+    let { data: m } = await db.from("subscribers").select("id").eq("email", email).maybeSingle();
+    if (!m) m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id").single()).data;
+    if (m) await db.from("company_staff").insert({ company_id: co.id, subscriber_id: m.id, role: "owner" });
+    return ok({ company: co });
+  }
+
+  // Everything below acts on one company (directly, or through one of its shows).
+  let companyId = typeof b.company === "string" && UUID_RE.test(b.company) ? b.company : "";
+  let show: Record<string, any> | null = null;
+  if (typeof b.show === "string" && UUID_RE.test(b.show)) {
+    show = (await db.from("events").select("id,slug,name,company_id,review_status,kit,page_draft,page,location_secret").eq("id", b.show).maybeSingle()).data;
+    if (!show) return no("Not found", 404);
+    companyId = show.company_id;
+  }
+  if (!companyId || !canSee(st, companyId)) return no("Not found", 404);
+  const co = await loadCompany(companyId);
+  if (!co) return no("Not found", 404);
+
+  if (a === "brand-save") {
+    if (!canManage(st, companyId)) return no("Only the company's owner can change the brand kit.", 403);
+    const brand = cleanBrand(b.brand, HOSTS);
+    await db.from("companies").update({ brand }).eq("id", companyId);
+    return ok({ brand });
+  }
+
+  if (a === "upload-url") {
+    const kind = KINDS.includes(b.kind) ? b.kind : "", ext = String(b.ext || "").toLowerCase();
+    if (!kind || !EXT[ext]) return no("That file type isn't supported. Use JPG, PNG, WebP or MP4.");
+    if ((kind === "video") !== (ext === "mp4")) return no(kind === "video" ? "Teasers need to be MP4." : "Use JPG, PNG or WebP for images.");
+    const where = show ? `show-${show.id}` : "brand";
+    const path = `${companyId}/${where}/${kind}-${Date.now()}-${rand()}.${ext === "jpeg" ? "jpg" : ext}`;
+    const { data, error } = await db.storage.from("kits").createSignedUploadUrl(path);
+    if (error || !data) return no("Couldn't start the upload. Try again.", 500);
+    const { data: pub } = db.storage.from("kits").getPublicUrl(path);
+    return ok({ upload_url: data.signedUrl, url: pub.publicUrl, content_type: EXT[ext] });
+  }
+
+  if (a === "show-save") {
+    if (show && !["draft", "rejected"].includes(show.review_status) && !st.owner) return no("This show is already with Subduction. Message us to change details.", 409);
+    const s = (b.details || {}) as Record<string, any>;
+    const name = clean(s.name, 100) || "";
+    if (!name) return no("Give the show a name.");
+    const nightsIn = (Array.isArray(s.nights) ? s.nights : []).slice(0, 6);
+    const nights = nightsIn.map((n: any, i: number) => {
+      const start = local(String(n.date || ""), String(n.doors || "")); let end = local(String(n.date || ""), String(n.ends || ""));
+      if (start && end && end <= start) end = new Date(end.getTime() + 86400000);   // ends after midnight
+      return start ? { slug: `n${i + 1}`, label: label(start), starts_at: start.toISOString(), ends_at: end?.toISOString() || null, sort: i + 1 } : null;
+    });
+    if (!nights.length || nights.some((n: unknown) => !n)) return no("Every night needs a date and a doors time.");
+    const age = ["18+", "21+", "All ages"].includes(s.age) ? s.age : null;
+    const secret = !!s.secret, reveal = secret && /^\d{4}-\d{2}-\d{2}$/.test(String(s.reveal_date || "")) ? local(s.reveal_date, "12:00") : null;
+    const tickets = (Array.isArray(s.tickets) ? s.tickets : []).slice(0, 8).map((t: any, i: number) => ({
+      slug: slugify(clean(t.name, 40) || "") || `t${i + 1}`, name: clean(t.name, 60) || "", sort: i + 1,
+      nights: (Array.isArray(t.nights) ? t.nights : []).map(Number).filter((x: number) => x >= 0 && x < nights.length),
+      tiers: (Array.isArray(t.tiers) ? t.tiers : []).slice(0, 6).map((r: any) => ({ name: clean(r.name, 40) || "General", price_cents: Math.round(Number(r.price) * 100), qty: Math.floor(Number(r.qty)) }))
+        .filter((r: any) => r.price_cents >= 100 && r.price_cents <= 100000 && r.qty >= 1 && r.qty <= 10000),
+    }));
+    if (!tickets.length || tickets.some((t: any) => !t.name || !t.nights.length || !t.tiers.length)) return no("Each ticket needs a name, which night(s) it's for, and at least one price and quantity.");
+    if (new Set(tickets.map((t: any) => t.slug)).size !== tickets.length) return no("Two tickets have the same name.");
+
+    const fields = { name, city: clean(s.city, 80), venue: secret ? null : clean(s.venue, 120), age, location_secret: secret, address_reveal_at: reveal?.toISOString() || null,
+      starts_at: nights[0]!.starts_at, ends_at: nights[nights.length - 1]!.ends_at, company_id: companyId };
+    let id = show?.id as string | undefined;
+    if (id) {
+      const { count: sold } = await db.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", id);
+      if ((sold ?? 0) > 0) return no("Tickets have already been issued for this show, so its nights and prices can't change here.", 409);
+      await db.from("events").update(fields).eq("id", id);
+    }
+    else {
+      let slug = slugify(name) || "show";
+      if ((await db.from("events").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
+      const { data: ev, error } = await db.from("events").insert({ ...fields, slug, sales_open: false, review_status: "draft" }).select("id").single();
+      if (error || !ev) return no("Couldn't save the show.", 500);
+      id = ev.id;
+    }
+    // Nights and tickets are replaced wholesale. Safe: nothing can be sold before Subduction approves,
+    // and shows with issued tickets were refused above.
+    await db.from("ticket_types").delete().eq("event_id", id);
+    await db.from("ticket_nights").delete().eq("event_id", id);
+    const { data: ns } = await db.from("ticket_nights").insert(nights.map((n: any) => ({ ...n, event_id: id, lineup: [] }))).select("id,sort");
+    const byIdx = (ns || []).sort((x, y) => x.sort - y.sort).map((n) => n.id);
+    await db.from("ticket_types").insert(tickets.map((t: any) => ({ event_id: id, slug: t.slug, name: t.name, night_ids: t.nights.map((i: number) => byIdx[i]), tiers: t.tiers, on_sale: true, sort: t.sort,
+      blurb: t.nights.length > 1 ? "All nights, one ticket" : null })));
+    return ok({ show: { id } });
+  }
+
+  if (!show) return no("Pick a show.");
+
+  if (a === "kit-save") {
+    const kit = cleanKit(b.kit, HOSTS);
+    await db.from("events").update({ kit }).eq("id", show.id);
+    return ok({ kit });
+  }
+
+  if (a === "submit") {
+    const { count: nNights } = await db.from("ticket_nights").select("id", { count: "exact", head: true }).eq("event_id", show.id);
+    if (!nNights) return no("Answer the show questions first.");
+    const upd: Record<string, unknown> = { review_status: show.review_status === "approved" ? "approved" : "submitted" };
+    // The first page draft, built from the brand kit + event kit, waiting in Dylan's studio.
+    if (!show.page_draft && !show.page) upd.page_draft = buildDraft(cleanBrand((await db.from("companies").select("brand").eq("id", companyId).single()).data?.brand, HOSTS),
+      cleanKit(show.kit, HOSTS), nNights, { secret: show.location_secret }, HOSTS);
+    await db.from("events").update(upd).eq("id", show.id);
+    await db.from("engagement_events").insert({ subscriber_id: st.id, type: "promoter:submit", meta: { show: show.slug, company: co.slug } });
+    return ok({ submitted: true });
+  }
+
+  return no("Bad request");
+});

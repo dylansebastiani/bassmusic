@@ -164,6 +164,11 @@
     req(FN, { a: "start", e: slug, from: from }).then(function (r) { page = r.draft; draftAt = r.draft_at; drawAll(); setDirty(false); push(); toast("Style copied."); }).catch(function (e) { toast(e.message); });
   };
 
+  $("kitBtn").onclick = function () {
+    if (!confirm("Start this draft over from the promoter's kits? Your unsaved and saved draft changes will be replaced.")) return;
+    req(FN, { a: "from-kits", e: slug }).then(function (r) { page = r.draft; draftAt = r.draft_at; drawAll(); setDirty(false); push(); toast("Rebuilt from kits."); }).catch(function (e) { toast(e.message); });
+  };
+
   // Claude edits the draft from chat; when nothing here is unsaved, pick those edits up automatically.
   setInterval(function () {
     if (!slug || dirty || document.hidden) return;

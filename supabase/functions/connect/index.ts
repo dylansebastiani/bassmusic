@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       acct = a.id as string;
       await db.from("companies").update({ stripe_account_id: acct }).eq("id", co.id);
     }
-    const back = `${SITE_URL}/admin.html?c=${encodeURIComponent(co.slug)}&stripe=`;
+    const back = `${SITE_URL}/promoter.html?stripe=`;   // back to the promoter app, which re-checks with Stripe
     const link = await stripe("account_links", { account: acct, type: "account_onboarding", refresh_url: back + "retry", return_url: back + "done" });
     return json({ url: link.url });
   } catch (e) {
