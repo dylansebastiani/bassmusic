@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Subduction terms">
+<meta name="description" content="The rules for buying tickets, selling tickets and using Subduction.">
+<meta property="og:description" content="The rules for buying tickets, selling tickets and using Subduction.">
+<meta property="og:image" content="https://subduction.art/assets/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Subduction terms">
+<meta name="twitter:description" content="The rules for buying tickets, selling tickets and using Subduction.">
+<meta name="twitter:image" content="https://subduction.art/assets/og.jpg">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<style>.prose{padding-bottom:48px;color:#cfc9c5;line-height:1.75}.prose h1{margin:8px 0 18px}.prose h2{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:28px 0 8px}.prose a{color:var(--hot)}.prose b{color:#f4f1ee;font-weight:600}.prose p+p{margin-top:12px}.prose .upd{font-family:var(--mono);font-size:12px;color:var(--mute)}</style>
+<!--CONFIG-->
+<title>Terms</title>
+</head>
+<body>
+<main class="wrap prose">
+  <div class="top"><a href="./"><img src="assets/logo.png" alt="Home"></a></div>
+
+  <h1 class="disp">Terms</h1>
+  <p class="upd">Last updated November 2026.</p>
+  <p>These terms cover using <span data-k="labelName"></span>: buying tickets, selling tickets as a promoter, joining the member list and uploading music as an artist. By using the site you agree to them. Our <a href="privacy.html">privacy page</a> explains what we collect and why.</p>
+
+  <h2>What Subduction is</h2>
+  <p>Subduction is the ticketing service behind the shows sold here. Each show is put on by its own promoter. The promoter, not Subduction, runs the show and is responsible for it: the lineup, the venue, the date, safety, age checks and entry.</p>
+
+  <h2>Buying tickets</h2>
+  <p>The price you see at checkout is the total you pay, including Subduction's per-ticket fee and card processing. Your tickets are emailed to you right away, each with its own QR code. A QR code works once at the door, so don't share or post it. Copies and screenshots can be turned away if the original was already scanned.</p>
+  <p>Refunds are up to the promoter of your show and follow the policy shown on that show's page or at checkout. If a show is cancelled, contact the promoter. Their contact email is in your ticket email. Shows set their own age limits and can refuse entry to anyone without valid ID.</p>
+  <p>Tickets are for your own use. Buying tickets with bots, or reselling them above face value where the promoter forbids it, can get them cancelled.</p>
+
+  <h2>Selling tickets (promoters)</h2>
+  <p>You connect your own Stripe account and ticket money goes to it. You're responsible for your show and for your buyers: answering their questions, issuing refunds under your stated policy, and handling disputes and chargebacks on your sales through Stripe. You're also responsible for following the laws that apply to your event.</p>
+  <p>You confirm you have the rights to everything you upload: flyers, logos, photos, artist names and music. Show listings must be honest about who is playing, when and where. You can export your own buyers' details and use them to contact them about your shows, in line with the law and with their unsubscribe requests.</p>
+  <p>We build and check every show page before it goes live. We can decline, pause or take down a show or account that breaks these terms, puts buyers at risk or gets a pattern of complaints.</p>
+
+  <h2>Artists and uploaded music</h2>
+  <p>When you upload a track, you confirm it's yours to share and give Subduction permission to stream it on the site and on show playlists, and to offer it as a download if you turn downloads on. You keep ownership of your music. Remove a track and we stop offering it.</p>
+
+  <h2>Members and free tracks</h2>
+  <p>Free tracks are for your personal listening. Don't re-upload, sell or pass them off as your own. You can leave the member list at any time from the unsubscribe link in any email.</p>
+
+  <h2>Using the site fairly</h2>
+  <p>Don't try to break, overload or scrape the site, get around the bot checks, or sign up with someone else's email.</p>
+
+  <h2>The fine print</h2>
+  <p>The site is provided as it is. We work to keep it running, but we can't promise it will never go down or never have mistakes. To the extent the law allows, Subduction isn't liable for indirect losses, or for anything that happens at a show. Our total liability to you is limited to the fees you paid Subduction in the 12 months before the claim. These terms are governed by the laws of the State of Illinois.</p>
+  <p>We may update these terms. The date at the top shows the latest version, and keeping on using the site after a change means you accept it.</p>
+
+  <h2>Contact</h2>
+  <p><span data-k="labelName"></span><br><span data-k="mailingAddress" class="addr"></span><a data-mail="contactEmail"></a></p>
+  <footer><a href="./">Home</a><a href="privacy.html">Privacy</a></footer>
+</main>
+<script>
+(function () { var C = window.STACK || {};
+  document.querySelectorAll("[data-k]").forEach(function (el) { el.textContent = C[el.getAttribute("data-k")] || ""; });
+  // Hide the mailing address line until a real one is set in config (same rule as the ticket emails).
+  document.querySelectorAll(".addr").forEach(function (el) { var a = C.mailingAddress || ""; if (!a || /TBD/i.test(a)) el.remove(); else el.insertAdjacentHTML("afterend", "<br>"); });
+  document.querySelectorAll("[data-mail]").forEach(function (el) { var m = C[el.getAttribute("data-mail")] || ""; el.textContent = m; el.href = "mailto:" + m; });
+})();
+</script>
+</body>
+</html>

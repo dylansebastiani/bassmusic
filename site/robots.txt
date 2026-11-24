@@ -1,0 +1,14 @@
+User-agent: *
+Disallow: /admin
+Disallow: /door
+Disallow: /people
+Disallow: /studio
+Disallow: /promoter
+Disallow: /pass
+Disallow: /ticket.html
+Disallow: /in.html
+Disallow: /in$
+Disallow: /bonus
+Disallow: /collection
+
+Sitemap: https://subduction.art/sitemap.xml
