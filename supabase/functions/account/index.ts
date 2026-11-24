@@ -272,6 +272,14 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   }
   // One meter per night. Only sold tickets fill a night; a 2-day pass fills one spot on each of its nights.
   // Capacity comes from the night (set per show); if it isn't set, fall back to the one-night tickets' total.
+  // What each ticket costs right now, from the same rule the checkout uses.
+  const nowPrices = await Promise.all((types || []).filter((t) => t.on_sale && !/test/i.test(t.name) && t.name !== "Artist Pass").map(async (t) => {
+    const { data: cq } = await db.rpc("capped_quote", { p_type: t.id });
+    if (cq) return { name: t.name, sold_out: !!(cq as any).sold_out, tier: (cq as any).tier?.name || "", price_cents: (cq as any).tier?.price_cents ?? 0, left_at_price: (cq as any).tier?.left ?? 0, left: (cq as any).left ?? 0 };
+    const bt = byType.find((b) => b.name === t.name)!; let start = 0, cur: any = null, at = 0;
+    for (const x of bt.tiers) { const end = start + x.qty; if (!cur && bt.sold < end) { cur = x; at = end - bt.sold; } start = end; }
+    return { name: t.name, sold_out: !cur, tier: cur?.name || "", price_cents: cur?.price_cents ?? 0, left_at_price: at, left: Math.max(0, bt.cap - bt.sold) };
+  }));
   const nightMeters = (nights[ev.id] || []).map((n) => {
     const covers = (types || []).filter((t) => !/test/i.test(t.name) && (t.night_ids || []).includes(n.id));
     const fallback = covers.filter((t) => (t.night_ids || []).length === 1).reduce((a, t) => a + (Array.isArray(t.tiers) ? t.tiers : []).reduce((b: number, x: any) => b + (x.qty || 0), 0), 0);
@@ -342,7 +350,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     { label: "Show playlist", ok: (artistTracks ?? 0) > 0 || (pl.tracks || []).length > 0 || pl.mode === "subduction" },
   ];
   return { show: ev.name, slug: ev.slug, ...look, nights: nightList.map((n) => n.label), venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city, age: ev.age,
-    on_sale: !!ev.sales_open, sold, money_cents: money, artist_passes: artistPasses, guest_count: guestCount, checked_in: checkedIn, tests, night_meters: nightMeters,
+    on_sale: !!ev.sales_open, sold, money_cents: money, artist_passes: artistPasses, guest_count: guestCount, checked_in: checkedIn, tests, night_meters: nightMeters, now_prices: nowPrices,
     by_type: byType, prices, last7: days, artists, checks,
     playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
     artist_people: artistPeople.map(({ kind, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, ...b }) => b) };

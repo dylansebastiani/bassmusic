@@ -25,6 +25,16 @@ export async function loadEvent(slug: string) {
 // price, and how many are left in total. Holds from people mid-checkout count as taken.
 export async function availability(types: TicketType[]) {
   return await Promise.all(types.map(async (t) => {
+    // Shows with a night capacity: price and "left" come from the same rule the hold uses
+    // (shared nights, night-linked prices). Every other show: unchanged.
+    const { data: cq } = await db.rpc("capped_quote", { p_type: t.id });
+    if (cq) {
+      const c = cq as { sold_out: boolean; left: number; tier: { name: string; price_cents: number; left: number } | null; next_tier: { name: string; price_cents: number } | null };
+      return { slug: t.slug, name: t.name, blurb: t.blurb, night_ids: t.night_ids, on_sale: t.on_sale,
+        sold_out: c.sold_out, left: c.left, tier: c.tier, next_tier: c.next_tier,
+        // A night-linked pass has no ladder of its own: show "N left", not "left at this price".
+        tier_count: c.tier && c.tier.name === t.name ? 1 : t.tiers.length };
+    }
     const { data: taken } = await db.rpc("ticket_type_taken", { p_type: t.id });
     const n = (taken as number) || 0;
     const total = t.tiers.reduce((s, x) => s + x.qty, 0);

@@ -210,10 +210,8 @@
         (n.artists || n.guests ? ". Not counted: " + [n.artists ? n.artists + (n.artists === 1 ? " artist" : " artists") : "", n.guests ? n.guests + (n.guests === 1 ? " guest" : " guests") : ""].filter(Boolean).join(", ") : "") + "</div></div>";
     }).join("");
     // What each ticket costs right now, from its price ladder.
-    var prices = r.by_type.filter(function (t) { return t.on_sale && t.cap > 0; }).map(function (t) {
-      var start = 0, cur = null, left = 0;
-      t.tiers.forEach(function (x) { var end = start + x.qty; if (!cur && t.sold < end) { cur = x; left = end - t.sold; } start = end; });
-      return "<li><b>" + esc(t.name) + "</b><span>" + (cur ? esc(cur.name) + ", " + usd(cur.price_cents) + ", " + left + " left at this price" : "Sold out") + "</span></li>";
+    var prices = (r.now_prices || []).map(function (t) {
+      return "<li><b>" + esc(t.name) + "</b><span>" + (t.sold_out ? "Sold out" : usd(t.price_cents) + (t.tier && t.tier !== t.name ? " (" + esc(t.tier) + ")" : "") + ", " + (t.tier === t.name ? t.left + " left, price follows both nights" : t.left_at_price + " left at this price")) + "</span></li>";
     }).join("");
     var lede = "<b>" + r.sold + "</b> " + (r.sold === 1 ? "ticket" : "tickets") + " sold for <b>" + usd(r.money_cents) + "</b>. " +
       "<b>" + r.artist_passes + "</b> " + (r.artist_passes === 1 ? "artist" : "artists") + " and <b>" + r.guest_count + "</b> " + (r.guest_count === 1 ? "guest" : "guests") + " on top of that, <b>" + r.checked_in + "</b> checked in.";
