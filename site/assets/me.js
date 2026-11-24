@@ -172,12 +172,13 @@
   // ---- the show hub: one show, in its own colors ----
   var hub = "", hubData = null;
   function initials(n) { return String(n || "?").replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase() || "?"; }
+  function phoneFmt(v) { var m = String(v || "").match(/^\+1(\d{3})(\d{3})(\d{4})$/); return m ? "(" + m[1] + ") " + m[2] + "-" + m[3] : v; }
   function personRow(p, tag) {
     return '<div class="prow" data-find="' + esc((p.name + " " + p.email + " " + p.phone + " " + (p.list || "")).toLowerCase()) + '">' +
       '<span class="pin' + (p.checked_in ? " in" : "") + '" title="' + (p.checked_in ? "Checked in" : "Not checked in") + '"></span>' +
       '<span class="pinfo"><b>' + esc(p.name || "No name") + "</b>" + (tag && p.list ? '<i class="ptag">' + esc(p.list) + "</i>" : "") +
       "<span>" + esc(p.what) + (p.checked_in ? ", checked in" : "") + "</span>" +
-      '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
+      '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
   }
   function guestList(r) {
     var g = r.guests || [], b = r.buyers || [];
