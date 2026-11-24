@@ -183,6 +183,60 @@
       (p.order_id && hubData && hubData.can_add_guests ? '<button type="button" class="prm" data-rm="' + esc(p.order_id) + '" data-rmname="' + esc(p.name) + '">Remove</button>' : "") +
       '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
   }
+  // ---- lineup + set times (draft only; staff publish it) ----
+  var lu = null, luDirty = false;
+  function luState() { if (!lu && hubData && hubData.lineup) lu = JSON.parse(JSON.stringify(hubData.lineup)); return lu || []; }
+  function lineupHtml() {
+    var L = luState(), live = L.some(function (n) { return n.public; });
+    return '<h3>Lineup and set times</h3><p class="lnote">' + (live
+        ? "The lineup is public. Changes you save here are a draft: they go live when Dylan publishes again."
+        : "Private draft. Nobody sees this until Dylan publishes the lineup.") + "</p>" +
+      L.map(function (n, ni) {
+        return '<div class="lnight"><h4 class="gh">' + esc(n.label) + "</h4>" +
+          (n.acts.length ? "" : '<p class="mempty">No sets yet.</p>') +
+          n.acts.map(function (a, ai) {
+            return '<div class="lrow"><input class="ltime" data-ln="' + ni + '" data-la="' + ai + '" data-lf="note" value="' + esc(a.note || "") + '" maxlength="40" placeholder="11–12" aria-label="Set time">' +
+              '<input class="lname" data-ln="' + ni + '" data-la="' + ai + '" data-lf="name" value="' + esc(a.name) + '" maxlength="80" placeholder="Artist" aria-label="Artist">' +
+              '<span class="lbtns"><button type="button" data-lmv="-1" data-ln="' + ni + '" data-la="' + ai + '" aria-label="Move up"' + (ai ? "" : " disabled") + ">↑</button>" +
+              '<button type="button" data-lmv="1" data-ln="' + ni + '" data-la="' + ai + '" aria-label="Move down"' + (ai < n.acts.length - 1 ? "" : " disabled") + ">↓</button>" +
+              '<button type="button" data-ldel data-ln="' + ni + '" data-la="' + ai + '" aria-label="Remove this set">✕</button></span></div>';
+          }).join("") +
+          '<button type="button" class="ladd" data-ladd="' + ni + '">Add a set</button></div>';
+      }).join("") +
+      '<button type="button" class="mbtn lsave" data-lsave' + (luDirty ? "" : " disabled") + ">Save draft</button>" +
+      '<p class="msg" id="lmsg" role="status">' + (luDirty ? "Unsaved changes." : "") + "</p>";
+  }
+  function luRedraw(focusSel) {
+    var sec = $("lsec"); if (!sec) return;
+    sec.innerHTML = lineupHtml();
+    if (focusSel) { var f = sec.querySelector(focusSel); if (f) f.focus(); }
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target; if (!el.hasAttribute || !el.hasAttribute("data-lf")) return;
+    luState()[+el.getAttribute("data-ln")].acts[+el.getAttribute("data-la")][el.getAttribute("data-lf")] = el.value;
+    if (!luDirty) { luDirty = true; var b = document.querySelector("[data-lsave]"); if (b) b.disabled = false; $("lmsg").textContent = "Unsaved changes."; }
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-lmv],[data-ldel],[data-ladd],[data-lsave]"); if (!t) return;
+    var L = luState();
+    if (t.hasAttribute("data-ladd")) {
+      var ni = +t.getAttribute("data-ladd"); L[ni].acts.push({ name: "", note: "" }); luDirty = true;
+      return luRedraw('[data-ln="' + ni + '"][data-la="' + (L[ni].acts.length - 1) + '"][data-lf="note"]');
+    }
+    if (t.hasAttribute("data-lsave")) {
+      t.disabled = true; $("lmsg").textContent = "Saving...";
+      var body = { a: "lineup", e: hub, nights: L.map(function (n) { return { id: n.id, acts: n.acts.filter(function (x) { return (x.name || "").trim(); }) }; }) };
+      return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": tok }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't save. Try again."); }); })
+        .then(function () { return api("?a=crew&e=" + encodeURIComponent(hub)); })
+        .then(function (r) { hubData = r; lu = null; luDirty = false; luRedraw(); $("lmsg").textContent = "Draft saved. It stays private until Dylan publishes."; })
+        .catch(function (err) { t.disabled = false; $("lmsg").textContent = err.message; });
+    }
+    var n = +t.getAttribute("data-ln"), i = +t.getAttribute("data-la"), acts = L[n].acts;
+    if (t.hasAttribute("data-ldel")) acts.splice(i, 1);
+    else { var j = i + (+t.getAttribute("data-lmv")); if (j < 0 || j >= acts.length) return; var x = acts[i]; acts[i] = acts[j]; acts[j] = x; }
+    luDirty = true; luRedraw();
+  });
   function artistForm() {
     return '<details class="gadd"' + (aOpen ? " open" : "") + '><summary class="mbtn">Add an artist</summary><form id="aform" class="cform" novalidate>' +
       '<p class="mnow">Their artist pass is emailed right away, with their own guest spots and sell link. Adding them here doesn\'t put them on the public lineup.</p>' +
@@ -320,7 +374,8 @@
             (a.id ? '<button type="button" class="aoff" data-off="' + esc(a.id) + '" data-offname="' + esc(a.name) + '">Take off show</button>' : "") + "</span>" +
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
         }).join("") : '<p class="mempty">No artists yet.</p>') +
-        (r.can_add_guests ? artistForm() : "") + '<p class="soon">Set times from here are next.</p></section>' +
+        (r.can_add_guests ? artistForm() : "") + "</section>" +
+      (r.lineup && r.lineup.length ? '<section class="hs" id="lsec">' + lineupHtml() + "</section>" : "") +
       guestList(r) +
       '<section class="hs two"><div><h3>This week</h3><p class="lede small"><b>' + week + "</b> " + (week === 1 ? "ticket" : "tickets") + " in the last 7 days</p>" +
         '<div class="bars">' + r.last7.map(function (x) { return '<i style="height:' + Math.max(4, Math.round(100 * x.tickets / max)) + '%" title="' + x.tickets + '"></i>'; }).join("") + "</div>" +
@@ -334,7 +389,7 @@
     if (!e.target.closest) return;
     var b = e.target.closest("[data-hub]");
     if (b) {
-      hub = b.getAttribute("data-hub"); hubData = null; drawHub(); window.scrollTo(0, 0);
+      hub = b.getAttribute("data-hub"); hubData = null; lu = null; luDirty = false; drawHub(); window.scrollTo(0, 0);
       api("?a=crew&e=" + encodeURIComponent(hub)).then(function (r) { hubData = r; if (hub && tab === "crew") drawHub(); })
         .catch(function (err) { $("panes").innerHTML = '<p class="mempty">' + esc(err.message) + "</p>"; });
       return;

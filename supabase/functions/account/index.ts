@@ -322,6 +322,10 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
       claimed: !!v.claimed_at, has_email: !!v.email, has_phone: !!v.phone, photo: (v.photo_path && photos[v.photo_path]) || null };
   }).sort((a, b) => b.tickets - a.tickets || b.taps - a.taps || a.name.localeCompare(b.name));
   const { data: co } = await db.from("companies").select("legacy_stripe,brand,stripe_charges_enabled").eq("id", ev.company_id).maybeSingle();
+  // The lineup draft (what staff publish), only for people who can edit it.
+  const { data: lnights } = canAdd ? await db.from("ticket_nights").select("id,label,lineup,lineup_full,sort").eq("event_id", ev.id).order("sort") : { data: null };
+  const lineup = (lnights || []).map((n) => ({ id: n.id, label: n.label, acts: (n.lineup_full ?? n.lineup ?? []) as { name: string; note?: string }[],
+    public: Array.isArray(n.lineup) && n.lineup.length > 0 }));
   const look = lookFor(ev, co);
   // What's on sale right now, at what price (the current tier of each ticket type).
   const prices = (types || []).filter((t) => t.on_sale && Array.isArray(t.tiers) && t.tiers.length).map((t) => {
@@ -369,7 +373,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     on_sale: !!ev.sales_open, sold, money_cents: money, artist_passes: artistPasses, guest_count: guestCount, checked_in: checkedIn, tests, night_meters: nightMeters, now_prices: nowPrices,
     by_type: byType, prices, last7: days, artists, checks,
     playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
-    can_add_guests: canAdd, artist_people: artistPeople.map(({ kind, order_id, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, order_id, ...b }) => b) };
+    can_add_guests: canAdd, lineup, artist_people: artistPeople.map(({ kind, order_id, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, order_id, ...b }) => b) };
 }
 
 Deno.serve(async (req) => {
@@ -441,6 +445,43 @@ Deno.serve(async (req) => {
         await db.from("artist_profiles").upsert({ subscriber_id: me.id, name, ...patch, photo_path: cur?.photo_path || null, updated_at: new Date().toISOString() }, { onConflict: "subscriber_id" });
         // Copy onto every show they're booked on. The billing name on each show stays the promoter's.
         await db.from("artist_invites").update(patch).ilike("email", email).is("revoked_at", null);
+        return json({ saved: true });
+      }
+      if (b.a === "lineup") {
+        // The crew owner edits the DRAFT lineup and set times only (lineup_full / blurb_full). Nothing here
+        // ever writes the public lineup or the public blurbs: going live stays a staff "publish" in /admin.
+        const me = await who(req);
+        if (!me) return no("Sign in again.", 401);
+        const slug = String(b.e || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+        const { data: ev } = await db.from("events").select("id,slug,company_id").eq("slug", slug).maybeSingle();
+        if (!ev) return no("Not found", 404);
+        let allowed = (await admins()).includes(String(me.email).toLowerCase());
+        if (!allowed) {
+          const { data: row } = await db.from("company_staff").select("role").eq("subscriber_id", me.id).eq("company_id", ev.company_id).maybeSingle();
+          allowed = row?.role === "owner";
+        }
+        if (!allowed) return no("Only the show's crew owner can edit the lineup.", 403);
+        const [{ data: ns }, { data: ts }] = await Promise.all([
+          db.from("ticket_nights").select("id").eq("event_id", ev.id),
+          db.from("ticket_types").select("id,slug,night_ids").eq("event_id", ev.id),
+        ]);
+        const list = Array.isArray(b.nights) ? b.nights as Record<string, unknown>[] : [];
+        let saved = 0;
+        for (const item of list) {
+          const n = (ns || []).find((x) => x.id === item.id); if (!n) continue;
+          const acts = (Array.isArray(item.acts) ? item.acts as Record<string, unknown>[] : []).slice(0, 30)
+            .map((x) => ({ name: (clean(x.name, 80) || "").trim(), note: (clean(x.note, 40) || "").trim() })).filter((x) => x.name)
+            .map((x) => (x.note ? { name: x.name, note: x.note } : { name: x.name }));
+          await db.from("ticket_nights").update({ lineup_full: acts }).eq("id", n.id);
+          // Same draft blurb the staff editor writes ("Treegaud b2b Waylo, Badguy Moolah + more"); public blurb untouched.
+          const named = acts.filter((x) => !/special guest/i.test(x.name)), top = named.slice(0, 2).map((x) => x.name);
+          const blurb = top.length ? top.join(", ") + (acts.length > top.length ? " + more" : "") : null;
+          for (const t of (ts || []).filter((t) => t.slug !== "test" && (t.night_ids || []).length === 1 && t.night_ids[0] === n.id)) {
+            await db.from("ticket_types").update({ blurb_full: blurb }).eq("id", t.id);
+          }
+          saved++;
+        }
+        await db.from("engagement_events").insert({ subscriber_id: me.id, type: "crew:lineup_draft", meta: { event: slug, nights: saved } });
         return json({ saved: true });
       }
       return no("Bad request");

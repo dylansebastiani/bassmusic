@@ -141,3 +141,16 @@ img.av{object-fit:cover;padding:0;background:var(--d)}
 .prm:hover{border-color:var(--m)}
 .aoff{display:block;text-align:left;align-self:flex-start;background:none;border:0;padding:4px 0 0;color:var(--a);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;opacity:.8}
 .aoff:hover{opacity:1}
+.lnote{font-size:14px;color:var(--a);margin:0 0 6px}
+.lnight{margin-top:10px}
+.lrow{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line2)}
+.lrow input{background:#000;border:1px solid var(--line2);color:#fff;font:inherit;font-size:16px;padding:9px 10px;border-radius:0;min-width:0}
+.lrow input:focus-visible{outline:2px solid var(--m);outline-offset:1px}
+.ltime{width:96px;flex:none}.lname{flex:1}
+.lbtns{display:flex;gap:4px;flex:none}
+.lbtns button,.ladd{background:none;border:1px solid var(--line2);color:#fff;font:inherit;font-size:15px;min-width:36px;height:40px;cursor:pointer}
+.lbtns button:disabled{opacity:.3;cursor:default}
+.ladd{font-size:14px;padding:0 12px;margin-top:8px}
+.lbtns button:hover:not(:disabled),.ladd:hover{border-color:var(--m)}
+.lsave{margin-top:16px;background:var(--m)}.lsave:disabled{opacity:.45;cursor:default}
+@media (max-width:480px){.lrow{gap:6px}.lrow input{font-size:15px;padding:9px 7px}.ltime{width:84px}.lbtns{gap:2px}.lbtns button{min-width:30px;width:30px;font-size:14px}}
