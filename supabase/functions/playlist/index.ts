@@ -13,7 +13,7 @@
 // Artist side (private link artist.html?k=<token>, same token as the artist pass):
 //   GET  ?a=artist&k=                          my tracks on this show
 //   POST {a:"artist-upload-url", k, ext}       one-time link to upload one track
-//   POST {a:"artist-add", k, path, title, free_download, art_path}   (a cover is required)
+//   POST {a:"artist-add", k, path, title, collab?, free_download, art_path}   (a cover is required; collab shows as "Name x Collab")
 //   POST {a:"artist-set", k, id, free_download}    turn free download on or off
 //   POST {a:"artist-art", k, id, art_path}         put cover art on one of my tracks (art_path from artist-upload-url with ext jpg/png/webp)
 //   POST {a:"artist-remove", k, id}
@@ -238,7 +238,9 @@ Deno.serve(async (req) => {
       const artPath = clean(b.art_path, 200);
       // Every track needs a cover picture (it shows in the music bar while the track plays).
       if (!artPath || !ART_RE(inv.event_id).test(artPath)) return json({ error: "Add a cover picture for this track." }, 400);
-      const { error } = await db.from("playlist_tracks").insert({ event_id: inv.event_id, invite_id: inv.id, path, title: clean(b.title, 80) || "Untitled", artist: inv.name, free_download: b.free_download === true,
+      // Their artist name is always on it; a collaborator, if any, goes next to it ("Name x Collab").
+      const collab = clean(b.collab, 60);
+      const { error } = await db.from("playlist_tracks").insert({ event_id: inv.event_id, invite_id: inv.id, path, title: clean(b.title, 80) || "Untitled", artist: collab ? `${inv.name} x ${collab}`.slice(0, 80) : inv.name, free_download: b.free_download === true,
         art_path: artPath && ART_RE(inv.event_id).test(artPath) ? artPath : null });
       if (error) { console.error("playlist artist-add", error.message); return json({ error: "Couldn't add that. Try again." }, 500); }
       return json(await mine());

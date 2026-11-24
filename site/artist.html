@@ -102,7 +102,10 @@
           <div class="hint">MP3, WAV or M4A, up to 50 MB. A long WAV can run bigger: export it as a 320 kbps MP3 and it will fit.</div>
           <label for="tart">Cover picture <span class="opt">(required)</span></label><input id="tart" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
           <div class="hint">Square JPG, PNG or WebP, up to 5 MB. It shows in the player while your track plays.</div>
-          <label for="ttitle">Track title</label><input id="ttitle" type="text" autocomplete="off" maxlength="80" placeholder="Track title">
+          <label for="ttitle">Song name</label><input id="ttitle" type="text" autocomplete="off" maxlength="80" placeholder="Just the song name">
+          <div class="hint">Your artist name, <b id="tasname">your name</b>, is added for you. Only type the song's name here.</div>
+          <label for="tcollab">Collab with <span class="opt">(optional)</span></label><input id="tcollab" type="text" autocomplete="off" maxlength="60" placeholder="Other artist's name">
+          <div class="hint" id="tpreview">Shows as: <b>your name</b> · Song name</div>
           <label class="check" for="tfree" style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:15px;color:inherit"><input id="tfree" type="checkbox" style="width:20px;height:20px;flex:none"> Let fans download it free</label>
           <button class="btn gold" type="submit" id="tgo">Add to the playlist</button>
           <p class="msg" id="tmsg" role="status"></p>

@@ -43,6 +43,7 @@
     document.title = "Artist pass · " + d.event.name;
     $("msg").hidden = true; $("view").hidden = false;
     $("aname").textContent = d.artist.name;
+    if ($("tasname")) { $("tasname").textContent = d.artist.name; preview(); }
     $("adates").textContent = d.event.nights.map(function (n) { return day(n.starts_at); }).join(" + ") + (d.event.city ? " · " + d.event.city : "") + (d.event.age ? " · " + d.event.age : "");
     $("claim").hidden = d.artist.claimed; $("dash").hidden = !d.artist.claimed;
     if (!d.artist.claimed) return;
@@ -257,13 +258,21 @@
       .then(function (d) { $("tmsg").textContent = box.checked ? "Fans can download it free now." : "Free download is off."; drawTracks(d); })
       .catch(function (err) { box.checked = !box.checked; box.disabled = false; $("tmsg").textContent = err.message; });
   });
+  // How the track will read in the player, so nobody types their own name as the song name.
+  function preview() {
+    var me = (S && S.artist && S.artist.name) || "your name", c = $("tcollab").value.trim(), t = $("ttitle").value.trim() || "Song name";
+    $("tpreview").innerHTML = "Shows as: <b>" + esc(me + (c ? " x " + c : "")) + "</b> · " + esc(t);
+  }
+  $("ttitle").addEventListener("input", preview); $("tcollab").addEventListener("input", preview);
   $("tf").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = $("tfile").files[0], title = $("ttitle").value.trim(), ext = f ? (f.name.split(".").pop() || "").toLowerCase() : "";
     if (!f) { $("tmsg").textContent = "Pick a track first."; return; }
     if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { $("tmsg").textContent = "Use an MP3, WAV or M4A."; return; }
     if (f.size > 50 * 1048576) { $("tmsg").textContent = "That track is over 50 MB (the most the site can take right now). Export it as a 320 kbps MP3 and it will fit."; return; }
-    if (!title) { $("tmsg").textContent = "Give it a title."; $("ttitle").focus(); return; }
+    if (!title) { $("tmsg").textContent = "Type the song's name."; $("ttitle").focus(); return; }
+    var myName = ((S && S.artist && S.artist.name) || "").trim().toLowerCase();
+    if (myName && title.toLowerCase() === myName) { $("tmsg").textContent = "That's your artist name. It's added for you, so type the song's name here."; $("ttitle").focus(); return; }
     var cover = $("tart").files[0], bad = cover ? artCheck(cover) : "";
     // Every track needs a cover: it shows in the music bar while the track plays.
     if (!cover) { $("tmsg").textContent = "Add a cover picture for this track."; $("tart").focus(); return; }
@@ -273,8 +282,8 @@
     (cover ? uploadArt(cover).then(function (p) { artPath = p; }) : Promise.resolve())
       .then(function () { return pl("artist-upload-url", { ext: ext }); })
       .then(function (r) { return put(r, f, "Uploading… "); })
-      .then(function (path) { return pl("artist-add", { path: path, title: title, free_download: $("tfree").checked, art_path: artPath }); })
-      .then(function (d) { $("tf").reset(); $("tgo").disabled = false; $("tmsg").textContent = "Added. It's in the mix."; drawTracks(d); })
+      .then(function (path) { return pl("artist-add", { path: path, title: title, collab: $("tcollab").value.trim(), free_download: $("tfree").checked, art_path: artPath }); })
+      .then(function (d) { $("tf").reset(); preview(); $("tgo").disabled = false; $("tmsg").textContent = "Added. It's in the mix."; drawTracks(d); })
       .catch(function (err) { $("tgo").disabled = false; $("tmsg").textContent = err.message; });
   });
   function loadTracks(d) { if (d && d.artist && d.artist.claimed) pl("artist").then(drawTracks).catch(function () {}); return d; }
