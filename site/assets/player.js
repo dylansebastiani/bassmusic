@@ -233,17 +233,23 @@
     return list;
   }
   function fetchList() {
+    // Both lists at once, not one after the other.
     var own = showSlug ? getJson(FN + "/playlist?show=" + encodeURIComponent(showSlug)) : Promise.resolve({});
-    return own.then(function (o) {
-      var mine = o.tracks || [];
+    var cat = getJson(FN + "/track?player=1");
+    return Promise.all([own, cat]).then(function (r) {
+      var mine = r[0].tracks || [];
       // The show's own tracks only, when its promoter uploaded a playlist. Otherwise Subduction's tracks, plus anything the show's artists added.
-      if (mine.length && !o.mix) return mine;
-      return getJson(FN + "/track?player=1").then(function (c) { return mine.concat(c.tracks || []); });
+      return mine.length && !r[0].mix ? mine : mine.concat(r[1].tracks || []);
     }).then(shuffle);
   }
-
-  fetchList().then(function (list) {
-    if (!list.length) return;
+  // The last list is kept on the phone for 45 minutes (stream links last an hour), so the bar
+  // shows up instantly on every page after the first, and a fresh copy loads quietly behind it.
+  var CK = "sbx_pl_" + (showSlug || "home");
+  function cached() {
+    try { var c = JSON.parse(localStorage.getItem(CK) || "null"); return c && Date.now() - c.at < 45 * 60000 && c.list && c.list.length ? c.list : null; } catch (e) { return null; }
+  }
+  function keep(list) { try { localStorage.setItem(CK, JSON.stringify({ at: Date.now(), list: list })); } catch (e) {} }
+  function start(list) {
     tracks = list;
     mount();
     var n = 0; for (var k = 0; k < list.length; k++) if (list[k].slug === st.slug) n = k;
@@ -252,5 +258,21 @@
     load(n, st.slug ? st.t : 0, !!st.playing);
     sync();
     requestAnimationFrame(placeAboveTabs);
+  }
+  // Swap in the fresh list without interrupting what's playing: same order, new links, new or removed tracks handled.
+  function refresh(fresh) {
+    var by = {}; fresh.forEach(function (k) { by[k.slug] = k; });
+    var cur = tracks[i] && tracks[i].slug, next = [];
+    tracks.forEach(function (k) { if (by[k.slug]) { next.push(by[k.slug]); delete by[k.slug]; } });
+    fresh.forEach(function (k) { if (by[k.slug]) next.push(k); });
+    if (!next.length) return;
+    tracks = next; i = 0; for (var n = 0; n < next.length; n++) if (next[n].slug === cur) i = n;
+    keep(tracks); render(); drawList();
+  }
+  var early = cached();
+  if (early) start(early);
+  fetchList().then(function (list) {
+    if (!list.length) return;
+    if (early) refresh(list); else { keep(list); start(list); }
   });
 })();

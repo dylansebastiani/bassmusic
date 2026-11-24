@@ -116,18 +116,23 @@ Deno.serve(async (req) => {
   if (req.method === "GET" && !a) {
     const slug = (u.searchParams.get("show") || "").toLowerCase();
     if (!/^[a-z0-9-]{1,80}$/.test(slug)) return json({ tracks: [] });
-    const { data: ev } = await db.from("events").select("id,name,playlist").eq("slug", slug).maybeSingle();
+    // The show and its artists' tracks in one round trip.
+    const { data: ev } = await db.from("events").select("id,name,playlist,pt:playlist_tracks(id,path,title,artist,free_download,art_path,created_at,inv:artist_invites(links,profile_hidden))").eq("slug", slug).maybeSingle();
     const pl = (ev?.playlist ?? null) as { mode?: string; tracks?: Track[] } | null;
     if (!ev) return json({ tracks: [] }, 200, { "Cache-Control": "public, max-age=300" });
     const own = pl?.mode === "upload" ? cleanTracks(pl.tracks, ev.id) : [];
-    const { data: fromArtists } = await db.from("playlist_tracks").select("id,path,title,artist,free_download,art_path,inv:artist_invites(links,profile_hidden)").eq("event_id", ev.id).order("created_at").limit(200);
-    const all = [...own.map((t) => ({ ...t, id: null as string | null, free_download: false, art_path: null as string | null, inv: null as unknown })), ...(fromArtists ?? [])];
+    type AT = { id: string; path: string; title: string; artist: string | null; free_download: boolean; art_path: string | null; created_at: string; inv: unknown };
+    const fromArtists = ((ev.pt ?? []) as unknown as AT[]).sort((x, y) => x.created_at.localeCompare(y.created_at)).slice(0, 200).map(({ created_at: _c, ...t }) => t);
+    const all = [...own.map((t) => ({ ...t, id: null as string | null, free_download: false, art_path: null as string | null, inv: null as unknown })), ...fromArtists];
     // mix: the promoter left it on "Subduction tracks", so artists' tracks play alongside the catalogue instead of replacing it.
     const mix = pl?.mode !== "upload";
     if (!all.length) return json({ tracks: [], mix }, 200, { "Cache-Control": "public, max-age=300" });
-    const { data: signed } = await db.storage.from("playlists").createSignedUrls(all.map((t) => t.path), 3600);
+    // Stream links and covers signed at the same time.
+    const [{ data: signed }, art] = await Promise.all([
+      db.storage.from("playlists").createSignedUrls(all.map((t) => t.path), 3600),
+      signArt(all.map((t) => t.art_path)),
+    ]);
     const url = new Map((signed ?? []).filter((x) => x.path && x.signedUrl).map((x) => [x.path as string, x.signedUrl]));
-    const art = await signArt(all.map((t) => t.art_path));
     const tracks = all.filter((t) => url.has(t.path)).map((t) => ({ slug: "show:" + t.path, title: t.title, artist: t.artist || ev.name, audio_url: url.get(t.path), artwork_url: (t.art_path && art.get(t.art_path)) || null,
       downloadable: !!t.free_download, dl: t.free_download ? t.id : null,
       // The artist's own links, for the follow buttons on the download screen (https only, already cleaned when saved).
