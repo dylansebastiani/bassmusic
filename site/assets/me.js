@@ -115,11 +115,12 @@
     }
     if (tab === "crew") {
       if (d.staff) h += '<div class="mcard"><h3>Subduction staff</h3><div class="sub">Every show, every crew.</div><a class="mbtn" href="admin.html">Staff app</a> <a class="mbtn ghost" href="promoter.html">Promoter app</a></div>';
-      d.crews.forEach(function (c) {
+      d.crews.slice().sort(function (a, b) { return (a.kind === "promoter" ? 0 : 1) - (b.kind === "promoter" ? 0 : 1); }).forEach(function (c) {
         if (c.kind === "promoter") {
-          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") + '</div><a class="mbtn" href="promoter.html">Open promoter app</a></div>';
+          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") + " · sells with your own Stripe</div>" +
+            '<a class="mbtn" href="promoter.html#show/new/1">+ Add a show</a> <a class="mbtn ghost" href="promoter.html">Open promoter app</a></div>';
         } else {
-          h += '<div class="mcard"><h3>' + esc(c.name) + "</h3>" + ((c.shows || []).length ? c.shows.map(function (s) {
+          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">Shows on the original ticketing</div>' + ((c.shows || []).length ? c.shows.map(function (s) {
             return '<div class="mrow"><span>' + esc(s.name) + '<br><span class="mono">' + esc(s.nights.join(" + ")) + '</span></span><button type="button" class="mbtn ghost" data-crew="' + esc(s.slug) + '">Numbers</button></div><div id="cw-' + esc(s.slug) + '"></div>';
           }).join("") : '<p class="mempty">No shows yet.</p>') + "</div>";
         }
