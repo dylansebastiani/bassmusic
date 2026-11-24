@@ -177,11 +177,11 @@
   function personRow(p, tag) {
     return '<div class="prow" data-find="' + esc(((p.stage || "") + " " + p.name + " " + p.email + " " + p.phone + " " + (p.list || "")).toLowerCase()) + '">' +
       '<span class="pin' + (p.checked_in ? " in" : "") + '" title="' + (p.checked_in ? "Checked in" : "Not checked in") + '"></span>' +
-      '<span class="pinfo"><b>' + esc(p.stage || p.name || "No name") + "</b>" + (p.stage && p.name && p.stage !== p.name ? '<span class="preal">' + esc(p.name) + "</span>" : "") +
+      '<span class="pinfo"><b>' + esc(p.stage || p.name || "No name") + "</b>" + (p.stage && p.name && p.stage !== p.name ? '<span class="preal">' + esc(p.name) + (p.checked_in ? ", checked in" : "") + "</span>" : "") +
       (tag && p.list ? '<i class="ptag">' + esc(/^Guest of /.test(p.list) ? p.list : p.list + "'s list") + "</i>" : "") +
-      "<span>" + esc(p.what) + (p.checked_in ? ", checked in" : "") + "</span>" +
-      (p.order_id && hubData && hubData.can_add_guests ? '<button type="button" class="prm" data-rm="' + esc(p.order_id) + '" data-rmname="' + esc(p.name) + '">Remove</button>' : "") +
-      '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
+      (p.stage ? "" : "<span>" + esc(p.what) + (p.checked_in ? ", checked in" : "") + "</span>") +
+      '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span>" +
+      (p.order_id && hubData && hubData.can_add_guests ? '<button type="button" class="prm" data-rm="' + esc(p.order_id) + '" data-rmname="' + esc(p.name) + '">Remove</button>' : "") + "</div>";
   }
   // ---- lineup + set times (draft only; staff publish it) ----
   var lu = null, luDirty = false;
@@ -236,6 +236,115 @@
     if (t.hasAttribute("data-ldel")) acts.splice(i, 1);
     else { var j = i + (+t.getAttribute("data-lmv")); if (j < 0 || j >= acts.length) return; var x = acts[i]; acts[i] = acts[j]; acts[j] = x; }
     luDirty = true; luRedraw();
+  });
+  // ---- door app: open it, set the PIN, send it to the door crew ----
+  var newPin = "";
+  function doorHtml(r) {
+    var d = r.door, link = d.link.replace(/^https?:\/\//, "");
+    return '<section class="hs" id="dsec"><h3>Door app</h3>' +
+      '<p class="lnote">Your door crew scans tickets and finds people by name with this. It\'s for this show only.</p>' +
+      '<div class="dgrid"><button type="button" class="mbtn dopen" data-dooropen>Open the door app</button>' +
+      '<button type="button" class="obtn" data-doorsend>Send to your door crew</button></div>' +
+      '<div class="sfield dlink"><span>' + esc(link) + '</span><button type="button" data-copy="' + esc(d.link) + '">Copy</button></div>' +
+      '<form id="pinform" class="pinrow" novalidate><label for="dpin">' + (d.has_pin ? "Door PIN is set. Change it:" : "Set a door PIN so your crew can sign in:") + "</label>" +
+      '<span class="pinin"><input id="dpin" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="4 to 8 numbers" value="' + esc(newPin) + '">' +
+      '<button class="obtn" type="submit">' + (d.has_pin ? "Change PIN" : "Set PIN") + "</button></span>" +
+      (d.has_pin ? '<span class="pinhelp">Changing it stops the old PIN from working. Phones already signed in stay in.</span>' : "") +
+      '<p class="msg" id="dmsg" role="status"></p></form></section>';
+  }
+  function crewPost(body) {
+    body.e = hub;
+    return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": tok }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+  }
+  document.addEventListener("submit", function (e) {
+    if (e.target.id !== "pinform") return;
+    e.preventDefault();
+    var pin = $("dpin").value.replace(/\D/g, ""), m = $("dmsg");
+    if (pin.length < 4) { m.textContent = "Use 4 to 8 numbers."; return; }
+    if (hubData.door.has_pin && !window.confirm("Change the door PIN to " + pin + "? The old PIN stops working.")) return;
+    m.textContent = "Saving...";
+    crewPost({ a: "door_pin", pin: pin }).then(function () {
+      newPin = pin; hubData.door.has_pin = true;
+      var sec = $("dsec"); sec.outerHTML = doorHtml(hubData);
+      $("dmsg").textContent = "Door PIN set to " + pin + ". Send it to your door crew with the link.";
+    }).catch(function (err) { m.textContent = err.message; });
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-dooropen],[data-doorsend],[data-doorlist],[data-doorcsv]"); if (!t || !hubData) return;
+    if (t.hasAttribute("data-dooropen")) {
+      t.disabled = true; t.textContent = "Opening...";
+      return crewPost({ a: "door_open" }).then(function (j) {
+        try { localStorage.setItem("stack_door_" + hub, j.token); } catch (x) {}
+        location.href = hubData.door.link.replace(/^https?:\/\/[^/]+/, "");
+      }).catch(function (err) { t.disabled = false; t.textContent = "Open the door app"; window.alert(err.message); });
+    }
+    if (t.hasAttribute("data-doorsend")) {
+      var msg = "Door app for " + hubData.show + ": " + hubData.door.link + (newPin ? "\nPIN: " + newPin : hubData.door.has_pin ? "\nI'll send you the PIN." : "");
+      if (navigator.share) return navigator.share({ title: "Door app", text: msg }).catch(function () {});
+      return copyText(msg).then(function () { t.textContent = "Copied. Paste it in a text"; setTimeout(function () { t.textContent = "Send to your door crew"; }, 2500); });
+    }
+    var rows = doorRows(hubData);
+    if (t.hasAttribute("data-doorcsv")) return downloadCsv(rows);
+    openDoorList(rows);
+  });
+  function copyText(txt) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(txt);
+    var ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (x) {} document.body.removeChild(ta); return Promise.resolve();
+  }
+  // Everyone who can get in, one row per night they're good for, A to Z.
+  function doorRows(r) {
+    var out = [];
+    var add = function (list, kind) {
+      list.forEach(function (p) {
+        var label = kind === "Artist" ? "Artist" : kind === "Guest" ? (/^Guest of /.test(p.list || "") ? p.list : (p.list ? p.list + "'s list" : "Guest list")) : p.what || "Ticket";
+        (p.nights && p.nights.length ? p.nights : r.nights).forEach(function (n) {
+          out.push({ night: n, name: p.name || "", stage: p.stage || "", kind: kind, label: label, phone: p.phone || "", email: p.email || "", count: p.tickets || 1, in: p.checked_in || 0 });
+        });
+      });
+    };
+    add(r.artist_people || [], "Artist"); add(r.guests || [], "Guest"); add(r.buyers || [], "Ticket");
+    var order = r.nights || [];
+    return out.sort(function (a, b) { return order.indexOf(a.night) - order.indexOf(b.night) || (a.stage || a.name).localeCompare(b.stage || b.name); });
+  }
+  function downloadCsv(rows) {
+    var q = function (v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var lines = [["Night", "Name", "Artist name", "Type", "Tickets", "Phone", "Email", "Checked in"].join(",")].concat(rows.map(function (x) {
+      return [x.night, x.name, x.stage, x.label, x.count, phoneFmt(x.phone), x.email, x.in ? "Yes" : ""].map(q).join(",");
+    }));
+    var blob = new Blob([lines.join("\n")], { type: "text/csv" }), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = (hubData.slug || "show") + "-door-list.csv"; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function openDoorList(rows) {
+    var byNight = {}; rows.forEach(function (x) { (byNight[x.night] = byNight[x.night] || []).push(x); });
+    var html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Door list: ' + esc(hubData.show) + "</title><style>" +
+      "body{font:14px/1.35 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111;margin:24px;max-width:820px}" +
+      "h1{font-size:20px;margin:0 0 4px}p.s{margin:0 0 16px;color:#555}h2{font-size:16px;margin:22px 0 6px;padding-bottom:4px;border-bottom:2px solid #111}" +
+      "table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px 6px;border-bottom:1px solid #ddd;vertical-align:top}th{font-size:12px;color:#555;font-weight:600}" +
+      "td.b{width:22px}td.b span{display:inline-block;width:14px;height:14px;border:1.5px solid #111;border-radius:2px}td.b span.on{background:#111}" +
+      "small{display:block;color:#666}.t{white-space:nowrap}button{font:inherit;padding:8px 14px;margin:0 0 12px;cursor:pointer}" +
+      "@media print{button{display:none}body{margin:0}h2{break-after:avoid}tr{break-inside:avoid}}</style></head><body>" +
+      '<button onclick="print()">Print</button><h1>' + esc(hubData.show) + '</h1><p class="s">Door list, ' + rows.length + " entries. Printed " + new Date().toLocaleString() + ". Filled box = already checked in.</p>" +
+      Object.keys(byNight).map(function (n) {
+        var list = byNight[n];
+        return "<h2>" + esc(n) + " (" + list.reduce(function (a, x) { return a + x.count; }, 0) + ")</h2><table><thead><tr><th></th><th>Name</th><th>Type</th><th>Phone</th></tr></thead><tbody>" +
+          list.map(function (x) {
+            return '<tr><td class="b"><span' + (x.in ? ' class="on"' : "") + "></span></td><td><b>" + esc(x.stage || x.name) + "</b>" + (x.stage && x.name && x.stage !== x.name ? "<small>" + esc(x.name) + "</small>" : "") +
+              "</td><td>" + esc(x.label) + (x.count > 1 ? " ×" + x.count : "") + '</td><td class="t">' + esc(phoneFmt(x.phone)) + "</td></tr>";
+          }).join("") + "</tbody></table>";
+      }).join("") + "</body></html>";
+    var w = window.open("", "_blank");
+    if (!w) { window.alert("Allow pop-ups for this site to open the door list."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+  document.addEventListener("click", function (e) {
+    var j = e.target.closest && e.target.closest("[data-jump]"); if (!j) return;
+    var el = $(j.getAttribute("data-jump")); if (!el) return;
+    e.preventDefault();
+    var y = el.getBoundingClientRect().top + window.pageYOffset - 60;
+    window.scrollTo({ top: y, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   });
   function artistForm() {
     return '<details class="gadd"' + (aOpen ? " open" : "") + '><summary class="mbtn">Add an artist</summary><form id="aform" class="cform" novalidate>' +
@@ -320,7 +429,8 @@
     var art = r.artist_people || [], g = r.guests || [], b = r.buyers || [];
     var sum = function (l, k) { return l.reduce(function (a, p) { return a + p[k]; }, 0); };
     var at = sum(art, "tickets"), gt = sum(g, "tickets");
-    return '<section class="hs"><h3>Who\'s coming</h3><p class="lede small"><b>' + at + "</b> " + (at === 1 ? "artist" : "artists") + ", <b>" + gt + "</b> " + (gt === 1 ? "guest" : "guests") + ", <b>" + sum(b, "tickets") + "</b> sold." + (function (n) { return n ? " <b>" + n + "</b> checked in." : ""; })(sum(art, "checked_in") + sum(g, "checked_in") + sum(b, "checked_in")) + "</p>" +
+    return '<section class="hs" id="hwho"><h3>Who\'s coming</h3><p class="lede small"><b>' + at + "</b> " + (at === 1 ? "artist" : "artists") + ", <b>" + gt + "</b> " + (gt === 1 ? "guest" : "guests") + ", <b>" + sum(b, "tickets") + "</b> sold." + (function (n) { return n ? " <b>" + n + "</b> checked in." : ""; })(sum(art, "checked_in") + sum(g, "checked_in") + sum(b, "checked_in")) + "</p>" +
+      '<div class="dlbtns"><button type="button" class="obtn" data-doorlist>Door list</button><button type="button" class="obtn" data-doorcsv>Download spreadsheet</button></div>' +
       (art.length + g.length + b.length > 6 ? '<input class="find" type="search" placeholder="Find someone by name, email or phone" aria-label="Find someone" data-findbox>' : "") +
       '<h4 class="gh">Artists (' + at + ")</h4>" + (art.length ? art.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No artist passes yet.</p>') +
       '<h4 class="gh">Guest list (' + gt + ")</h4>" + (g.length ? g.map(function (p) { return personRow(p, true); }).join("") : '<p class="mempty">Nobody on the guest list yet.</p>') +
@@ -360,16 +470,19 @@
       '<header class="hhero"' + (r.image ? ' style="background-image:url(\'' + esc(r.image) + '\')"' : "") + '><div class="hcap">' +
         '<span class="state' + (r.on_sale ? " live" : "") + '">' + (r.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
         "<h2>" + esc(r.show) + "</h2><p>" + esc(r.nights.join(" + ")) + "<br>" + esc([r.venue, r.city].filter(Boolean).join(", ")) + (r.age ? ", " + esc(r.age) : "") + "</p></div></header>" +
-      '<section class="hs"><p class="lede">' + lede + "</p>" + meter +
+      '<nav class="hnav" aria-label="Jump to">' + [["hnum", "Numbers"], ["hshare", "Share"], r.door ? ["dsec", "Door"] : null, ["hart", "Artists"], r.lineup && r.lineup.length ? ["lsec", "Lineup"] : null, ["hwho", "Who's coming"]]
+        .filter(Boolean).map(function (x) { return '<a href="#' + x[0] + '" data-jump="' + x[0] + '">' + x[1] + "</a>"; }).join("") + "</nav>" +
+      '<section class="hs" id="hnum"><p class="lede">' + lede + "</p>" + meter +
         (prices ? '<h3 class="sub">Prices right now</h3><ul class="prices">' + prices + "</ul>" : "") +
         ((r.artist_passes || r.guest_count) ? '<p class="mnow">Artists and guests get in free and don\'t use any of the ' + (nm[0] && nm[0].cap ? nm[0].cap : "") + " spots.</p>" : "") +
         (r.tests ? '<p class="mnow">Test tickets are left out of every number here (' + r.tests + ").</p>" : "") + "</section>" +
       (todo.length ? checksHtml : "") +
-      '<section class="hs"><h3>Share the show</h3><div class="share"><div class="sfield"><span>' + esc(r.link.replace(/^https?:\/\//, "")) + '</span><button type="button" data-copy="' + esc(r.link) + '">Copy</button></div>' +
+      '<section class="hs" id="hshare"><h3>Share the show</h3><div class="share"><div class="sfield"><span>' + esc(r.link.replace(/^https?:\/\//, "")) + '</span><button type="button" data-copy="' + esc(r.link) + '">Copy</button></div>' +
         '<a class="qrbox" href="' + esc(qr) + '" target="_blank" rel="noopener" title="Open the QR code to save it"><img src="' + esc(qr) + '" alt="QR code for the show link" width="76" height="76"></a></div>' +
         '<a class="tlink" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the show page</a></section>' +
+      (r.door ? doorHtml(r) : "") +
       (todo.length ? "" : checksHtml) +
-      '<section class="hs"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
+      '<section class="hs" id="hart"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
           return '<div class="arow">' + (a.photo ? '<img class="av" src="' + esc(a.photo) + '" alt="" loading="lazy">' : '<span class="av">' + esc(initials(a.name)) + "</span>") + '<span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span>" +
             (a.id ? '<button type="button" class="aoff" data-off="' + esc(a.id) + '" data-offname="' + esc(a.name) + '">Take off show</button>' : "") + "</span>" +
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";

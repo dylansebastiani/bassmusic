@@ -227,7 +227,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
 
 // ---- a show's numbers for its crew (read-only) ----
 async function crew(m: { id: string; email: string }, slug: string, token = "") {
-  const { data: ev } = await db.from("events").select("id,slug,name,company_id,artist_milestone,sales_open,venue,city,address,location_secret,age,hub_image,hub_colors,share_url,poster_url,playlist,page_published_at").eq("slug", slug).maybeSingle();
+  const { data: ev } = await db.from("events").select("id,slug,name,company_id,artist_milestone,sales_open,venue,city,address,location_secret,age,hub_image,hub_colors,share_url,poster_url,playlist,page_published_at,door_pin_hash").eq("slug", slug).maybeSingle();
   if (!ev) return null;
   const isStaff = (await admins()).includes(String(m.email).toLowerCase());
   let canAdd = isStaff;
@@ -344,10 +344,13 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   const people = (orders || []).map((o) => {
     const mine = real.filter((x) => x.order_id === o.id);
     const kinds: Record<string, number> = {}; mine.forEach((x) => { const n = tyName[x.type_id] || "Ticket"; kinds[n] = (kinds[n] || 0) + 1; });
+    // Which nights this person can get in (for the door list).
+    const nset = new Set<string>(); mine.forEach((x) => ((types || []).find((t) => t.id === x.type_id)?.night_ids || []).forEach((id: string) => nset.add(id)));
     return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length, kind: mine[0]?.kind || "",
       stage: o.artist_invite_id && (!o.comp_list || o.comp_list === "Artist") ? (invs || []).find((v) => v.id === o.artist_invite_id)?.name || "" : "",
       // Promoter-list guests can be removed from the hub; artists' guests are the artist's to manage.
       order_id: o.status === "comp" && !o.artist_invite_id && (isStaff || o.created_by === m.id) ? o.id : "",
+      nights: (nights[ev.id] || []).filter((n) => nset.has(n.id)).map((n) => n.label),
       what: Object.entries(kinds).map(([n, q]) => (q > 1 ? q + "× " : "") + n).join(", "), checked_in: mine.filter((x) => scanned.has(x.id)).length,
       // Whose list a guest is on: an artist's ("Guest of B3RMUDA") or the promoter's own list name.
       list: o.artist_invite_id && o.comp_list && o.comp_list !== "Artist" ? "Guest of " + o.comp_list : o.comp_list && o.comp_list !== "Artist" ? o.comp_list : "",
@@ -373,7 +376,8 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     on_sale: !!ev.sales_open, sold, money_cents: money, artist_passes: artistPasses, guest_count: guestCount, checked_in: checkedIn, tests, night_meters: nightMeters, now_prices: nowPrices,
     by_type: byType, prices, last7: days, artists, checks,
     playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
-    can_add_guests: canAdd, lineup, artist_people: artistPeople.map(({ kind, order_id, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, order_id, ...b }) => b) };
+    can_add_guests: canAdd, lineup,
+    door: canAdd ? { link: `${SITE}/door.html?e=${ev.slug}`, has_pin: !!ev.door_pin_hash } : null, artist_people: artistPeople.map(({ kind, order_id, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, order_id, ...b }) => b) };
 }
 
 Deno.serve(async (req) => {
@@ -445,6 +449,35 @@ Deno.serve(async (req) => {
         await db.from("artist_profiles").upsert({ subscriber_id: me.id, name, ...patch, photo_path: cur?.photo_path || null, updated_at: new Date().toISOString() }, { onConflict: "subscriber_id" });
         // Copy onto every show they're booked on. The billing name on each show stays the promoter's.
         await db.from("artist_invites").update(patch).ilike("email", email).is("revoked_at", null);
+        return json({ saved: true });
+      }
+      if (b.a === "door_pin" || b.a === "door_open") {
+        // Door app access for the show's crew owner. door_open signs this phone into the door app the same
+        // way a PIN does (scan + find, this show only); door_pin sets the show's door PIN for their door people.
+        // Same session table and the same PIN fingerprint the door function checks; the door's own code is unchanged.
+        const me = await who(req);
+        if (!me) return no("Sign in again.", 401);
+        const slug = String(b.e || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+        const { data: ev } = await db.from("events").select("id,slug,company_id").eq("slug", slug).maybeSingle();
+        if (!ev) return no("Not found", 404);
+        let allowed = (await admins()).includes(String(me.email).toLowerCase());
+        if (!allowed) {
+          const { data: row } = await db.from("company_staff").select("role").eq("subscriber_id", me.id).eq("company_id", ev.company_id).maybeSingle();
+          allowed = row?.role === "owner";
+        }
+        if (!allowed) return no("Only the show's crew owner can do that.", 403);
+        if (b.a === "door_open") {
+          const token = Array.from(crypto.getRandomValues(new Uint8Array(32))).map((x) => x.toString(16).padStart(2, "0")).join("");
+          await db.from("door_sessions").insert({ event_id: ev.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 36 * 3600_000).toISOString() });
+          await db.from("engagement_events").insert({ subscriber_id: me.id, type: "crew:door_open", meta: { event: slug } });
+          return json({ token });
+        }
+        const pin = String(b.pin ?? "").replace(/\D/g, "");
+        if (pin.length < 4 || pin.length > 8) return no("Use 4 to 8 numbers for the door PIN.");
+        if (/^(\d)\1+$/.test(pin) || "0123456789".includes(pin) || "9876543210".includes(pin)) return no("Pick a PIN that's harder to guess than " + pin + ".");
+        const salt = await setting<string>("ip_salt", "unset");
+        await db.from("events").update({ door_pin_hash: await sha256(`door|${ev.id}|${pin}|${salt}`) }).eq("id", ev.id);
+        await db.from("engagement_events").insert({ subscriber_id: me.id, type: "crew:door_pin", meta: { event: slug } });
         return json({ saved: true });
       }
       if (b.a === "lineup") {
