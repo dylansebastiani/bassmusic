@@ -2,6 +2,7 @@ import { db, setting } from "../_shared/db.ts";
 import { json, preflight, clean, ipHash, EMAIL_RE } from "../_shared/util.ts";
 import { requireAdmin } from "../_shared/admin.ts";
 import { loadEvent, doorAuth, newDoorSession, pinHash, sendTickets, availability } from "../_shared/tickets.ts";
+import { sha256 } from "../_shared/util.ts";
 
 // The door page's back end. ?a= picks the action, ?e= is the event slug.
 // Door staff sign in with the event's PIN and can scan, search and check people in.
@@ -38,6 +39,59 @@ Deno.serve(async (req) => {
       return no("Wrong PIN.");
     }
     return ok({ token: await newDoorSession(ev.id) });
+  }
+
+  // ---- the show's own crew owner, from their account page: add or remove guest list people ----
+  // Separate from the door and staff sign-ins above and below (those are unchanged). Same steps as the
+  // staff "comp" action: a free both-nights ticket, issued and emailed with the show's own ticket email.
+  if (a === "crew_add" || a === "crew_remove") {
+    const tok = (req.headers.get("x-admin-token") || "").trim();
+    if (!/^[0-9a-f]{64}$/.test(tok)) return no("Sign in again.", 401);
+    const { data: sess } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tok)).maybeSingle();
+    if (!sess || new Date(sess.expires_at).getTime() < Date.now()) return no("Sign in again.", 401);
+    const { data: mem } = await db.from("subscribers").select("id,email,status").eq("id", sess.subscriber_id).maybeSingle();
+    if (!mem || mem.status === "deleted") return no("Sign in again.", 401);
+    const { data: evc } = await db.from("events").select("company_id").eq("id", ev.id).maybeSingle();
+    const staffList = ((await setting<string[]>("admin_emails", [])) || []).map((e) => String(e).toLowerCase());
+    let allowed = staffList.includes(String(mem.email).toLowerCase());
+    if (!allowed && evc?.company_id) {
+      const { data: row } = await db.from("company_staff").select("role").eq("subscriber_id", mem.id).eq("company_id", evc.company_id).maybeSingle();
+      allowed = row?.role === "owner";
+    }
+    if (!allowed) return no("Only the show's crew owner can change the guest list.", 403);
+    const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: "crewguest|" + mem.id });
+    if ((n ?? 0) > 30) return no("Too many changes at once. Wait a minute.", 429);
+    const clog = (type: string, meta: Record<string, unknown>) => db.from("engagement_events").insert({ subscriber_id: mem.id, type: "crew:" + type, meta });
+
+    if (a === "crew_remove") {
+      const id = clean(b.order_id, 40) || "";
+      const { data: o } = await db.from("ticket_orders").select("id,status,comp_list,artist_invite_id,created_by").eq("event_id", ev.id).eq("id", id).maybeSingle();
+      if (!o) return no("Not found", 404);
+      const isStaff = staffList.includes(String(mem.email).toLowerCase());
+      if (o.status !== "comp" || o.artist_invite_id || (!isStaff && o.created_by !== mem.id)) return no("Only guest list spots you added can be removed here.");
+      await db.from("tickets").update({ status: "void" }).eq("order_id", o.id).eq("is_comp", true);
+      await clog("guest_remove", { event: ev.slug, order: o.id });
+      return ok({ removed: true });
+    }
+
+    const t = types.find((t) => t.slug !== "test" && t.slug !== "artist" && t.night_ids.length > 1) || types.find((t) => t.slug !== "test" && t.slug !== "artist");
+    if (!t) return no("This show has no ticket to give guests yet.");
+    const name = clean(b.name, 80) || "", email = (clean(b.email, 254) || "").toLowerCase();
+    const d = String(b.phone ?? "").replace(/\D/g, "");
+    const phone = d.length === 10 ? "+1" + d : d.length === 11 && d[0] === "1" ? "+" + d : d.length >= 11 && d.length <= 15 ? "+" + d : null;
+    if (name.trim().split(/\s+/).length < 2) return no("Enter their full name (first and last).");
+    if (!EMAIL_RE.test(email)) return no("Enter the email their ticket should go to.");
+    if (!phone) return no("Enter a phone number we can reach them at.");
+    const list = clean(b.list, 40) || "Promoter";
+    const { data: o, error } = await db.from("ticket_orders").insert({
+      event_id: ev.id, status: "pending", email, name, phone, comp_list: list, created_by: mem.id,
+      items: [{ type_id: t.id, name: t.name, tier: "Guest list", unit_cents: 0, qty: 1 }],
+    }).select("id").single();
+    if (error || !o) return no("Couldn't add " + name + ". Try again.");
+    await db.rpc("ticket_issue", { p_order: o.id, p_status: "comp" });
+    const sent = await sendTickets(o.id);
+    await clog("guest_add", { event: ev.slug, order: o.id, list });
+    return ok({ added: true, emailed: !!sent });
   }
 
   const who = await doorAuth(req, ev.id);

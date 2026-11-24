@@ -230,14 +230,16 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   const { data: ev } = await db.from("events").select("id,slug,name,company_id,artist_milestone,sales_open,venue,city,address,location_secret,age,hub_image,hub_colors,share_url,poster_url,playlist,page_published_at").eq("slug", slug).maybeSingle();
   if (!ev) return null;
   const isStaff = (await admins()).includes(String(m.email).toLowerCase());
+  let canAdd = isStaff;
   if (!isStaff) {
     const { data: row } = await db.from("company_staff").select("role").eq("subscriber_id", m.id).eq("company_id", ev.company_id).maybeSingle();
     if (!row) return null;
+    canAdd = row.role === "owner";
   }
   // Make sure every artist has a sell link and code (the artist sales tracker creates them the first time it's asked).
   if (token) { try { await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/artist-sales?a=staff&e=${encodeURIComponent(slug)}`, { headers: { "x-admin-token": token }, signal: AbortSignal.timeout(8000) }); } catch { /* the hub still loads */ } }
   const [{ data: orders }, { data: types }, nights] = await Promise.all([
-    db.from("ticket_orders").select("id,status,name,email,phone,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at,created_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
+    db.from("ticket_orders").select("id,status,name,email,phone,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at,created_at,created_by").eq("event_id", ev.id).in("status", ["paid", "comp"]),
     db.from("ticket_types").select("id,name,sort,on_sale,tiers,night_ids").eq("event_id", ev.id).order("sort"),
     nightsFor([ev.id]),
   ]);
@@ -340,6 +342,8 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     const kinds: Record<string, number> = {}; mine.forEach((x) => { const n = tyName[x.type_id] || "Ticket"; kinds[n] = (kinds[n] || 0) + 1; });
     return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length, kind: mine[0]?.kind || "",
       stage: o.artist_invite_id && (!o.comp_list || o.comp_list === "Artist") ? (invs || []).find((v) => v.id === o.artist_invite_id)?.name || "" : "",
+      // Promoter-list guests can be removed from the hub; artists' guests are the artist's to manage.
+      order_id: o.status === "comp" && !o.artist_invite_id && (isStaff || o.created_by === m.id) ? o.id : "",
       what: Object.entries(kinds).map(([n, q]) => (q > 1 ? q + "× " : "") + n).join(", "), checked_in: mine.filter((x) => scanned.has(x.id)).length,
       // Whose list a guest is on: an artist's ("Guest of B3RMUDA") or the promoter's own list name.
       list: o.artist_invite_id && o.comp_list && o.comp_list !== "Artist" ? "Guest of " + o.comp_list : o.comp_list && o.comp_list !== "Artist" ? o.comp_list : "",
@@ -365,7 +369,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     on_sale: !!ev.sales_open, sold, money_cents: money, artist_passes: artistPasses, guest_count: guestCount, checked_in: checkedIn, tests, night_meters: nightMeters, now_prices: nowPrices,
     by_type: byType, prices, last7: days, artists, checks,
     playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
-    artist_people: artistPeople.map(({ kind, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, ...b }) => b) };
+    can_add_guests: canAdd, artist_people: artistPeople.map(({ kind, order_id, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, order_id, ...b }) => b) };
 }
 
 Deno.serve(async (req) => {

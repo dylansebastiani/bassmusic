@@ -127,3 +127,15 @@ img.av{object-fit:cover;padding:0;background:var(--d)}
 .allset summary::before{content:"";width:18px;height:18px;border-radius:50%;background:var(--m) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat}
 .allset[open] summary{margin-bottom:10px}
 .allset summary:focus-visible{outline:2px solid var(--m);outline-offset:4px}
+.gadd{margin:14px 0 4px}
+.gadd>summary{list-style:none;display:inline-block;background:var(--m)}
+.gadd>summary::-webkit-details-marker{display:none}
+.gadd[open]>summary{opacity:.6}
+#gform{margin-top:12px;max-width:420px}
+#gform label{display:block;font-size:13px;color:var(--a);margin:10px 0 4px}
+#gform input{width:100%;background:#000;border:1px solid var(--line2);color:#fff;font:inherit;font-size:16px;padding:11px 12px;border-radius:0}
+#gform input:focus-visible{outline:2px solid var(--m);outline-offset:1px}
+#gform .mbtn{margin-top:14px;background:var(--m)}
+.prow{position:relative}
+.prm{margin-left:auto;align-self:center;background:none;border:1px solid var(--line2);color:#fff;font:inherit;font-size:13px;padding:6px 10px;cursor:pointer;order:3}
+.prm:hover{border-color:var(--m)}

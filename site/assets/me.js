@@ -180,8 +180,48 @@
       '<span class="pinfo"><b>' + esc(p.stage || p.name || "No name") + "</b>" + (p.stage && p.name && p.stage !== p.name ? '<span class="preal">' + esc(p.name) + "</span>" : "") +
       (tag && p.list ? '<i class="ptag">' + esc(/^Guest of /.test(p.list) ? p.list : p.list + "'s list") + "</i>" : "") +
       "<span>" + esc(p.what) + (p.checked_in ? ", checked in" : "") + "</span>" +
+      (p.order_id && hubData && hubData.can_add_guests ? '<button type="button" class="prm" data-rm="' + esc(p.order_id) + '" data-rmname="' + esc(p.name) + '">Remove</button>' : "") +
       '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
   }
+  function guestForm() {
+    return '<details class="gadd"' + (gOpen ? " open" : "") + '><summary class="mbtn">Add a guest</summary><form id="gform" novalidate>' +
+      '<p class="mnow">They get a free 2-day ticket by email right away. It doesn\'t use any of the ' + "150 spots." + "</p>" +
+      '<label for="gname">Full name</label><input id="gname" autocomplete="off" maxlength="80" placeholder="First and last">' +
+      '<label for="gphone">Phone</label><input id="gphone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="(309) 555-0123">' +
+      '<label for="gemail">Email</label><input id="gemail" type="email" inputmode="email" autocomplete="off" maxlength="254" placeholder="Where their ticket goes">' +
+      '<label for="glist">Whose list</label><input id="glist" maxlength="40" value="' + esc(gList || (me && me.name) || "") + '">' +
+      '<button class="mbtn" type="submit" id="ggo">Add and send ticket</button><p class="msg" id="gmsg" role="status"></p></form></details>';
+  }
+  var gOpen = false, gList = "", DOOR = (C.supabaseUrl || "") + "/functions/v1/door";
+  function door(a, body) {
+    return fetch(DOOR + "?a=" + a + "&e=" + encodeURIComponent(hub), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": tok }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+  }
+  function reloadHub(msg) {
+    return api("?a=crew&e=" + encodeURIComponent(hub)).then(function (r) { hubData = r; drawHub(); if (msg && $("gmsg")) $("gmsg").textContent = msg; });
+  }
+  document.addEventListener("submit", function (e) {
+    if (e.target.id !== "gform") return;
+    e.preventDefault();
+    var name = $("gname").value.trim(), phone = $("gphone").value.trim(), email = $("gemail").value.trim();
+    gList = $("glist").value.trim();
+    if (name.split(/\s+/).length < 2) { $("gmsg").textContent = "Enter their full name (first and last)."; return; }
+    if (phone.replace(/\D/g, "").length < 10) { $("gmsg").textContent = "Enter a phone number we can reach them at."; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { $("gmsg").textContent = "Enter the email their ticket should go to."; return; }
+    $("ggo").disabled = true; $("gmsg").textContent = "Adding...";
+    door("crew_add", { name: name, phone: phone, email: email, list: gList }).then(function (j) {
+      gOpen = true;
+      return reloadHub(name + " is on the list." + (j.emailed ? " Their ticket is on its way to " + email + "." : " The ticket email didn't send; it's still on the door list."));
+    }).catch(function (err) { $("gmsg").textContent = err.message; $("ggo").disabled = false; });
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-rm]");
+    if (!b) return;
+    if (!window.confirm("Take " + b.getAttribute("data-rmname") + " off the guest list? Their ticket will stop working at the door.")) return;
+    b.disabled = true; b.textContent = "Removing...";
+    door("crew_remove", { order_id: b.getAttribute("data-rm") }).then(function () { return reloadHub(); })
+      .catch(function (err) { b.disabled = false; b.textContent = "Remove"; window.alert(err.message); });
+  });
   function guestList(r) {
     var art = r.artist_people || [], g = r.guests || [], b = r.buyers || [];
     var sum = function (l, k) { return l.reduce(function (a, p) { return a + p[k]; }, 0); };
@@ -190,7 +230,7 @@
       (art.length + g.length + b.length > 6 ? '<input class="find" type="search" placeholder="Find someone by name, email or phone" aria-label="Find someone" data-findbox>' : "") +
       '<h4 class="gh">Artists (' + at + ")</h4>" + (art.length ? art.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No artist passes yet.</p>') +
       '<h4 class="gh">Guest list (' + gt + ")</h4>" + (g.length ? g.map(function (p) { return personRow(p, true); }).join("") : '<p class="mempty">Nobody on the guest list yet.</p>') +
-      '<p class="soon">Adding guests from here is next.</p>' +
+      (r.can_add_guests ? guestForm() : "") +
       '<details class="buyers"' + (b.length && b.length <= 8 ? " open" : "") + '><summary>Ticket buyers (' + sum(b, "tickets") + ")</summary>" +
       (b.length ? b.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No tickets sold yet.</p>') + "</details></section>";
   }
