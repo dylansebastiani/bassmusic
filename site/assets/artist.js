@@ -1,6 +1,34 @@
 /* An artist's private page: claim the gold Artist Pass, then run their own guest list. */
 (function () {
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/artist";
+  var SALES = (C.supabaseUrl || "") + "/functions/v1/artist-sales";
+
+  // ---- Sell tickets: their personal link + code, and how many tickets they've moved ----
+  var sell = null;
+  function loadSell() {
+    fetch(SALES + "?k=" + encodeURIComponent(k)).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d || !d.link) return;
+      sell = d; $("sell").hidden = false;
+      $("sellcount").textContent = d.tickets + (d.tickets === 1 ? " ticket" : " tickets") + " sold";
+      $("selllink").textContent = d.link.replace(/^https?:\/\//, "");
+      $("sellcode").textContent = d.code || "";
+      var qr = SALES + "?a=qr&k=" + encodeURIComponent(k);
+      $("sellqr").src = qr; $("sellqra").href = qr;
+    }).catch(function () {});
+  }
+  function copyText(t, msg) {
+    var done = function () { $("smsg").textContent = msg; setTimeout(function () { $("smsg").textContent = ""; }, 2500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { window.prompt("Copy this:", t); });
+    else window.prompt("Copy this:", t);
+  }
+  document.addEventListener("click", function (e) {
+    if (!sell) return;
+    if (e.target.id === "sellshare") {
+      if (navigator.share) navigator.share({ title: sell.show || "Tickets", text: "Get your tickets here:", url: sell.link }).catch(function () {});
+      else copyText(sell.link, "Link copied. Post it anywhere.");
+    }
+    if (e.target.id === "sellcopy") copyText(sell.code, "Code copied: " + sell.code);
+  });
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var k = (new URLSearchParams(location.search).get("k") || "").toLowerCase();
@@ -50,6 +78,7 @@
     $("passline").innerHTML = "Sent to <b>" + esc(d.artist.email || "") + "</b>. Good both nights" + (d.event.nights[0] ? ", doors " + time(d.event.nights[0].starts_at) : "") + ". Show the QR at the door.";
     if (d.pass) $("openpass").href = d.pass.url;
     drawProfile(d.profile || {});
+    loadSell();
     var left = Math.max(0, d.artist.spots - d.artist.used);
     $("spots").textContent = d.artist.used + " of " + d.artist.spots + " spots";
     $("meter").style.width = (d.artist.spots ? Math.min(100, 100 * d.artist.used / d.artist.spots) : 100) + "%";

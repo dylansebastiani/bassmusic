@@ -299,20 +299,30 @@
     var dl = req(BASE + "playlist?a=downloads&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
       DLS = {}; (d.downloads || []).forEach(function (x) { (DLS[x.invite_id] = DLS[x.invite_id] || []).push(x); });
     }).catch(function () { DLS = {}; });
-    Promise.all([artGet(), dl]).then(function (x) { return x[0]; }).then(function (d) {
-      $("artists").innerHTML = d.artists.length ? d.artists.map(function (a) {
+    // Who's selling: tickets credited to each artist's personal link or code (read-only, from paid orders).
+    var SOLD = {}, SOLDSUM = null;
+    var sold = req(BASE + "artist-sales?a=staff&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
+      (d.artists || []).forEach(function (x) { SOLD[x.id] = x; }); SOLDSUM = d;
+    }).catch(function () {});
+    Promise.all([artGet(), dl, sold]).then(function (x) { return x[0]; }).then(function (d) {
+      if (SOLDSUM && d.artists.length) d.artists.sort(function (p, q) { return ((SOLD[q.id] || {}).tickets || 0) - ((SOLD[p.id] || {}).tickets || 0); });
+      $("artists").innerHTML = (SOLDSUM && d.artists.length ? '<div class="mono asub sellsum">Artists sold <b>' + num(SOLDSUM.credited_tickets) + "</b> of " + num(SOLDSUM.all_tickets) + " paid tickets so far</div>" : "") +
+        (d.artists.length ? d.artists.map(function (a) {
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
         return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
           (a.full_name || a.email || a.phone ? '<div class="mono asub">' + [a.full_name, a.email, a.phone].filter(Boolean).map(esc).join(" · ") + "</div>" : "") +
           '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used</div>" +
           (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
           aprofile(a) +
+          (SOLD[a.id] ? '<div class="asell"><b>' + num(SOLD[a.id].tickets) + (SOLD[a.id].tickets === 1 ? " ticket" : " tickets") + " sold</b>" +
+            (SOLD[a.id].tickets ? " · " + usd(SOLD[a.id].revenue_cents) + " · " + SOLD[a.id].by_link + " by link, " + SOLD[a.id].by_code + " by code" : "") +
+            '<div class="mono asub">Code ' + esc(SOLD[a.id].code) + ' · <button type="button" class="mini" data-copy="' + esc(SOLD[a.id].link) + '">Copy sell link</button></div></div>' : "") +
           (DLS[a.id] && DLS[a.id].length ? '<div class="mono asub">' + DLS[a.id].length + " track download" + (DLS[a.id].length === 1 ? "" : "s") + ' · <button type="button" class="mini" data-fans="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Download fan list</button></div>' : "") +
-          (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy link</button>' +
+          (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy pass link</button>' +
             '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
             '<span class="spin"><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + Math.max(0, a.spots - 1) + '" aria-label="Fewer spots">−</button><span>' + a.spots + ' spots</span><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + (a.spots + 1) + '" aria-label="More spots">+</button></span>' +
             '<button type="button" class="mini danger" data-revoke="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Cancel artist</button></div>') + "</div>";
-      }).join("") : '<div class="empty">No artists yet. Create one above.</div>';
+      }).join("") : '<div class="empty">No artists yet. Create one above.</div>');
     }).catch(function (err) { $("artists").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
   }
   // ---------- playlist: the music bar on this show's page ----------

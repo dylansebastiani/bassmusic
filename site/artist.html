@@ -51,6 +51,19 @@
         <div class="btnrow"><a class="btn gold" id="openpass" href="#" target="_blank" rel="noopener">Open my pass</a><button class="btn ghost" type="button" id="resend">Resend email</button></div>
         <p class="msg" id="pmsg" role="status"></p>
       </div>
+      <div class="acard sell" id="sell" hidden>
+        <div class="row1"><h2>Sell tickets</h2><span class="spots" id="sellcount"></span></div>
+        <p class="lead">Every ticket bought through your link or with your code counts as yours. Fans pay the same price either way.</p>
+        <div class="sellbox">
+          <a class="sellqr" id="sellqra" href="#" target="_blank" rel="noopener" aria-label="Open your QR code to save it"><img id="sellqr" alt="QR code for your ticket link" width="112" height="112"></a>
+          <div class="sellinfo">
+            <div class="slabel">Your link</div><div class="sellv" id="selllink"></div>
+            <div class="slabel">Your code</div><div class="sellv code" id="sellcode"></div>
+          </div>
+        </div>
+        <div class="btnrow"><button class="btn gold" type="button" id="sellshare">Share link</button><button class="btn ghost" type="button" id="sellcopy">Copy code</button></div>
+        <p class="msg" id="smsg" role="status"></p>
+      </div>
 
       <div class="acard">
         <div class="row1"><h2>Your guest list</h2><span class="spots" id="spots"></span></div>

@@ -80,3 +80,13 @@ label .opt{text-transform:none;letter-spacing:0;color:var(--lav);font-weight:400
 .tsw input:focus-visible+i{outline:2px solid #AA6EFF;outline-offset:2px}
 .tren{width:100%;background:#000;border:1px solid #6c6567;color:inherit;font-size:16px;padding:9px 10px;border-radius:0}
 @media (max-width:420px){.trk2{gap:10px}.tcov{width:60px;height:60px}.tact .tdel{margin-left:0}}
+
+/* Sell tickets: the artist's own link, code and count */
+.acard.sell .spots{font-size:13px}
+.sellbox{display:flex;gap:14px;align-items:center;margin:4px 0 14px}
+.sellqr{flex:none;display:block;background:#fff;padding:4px;line-height:0}
+.sellqr img{display:block;width:112px;height:112px}
+.sellinfo{min-width:0;flex:1}
+.slabel{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9b8fb0;margin-top:2px}
+.sellv{color:#fff;font-size:14px;line-height:1.4;overflow-wrap:anywhere;margin-bottom:8px}
+.sellv.code{font-family:var(--mono);font-size:20px;letter-spacing:.12em;color:var(--gold)}
