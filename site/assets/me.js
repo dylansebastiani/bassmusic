@@ -181,13 +181,15 @@
       '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
   }
   function guestList(r) {
-    var g = r.guests || [], b = r.buyers || [];
-    var gin = g.reduce(function (a, p) { return a + p.checked_in; }, 0), gt = g.reduce(function (a, p) { return a + p.tickets; }, 0);
-    return '<section class="hs"><h3>Guest list</h3><p class="lede small"><b>' + gt + "</b> on the list, <b>" + gin + "</b> checked in</p>" +
-      (g.length + b.length > 6 ? '<input class="find" type="search" placeholder="Find someone by name, email or phone" aria-label="Find someone" data-findbox>' : "") +
-      (g.length ? g.map(function (p) { return personRow(p, true); }).join("") : '<p class="mempty">Nobody on the guest list yet.</p>') +
+    var art = r.artist_people || [], g = r.guests || [], b = r.buyers || [];
+    var sum = function (l, k) { return l.reduce(function (a, p) { return a + p[k]; }, 0); };
+    var at = sum(art, "tickets"), gt = sum(g, "tickets");
+    return '<section class="hs"><h3>Who\'s coming</h3><p class="lede small"><b>' + at + "</b> " + (at === 1 ? "artist" : "artists") + ", <b>" + gt + "</b> " + (gt === 1 ? "guest" : "guests") + ", <b>" + sum(b, "tickets") + "</b> sold. <b>" + (sum(art, "checked_in") + sum(g, "checked_in") + sum(b, "checked_in")) + "</b> checked in.</p>" +
+      (art.length + g.length + b.length > 6 ? '<input class="find" type="search" placeholder="Find someone by name, email or phone" aria-label="Find someone" data-findbox>' : "") +
+      '<h4 class="gh">Artists (' + at + ")</h4>" + (art.length ? art.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No artist passes yet.</p>') +
+      '<h4 class="gh">Guest list (' + gt + ")</h4>" + (g.length ? g.map(function (p) { return personRow(p, true); }).join("") : '<p class="mempty">Nobody on the guest list yet.</p>') +
       '<p class="soon">Adding guests from here is next.</p>' +
-      '<details class="buyers"' + (b.length && b.length <= 8 ? " open" : "") + '><summary>Ticket buyers (' + b.length + ")</summary>" +
+      '<details class="buyers"' + (b.length && b.length <= 8 ? " open" : "") + '><summary>Ticket buyers (' + sum(b, "tickets") + ")</summary>" +
       (b.length ? b.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No tickets sold yet.</p>') + "</details></section>";
   }
   function drawHub() {
@@ -196,29 +198,33 @@
     var qr = FN + "?a=qr&e=" + encodeURIComponent(r.slug);
     var max = Math.max.apply(null, r.last7.map(function (x) { return x.tickets; }).concat([1]));
     var week = r.last7.reduce(function (a, x) { return a + x.tickets; }, 0);
-    var types = r.by_type.filter(function (t) { return t.cap > 0 && t.on_sale; });
-    var cap = types.reduce(function (a, t) { return a + t.cap; }, 0);
-    var off = r.by_type.filter(function (t) { return !t.on_sale && (t.sold || t.comps) && t.name !== "Artist Pass"; });
     var todo = r.checks.filter(function (c) { return !c.ok; });
-    // The ticket meter: one bar per ticket type, split into its price tiers, filled as it sells.
-    var meter = types.map(function (t) {
-      var taken = t.sold + t.comps, start = 0, cur = null;
-      var segs = t.tiers.map(function (x) {
-        var fill = Math.max(0, Math.min(x.qty, taken - start)); start += x.qty;
-        if (!cur && fill < x.qty) cur = x;
-        return '<span class="seg" style="flex:' + x.qty + '" title="' + esc(x.name) + " · " + usd(x.price_cents) + '"><i style="width:' + (x.qty ? Math.round(100 * fill / x.qty) : 0) + '%"></i></span>';
-      }).join("");
-      return '<div class="mtr"><div class="mtop"><b>' + esc(t.name) + "</b><span>" + taken + " of " + t.cap + "</span></div>" +
-        '<div class="mbar">' + segs + "</div>" +
-        '<div class="mnow">' + (cur ? esc(cur.name) + " at " + usd(cur.price_cents) : "Sold out") + (t.comps ? ", " + t.comps + " on the guest list" : "") + (t.on_sale ? "" : ", not on sale") + "</div></div>";
+    var nm = r.night_meters || [];
+    // One bar per night. Only sold tickets fill it; artists and guests are noted but never take a spot.
+    var meter = nm.map(function (n) {
+      var pct = n.cap ? Math.min(100, Math.round(100 * n.sold / n.cap)) : 0;
+      var why = n.parts.length ? n.parts.map(function (p) { return p.sold + " " + esc(p.name); }).join(" + ") : "Nothing sold yet";
+      return '<div class="mtr"><div class="mtop"><b>' + esc(n.label) + "</b><span>" + n.sold + (n.cap ? " of " + n.cap + " sold" : " sold") + "</span></div>" +
+        '<div class="mbar"><span class="seg" style="flex:1"><i style="width:' + pct + '%"></i></span></div>' +
+        '<div class="mnow">' + why + (n.cap ? ", " + Math.max(0, n.cap - n.sold) + " left" : "") +
+        (n.artists || n.guests ? ". Not counted: " + [n.artists ? n.artists + (n.artists === 1 ? " artist" : " artists") : "", n.guests ? n.guests + (n.guests === 1 ? " guest" : " guests") : ""].filter(Boolean).join(", ") : "") + "</div></div>";
     }).join("");
+    // What each ticket costs right now, from its price ladder.
+    var prices = r.by_type.filter(function (t) { return t.on_sale && t.cap > 0; }).map(function (t) {
+      var start = 0, cur = null, left = 0;
+      t.tiers.forEach(function (x) { var end = start + x.qty; if (!cur && t.sold < end) { cur = x; left = end - t.sold; } start = end; });
+      return "<li><b>" + esc(t.name) + "</b><span>" + (cur ? esc(cur.name) + ", " + usd(cur.price_cents) + ", " + left + " left at this price" : "Sold out") + "</span></li>";
+    }).join("");
+    var lede = "<b>" + r.sold + "</b> " + (r.sold === 1 ? "ticket" : "tickets") + " sold for <b>" + usd(r.money_cents) + "</b>. " +
+      "<b>" + r.artist_passes + "</b> " + (r.artist_passes === 1 ? "artist" : "artists") + " and <b>" + r.guest_count + "</b> " + (r.guest_count === 1 ? "guest" : "guests") + " on top of that, <b>" + r.checked_in + "</b> checked in.";
     P.innerHTML = '<div class="hub" style="--m:' + esc(r.colors.main) + ';--a:' + esc(r.colors.accent) + ';--d:' + esc(r.colors.deep) + '">' +
       '<button type="button" class="hback" data-back>All shows</button>' +
       '<header class="hhero"' + (r.image ? ' style="background-image:url(\'' + esc(r.image) + '\')"' : "") + '><div class="hcap">' +
         '<span class="state' + (r.on_sale ? " live" : "") + '">' + (r.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
         "<h2>" + esc(r.show) + "</h2><p>" + esc(r.nights.join(" + ")) + "<br>" + esc([r.venue, r.city].filter(Boolean).join(", ")) + (r.age ? ", " + esc(r.age) : "") + "</p></div></header>" +
-      '<section class="hs"><p class="lede"><b>' + r.sold + "</b> sold" + (cap ? " of " + cap : "") + ", <b>" + usd(r.money_cents) + "</b> in tickets, <b>" + r.comps + "</b> on the guest list.</p>" + meter +
-        (off.length ? '<p class="mnow">Also issued, not on sale: ' + off.map(function (t) { return esc(t.name) + " (" + (t.sold + t.comps) + ")"; }).join(", ") + "</p>" : "") + "</section>" +
+      '<section class="hs"><p class="lede">' + lede + "</p>" + meter +
+        (prices ? '<h3 class="sub">Prices right now</h3><ul class="prices">' + prices + "</ul>" : "") +
+        (r.tests ? '<p class="mnow">Test tickets are left out of every number here (' + r.tests + ").</p>" : "") + "</section>" +
       '<section class="hs"><h3>Share the show</h3><div class="share"><div class="sfield"><span>' + esc(r.link.replace(/^https?:\/\//, "")) + '</span><button type="button" data-copy="' + esc(r.link) + '">Copy</button></div>' +
         '<a class="qrbox" href="' + esc(qr) + '" target="_blank" rel="noopener" title="Open the QR code to save it"><img src="' + esc(qr) + '" alt="QR code for the show link" width="76" height="76"></a></div>' +
         '<a class="tlink" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the show page</a></section>' +

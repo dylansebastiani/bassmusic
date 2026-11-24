@@ -132,12 +132,12 @@ function lookFor(ev: any, co: any): Look {
 }
 
 // ---- the home page ----
-type Night = { label: string; starts_at: string };
+type Night = { id: string; label: string; starts_at: string; capacity: number | null };
 async function nightsFor(eventIds: string[]) {
   const out: Record<string, Night[]> = {};
   if (!eventIds.length) return out;
-  const { data } = await db.from("ticket_nights").select("event_id,label,starts_at,sort").in("event_id", eventIds).order("sort");
-  for (const n of data || []) (out[n.event_id] ||= []).push({ label: n.label, starts_at: n.starts_at });
+  const { data } = await db.from("ticket_nights").select("id,event_id,label,starts_at,sort,capacity").in("event_id", eventIds).order("sort");
+  for (const n of data || []) (out[n.event_id] ||= []).push({ id: n.id, label: n.label, starts_at: n.starts_at, capacity: n.capacity ?? null });
   return out;
 }
 async function home(m: { id: string; email: string; first_name: string | null }) {
@@ -227,7 +227,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   if (token) { try { await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/artist-sales?a=staff&e=${encodeURIComponent(slug)}`, { headers: { "x-admin-token": token }, signal: AbortSignal.timeout(8000) }); } catch { /* the hub still loads */ } }
   const [{ data: orders }, { data: types }, nights] = await Promise.all([
     db.from("ticket_orders").select("id,status,name,email,phone,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at,created_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
-    db.from("ticket_types").select("id,name,sort,on_sale,tiers").eq("event_id", ev.id).order("sort"),
+    db.from("ticket_types").select("id,name,sort,on_sale,tiers,night_ids").eq("event_id", ev.id).order("sort"),
     nightsFor([ev.id]),
   ]);
   const ids = (orders || []).map((o) => o.id);
@@ -236,23 +236,50 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     const { data } = await db.from("tickets").select("id,order_id,type_id,is_comp,status,holder_name").in("order_id", ids.slice(i, i + 200)).eq("status", "valid");
     tix.push(...(data || []));
   }
-  const paidOrders = new Set((orders || []).filter((o) => o.status === "paid" && !o.comp_list && !o.artist_invite_id).map((o) => o.id));
-  // Per ticket type: sold, guest list, and its tier ladder (for the ticket meter: how full each tier is).
-  const byType = (types || []).map((t) => {
-    const sold = tix.filter((x) => x.type_id === t.id && !x.is_comp && paidOrders.has(x.order_id)).length;
-    const comps = tix.filter((x) => x.type_id === t.id && (x.is_comp || !paidOrders.has(x.order_id))).length;
+  // One clear model for every count on this page:
+  //   sold   = a paid ticket someone bought
+  //   artist = an artist's own pass
+  //   guest  = a comp: someone on the promoter's list or an artist's list
+  //   test   = anything on a "test" ticket type or the "Test" list; left out of every count
+  const tyName: Record<string, string> = {}; (types || []).forEach((t) => { tyName[t.id] = t.name; });
+  const orderOf: Record<string, any> = {}; (orders || []).forEach((o) => { orderOf[o.id] = o; });
+  const kindOf = (x: any): "sold" | "artist" | "guest" | "test" => {
+    const o = orderOf[x.order_id] || {};
+    if (/test/i.test(tyName[x.type_id] || "") || /^test$/i.test(o.comp_list || "")) return "test";
+    if (o.artist_invite_id && (!o.comp_list || o.comp_list === "Artist")) return "artist";
+    if (o.status === "paid" && !o.comp_list && !o.artist_invite_id && !x.is_comp) return "sold";
+    return "guest";
+  };
+  tix.forEach((x) => { x.kind = kindOf(x); });
+  const real = tix.filter((x) => x.kind !== "test");
+  const paidOrders = new Set(real.filter((x) => x.kind === "sold").map((x) => x.order_id));
+  // Per ticket type: sold and guests, against its tier ladder (for the ticket meter).
+  const byType = (types || []).filter((t) => !/test/i.test(t.name)).map((t) => {
+    const mine = real.filter((x) => x.type_id === t.id);
     const tiers = (Array.isArray(t.tiers) ? t.tiers : []).map((x: any) => ({ name: x.name, qty: x.qty || 0, price_cents: x.price_cents ?? 0 }));
-    return { name: t.name, on_sale: !!t.on_sale, sold, comps, cap: tiers.reduce((a: number, x: any) => a + x.qty, 0), tiers };
+    return { name: t.name, on_sale: !!t.on_sale, sold: mine.filter((x) => x.kind === "sold").length, guests: mine.filter((x) => x.kind === "guest").length,
+      artists: mine.filter((x) => x.kind === "artist").length, cap: tiers.reduce((a: number, x: any) => a + x.qty, 0), tiers };
   });
-  const sold = byType.reduce((a, t) => a + t.sold, 0), comps = byType.reduce((a, t) => a + t.comps, 0);
+  const sold = real.filter((x) => x.kind === "sold").length;
+  const artistPasses = real.filter((x) => x.kind === "artist").length, guestCount = real.filter((x) => x.kind === "guest").length;
+  const tests = tix.length - real.length;
   const money = (orders || []).filter((o) => paidOrders.has(o.id)).reduce((a, o) => a + (o.subtotal_cents || 0) - (o.discount_cents || 0), 0);
-  // Last 7 days, a sale count per day, for a quick "is it moving" read.
+  // Last 7 days: tickets sold per day.
   const days: { day: string; tickets: number }[] = [];
   for (let d = 6; d >= 0; d--) {
     const day = new Date(Date.now() - d * 86400000).toISOString().slice(0, 10);
-    const dayOrders = new Set((orders || []).filter((o) => paidOrders.has(o.id) && String(o.paid_at || "").slice(0, 10) === day).map((o) => o.id));
-    days.push({ day, tickets: tix.filter((x) => dayOrders.has(x.order_id)).length });
+    days.push({ day, tickets: real.filter((x) => x.kind === "sold" && String(orderOf[x.order_id]?.paid_at || "").slice(0, 10) === day).length });
   }
+  // One meter per night. Only sold tickets fill a night; a 2-day pass fills one spot on each of its nights.
+  // Capacity comes from the night (set per show); if it isn't set, fall back to the one-night tickets' total.
+  const nightMeters = (nights[ev.id] || []).map((n) => {
+    const covers = (types || []).filter((t) => !/test/i.test(t.name) && (t.night_ids || []).includes(n.id));
+    const fallback = covers.filter((t) => (t.night_ids || []).length === 1).reduce((a, t) => a + (Array.isArray(t.tiers) ? t.tiers : []).reduce((b: number, x: any) => b + (x.qty || 0), 0), 0);
+    const parts = covers.map((t) => ({ name: t.name, sold: real.filter((x) => x.type_id === t.id && x.kind === "sold").length })).filter((p) => p.sold > 0);
+    const inNight = real.filter((x) => covers.some((t) => t.id === x.type_id));
+    return { label: n.label, cap: n.capacity || fallback, sold: parts.reduce((a, p) => a + p.sold, 0), parts,
+      guests: inNight.filter((x) => x.kind === "guest").length, artists: inNight.filter((x) => x.kind === "artist").length };
+  });
   // Artists selling: same rules as the artist sales tracker (their link tag or their $0 code).
   const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id,claimed_at,email,phone,photo_path").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
   // Each artist's own photo (from their pass page), signed for an hour.
@@ -277,7 +304,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   const look = lookFor(ev, co);
   // What's on sale right now, at what price (the current tier of each ticket type).
   const prices = (types || []).filter((t) => t.on_sale && Array.isArray(t.tiers) && t.tiers.length).map((t) => {
-    const taken = tix.filter((x) => x.type_id === t.id).length;
+    const taken = real.filter((x) => x.type_id === t.id).length;
     let start = 0, cur: any = null;
     for (const tier of t.tiers as any[]) { const end = start + (tier.qty || 0); if (!cur && taken < end) cur = { ...tier, left: end - taken }; start = end; }
     return { name: t.name, tier: cur?.name || "Sold out", price_cents: cur?.price_cents ?? null, left: cur?.left ?? 0 };
@@ -289,18 +316,20 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     const { data: sc } = await db.from("ticket_scans").select("ticket_id").in("ticket_id", tix.slice(i, i + 200).map((x) => x.id));
     (sc || []).forEach((r) => scanned.add(r.ticket_id));
   }
-  const tyName: Record<string, string> = {}; (types || []).forEach((t) => { tyName[t.id] = t.name; });
   const people = (orders || []).map((o) => {
-    const mine = tix.filter((x) => x.order_id === o.id);
+    const mine = real.filter((x) => x.order_id === o.id);
     const kinds: Record<string, number> = {}; mine.forEach((x) => { const n = tyName[x.type_id] || "Ticket"; kinds[n] = (kinds[n] || 0) + 1; });
-    return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length,
+    return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length, kind: mine[0]?.kind || "",
       what: Object.entries(kinds).map(([n, q]) => (q > 1 ? q + "× " : "") + n).join(", "), checked_in: mine.filter((x) => scanned.has(x.id)).length,
-      // An artist's own pass says "Artist"; people an artist put on their list say whose guest they are.
-      list: o.artist_invite_id ? (o.comp_list && o.comp_list !== "Artist" ? "Guest of " + o.comp_list : "Artist") : o.status === "comp" ? (o.comp_list || "Guest list") : "",
-      when: o.paid_at || o.created_at, paid: paidOrders.has(o.id) };
+      // Whose list a guest is on: an artist's ("Guest of B3RMUDA") or the promoter's own list name.
+      list: o.artist_invite_id && o.comp_list && o.comp_list !== "Artist" ? "Guest of " + o.comp_list : o.comp_list && o.comp_list !== "Artist" ? o.comp_list : "",
+      when: o.paid_at || o.created_at };
   }).filter((p) => p.tickets > 0);
-  const guests = people.filter((p) => !p.paid).sort((a, b) => (a.list === "Artist" ? 0 : 1) - (b.list === "Artist" ? 0 : 1) || a.name.localeCompare(b.name));
-  const buyers = people.filter((p) => p.paid).sort((a, b) => String(b.when).localeCompare(String(a.when)));
+  const byName = (a: any, b: any) => a.name.localeCompare(b.name);
+  const artistPeople = people.filter((p) => p.kind === "artist").sort(byName);
+  const guests = people.filter((p) => p.kind === "guest").sort(byName);
+  const buyers = people.filter((p) => p.kind === "sold").sort((a, b) => String(b.when).localeCompare(String(a.when)));
+  const checkedIn = real.filter((x) => scanned.has(x.id)).length;
   const pl = (ev.playlist || {}) as { mode?: string; tracks?: unknown[] };
   // A quick "is everything right?" list for the promoter.
   const nightList = nights[ev.id] || [];
@@ -313,9 +342,10 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     { label: "Show playlist", ok: (artistTracks ?? 0) > 0 || (pl.tracks || []).length > 0 || pl.mode === "subduction" },
   ];
   return { show: ev.name, slug: ev.slug, ...look, nights: nightList.map((n) => n.label), venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city, age: ev.age,
-    on_sale: !!ev.sales_open, sold, comps, money_cents: money, by_type: byType, prices, last7: days, artists, checks,
+    on_sale: !!ev.sales_open, sold, money_cents: money, artist_passes: artistPasses, guest_count: guestCount, checked_in: checkedIn, tests, night_meters: nightMeters,
+    by_type: byType, prices, last7: days, artists, checks,
     playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
-    guests: guests.map(({ paid, ...g }) => g), buyers: buyers.map(({ paid, list, ...b }) => b) };
+    artist_people: artistPeople.map(({ kind, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, ...b }) => b) };
 }
 
 Deno.serve(async (req) => {
