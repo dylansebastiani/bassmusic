@@ -132,7 +132,7 @@ export async function renderTicketPdf(d: PdfData): Promise<Uint8Array> {
       text(p, "THE SECRET LOCATION", col, y, 7.5, mono, t.artist ? GOLD : ORANGE, 1.5);
       text(p, (d.venue || "").toUpperCase(), col, y + 11, 13, heavy, INK);
       text(p, d.address, col, y + 29, fit(d.address, mono, 9, W - 2 * M - 36), mono, LAV);
-      if (d.secretUntil) { const s = ("Secret until " + d.secretUntil + " \u00b7 don't share").toUpperCase(); text(p, s, col, y + 41, fit(s, mono, 7.5, W - 2 * M - 36), mono, GOLD, 0.6); }
+      if (d.secretUntil) { const s = ("Secret until " + d.secretUntil + " · don't share").toUpperCase(); text(p, s, col, y + 41, fit(s, mono, 7.5, W - 2 * M - 36), mono, GOLD, 0.6); }
     } else if (d.revealText) {
       text(p, "THE SECRET LOCATION", col, y, 7.5, mono, t.artist ? GOLD : ORANGE, 1.5);
       const drop = ("DROPS " + d.revealText).toUpperCase();
