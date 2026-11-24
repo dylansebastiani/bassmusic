@@ -10,5 +10,6 @@ Disallow: /in.html
 Disallow: /in$
 Disallow: /bonus
 Disallow: /collection
+Disallow: /go/
 
 Sitemap: https://subduction.art/sitemap.xml

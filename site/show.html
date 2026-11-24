@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="assets/show.css">
 <style id="customCss"></style>
 <!--CONFIG-->
+<script>(function(){var m=location.pathname.match(/^\/go\/([a-z0-9]{1,24})\/?$/i);if(m&&window.STACK&&STACK.supabaseUrl)location.replace(STACK.supabaseUrl+"/functions/v1/artist-sales?go="+m[1].toLowerCase());})();</script>
 <script>/* Ask for the show while the rest of the page loads (not for draft previews, which need the staff sign-in). */
 /* The show is named by ?e=<slug>, or by the address itself: subduction.art/<slug>. */
 try{var _q=new URLSearchParams(location.search),_p=location.pathname.replace(/^\/+|\/+$/g,""),_e=(_q.get("e")||(/^[a-z0-9-]+$/i.test(_p)&&!/^(show|404)$/i.test(_p)?_p:"")).replace(/[^a-z0-9-]/gi,"").toLowerCase();window.__SHOW_SLUG=_e;

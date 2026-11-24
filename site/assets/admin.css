@@ -258,3 +258,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 /* Artist sales: tickets credited to each artist's personal link or code */
 .sellsum{margin:0 0 10px;color:#d9d2e3}.sellsum b{color:#F2C14E}
 .asell{border-top:1px dashed var(--line);padding-top:6px;color:#fff}.asell b{color:#F2C14E}
+.asell .star{display:inline-block;background:#F2C14E;color:#050505;font-weight:700;padding:1px 6px;font-size:12px}
+.msform{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:#d9d2e3}
+.msform input{width:80px;padding:6px 8px;background:#050505;border:1px solid var(--line);color:#fff}
+.msform small{flex-basis:100%;color:#8a8494}

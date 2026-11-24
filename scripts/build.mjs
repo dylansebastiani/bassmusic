@@ -114,6 +114,26 @@ async function showPages() {
   }
   console.log(`built ${n} show page(s)`);
 }
+// Artist short links (subduction.art/go/<tag>) get a tiny real page that hands off to the tap counter, which
+// then forwards to the show with ?ref=<tag>. Links made between builds still work through the 404 page.
+async function goPages() {
+  if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
+  let refs = [];
+  try { refs = (await (await fetch(`${fn}/artist-sales?a=refs`, { signal: AbortSignal.timeout(15000) })).json()).refs || []; }
+  catch (e) { console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", e.message); return; }
+  let n = 0;
+  for (const r of refs) {
+    if (!/^[a-z0-9]{1,24}$/.test(r)) continue;
+    const to = `${fn}/artist-sales?go=${r}`;
+    mkdirSync(join(out, "go", r), { recursive: true });
+    writeFileSync(join(out, "go", r, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Get tickets</title><meta property="og:title" content="Get tickets"><meta property="og:image" content="${pub.siteUrl}/assets/og.jpg">
+<meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${JSON.stringify(to)});</script></head>
+<body style="background:#050505;color:#fff;font:16px Arial,sans-serif;text-align:center;padding:40px"><a href="${to}" style="color:#F2C14E">Get tickets</a></body></html>`);
+    n++;
+  }
+  console.log(`built ${n} artist link page(s)`);
+}
 async function trackPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
   let tracks = [];
@@ -159,4 +179,5 @@ async function trackPages() {
 }
 await trackPages();
 await showPages();
+await goPages();
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");

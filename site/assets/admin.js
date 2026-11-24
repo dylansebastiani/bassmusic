@@ -294,6 +294,13 @@
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = String(name).replace(/[^\w -]+/g, "") + " - fans.csv";
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
+  document.addEventListener("submit", function (e) {
+    var f = e.target.closest && e.target.closest("[data-ms]"); if (!f) return;
+    e.preventDefault();
+    var n = parseInt(f.querySelector("input").value, 10) || 0, b = f.querySelector("button");
+    b.disabled = true;
+    req(BASE + "artist-sales?a=milestone", { e: cur.event.slug, n: n }).then(function () { artists(); }).catch(function (err) { b.disabled = false; alert(err.message); });
+  });
   function artists() {
     $("artists").innerHTML = '<div class="empty">Loading...</div>';
     var dl = req(BASE + "playlist?a=downloads&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
@@ -306,7 +313,8 @@
     }).catch(function () {});
     Promise.all([artGet(), dl, sold]).then(function (x) { return x[0]; }).then(function (d) {
       if (SOLDSUM && d.artists.length) d.artists.sort(function (p, q) { return ((SOLD[q.id] || {}).tickets || 0) - ((SOLD[p.id] || {}).tickets || 0); });
-      $("artists").innerHTML = (SOLDSUM && d.artists.length ? '<div class="mono asub sellsum">Artists sold <b>' + num(SOLDSUM.credited_tickets) + "</b> of " + num(SOLDSUM.all_tickets) + " paid tickets so far</div>" : "") +
+      $("artists").innerHTML = (SOLDSUM && d.artists.length ? '<div class="mono asub sellsum">Artists sold <b>' + num(SOLDSUM.credited_tickets) + "</b> of " + num(SOLDSUM.all_tickets) + " paid tickets so far</div>" +
+        (SOLDSUM.can_set_milestone ? '<form class="msform" data-ms><label for="msn">Star artists at</label><input id="msn" type="number" min="1" max="9999" inputmode="numeric" value="' + (SOLDSUM.milestone || "") + '" placeholder="e.g. 10"><span>tickets</span><button type="submit" class="mini">Save</button><small>Only you see this. Artists never do.</small></form>' : "") : "") +
         (d.artists.length ? d.artists.map(function (a) {
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
         return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
@@ -314,9 +322,12 @@
           '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used</div>" +
           (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
           aprofile(a) +
-          (SOLD[a.id] ? '<div class="asell"><b>' + num(SOLD[a.id].tickets) + (SOLD[a.id].tickets === 1 ? " ticket" : " tickets") + " sold</b>" +
+          (SOLD[a.id] ? '<div class="asell">' + (SOLD[a.id].milestone_hit ? '<span class="star" title="Hit your milestone">★ Milestone</span> ' : "") +
+            "<b>" + num(SOLD[a.id].tickets) + (SOLD[a.id].tickets === 1 ? " ticket" : " tickets") + " sold</b>" +
             (SOLD[a.id].tickets ? " · " + usd(SOLD[a.id].revenue_cents) + " · " + SOLD[a.id].by_link + " by link, " + SOLD[a.id].by_code + " by code" : "") +
-            '<div class="mono asub">Code ' + esc(SOLD[a.id].code) + ' · <button type="button" class="mini" data-copy="' + esc(SOLD[a.id].link) + '">Copy sell link</button></div></div>' : "") +
+            '<div class="mono asub">' + num(SOLD[a.id].clicks) + " link taps (" + num(SOLD[a.id].people) + " people)" +
+            (SOLD[a.id].people ? " · " + Math.round(100 * SOLD[a.id].orders / SOLD[a.id].people) + "% bought" : "") + "</div>" +
+            '<div class="mono asub">' + esc(SOLD[a.id].link.replace(/^https?:\/\//, "")) + " · code " + esc(SOLD[a.id].code) + ' · <button type="button" class="mini" data-copy="' + esc(SOLD[a.id].link) + '">Copy sell link</button></div></div>' : "") +
           (DLS[a.id] && DLS[a.id].length ? '<div class="mono asub">' + DLS[a.id].length + " track download" + (DLS[a.id].length === 1 ? "" : "s") + ' · <button type="button" class="mini" data-fans="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Download fan list</button></div>' : "") +
           (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy pass link</button>' +
             '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
