@@ -32,6 +32,10 @@
     <label for="semail" class="sr">Email</label>
     <form class="unit" id="sf" novalidate><input id="semail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="you@email.com" aria-label="Email"><button class="btn" type="submit" id="sgo">Send it</button></form>
     <p class="msg" id="smsg" role="status"></p>
+    <form class="codef" id="cf" hidden novalidate>
+      <label for="ccode">Or type the 6-digit code from the email</label>
+      <div class="unit"><input id="ccode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456"><button class="btn" type="submit" id="cgo">Sign in</button></div>
+    </form>
   </section>
 
   <section id="home" hidden>

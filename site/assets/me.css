@@ -21,3 +21,5 @@
 .bars i{flex:1;background:var(--hot);min-height:2px}
 .barl{display:flex;gap:4px}.barl span{flex:1;text-align:center;font-family:var(--mono);font-size:10px;color:var(--mute)}
 .roleh{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+.codef{margin-top:18px}.codef label{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
+#ccode{letter-spacing:.3em;font-family:var(--mono)}

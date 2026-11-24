@@ -33,8 +33,19 @@
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { $("smsg").textContent = "Check your email address."; return; }
     $("sgo").disabled = true; $("smsg").textContent = "Sending...";
     api("", { a: "signin", email: email }).then(function () {
-      $("smsg").innerHTML = "If that email has tickets, a show or a crew here, a sign-in button is on its way to <b>" + esc(email) + "</b>. Open it on this phone.";
+      $("smsg").innerHTML = "If that email has tickets, a show or a crew here, a sign-in email is on its way to <b>" + esc(email) + "</b>. Tap the button in it, or type its code below.";
+      sentTo = email; $("cf").hidden = false; $("ccode").focus();
     }).catch(function (err) { $("smsg").textContent = err.message; }).then(function () { $("sgo").disabled = false; });
+  });
+  var sentTo = "";
+  $("cf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var code = $("ccode").value.replace(/\D/g, "");
+    if (code.length !== 6) { $("smsg").textContent = "The code is 6 digits."; return; }
+    $("cgo").disabled = true; $("smsg").textContent = "Checking...";
+    api("", { a: "code", email: sentTo || $("semail").value.trim(), code: code }).then(function (r) {
+      tok = r.token; try { localStorage.setItem(KEY, tok); } catch (err) {} $("cf").hidden = true; $("smsg").textContent = ""; load();
+    }).catch(function (err) { $("smsg").textContent = err.message; }).then(function () { $("cgo").disabled = false; });
   });
   $("signout").addEventListener("click", signOut);
 

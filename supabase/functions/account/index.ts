@@ -8,6 +8,7 @@
 // Read-only toward orders and tickets: it never changes checkout, tickets or ticket emails.
 //   POST {a:"signin", email}        email a one-tap sign-in button (same answer whether or not we know the email)
 //   POST {a:"redeem", invite}       the button's link -> a session token
+//   POST {a:"code", email, code}    the 6-digit code from the same email -> a session token
 //   GET  ?a=me                      the home page (x-admin-token)
 //   GET  ?a=crew&e=<slug>           a show's numbers for its crew: sales by type, artists selling (x-admin-token)
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -70,8 +71,14 @@ async function sendSignin(email: string) {
   if (recent?.length) return;
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("account: BREVO_API_KEY not set"); return; }
-  const secret = hex(18);
-  const { data: row } = await db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await sha256(`${m.id}|${secret}|${await setting("ip_salt", "unset")}`), expires_at: new Date(Date.now() + 20 * 60000).toISOString() }).select("id").single();
+  const secret = hex(18), salt = await setting("ip_salt", "unset");
+  // A 6-digit code rides along with the button, for when the email opens on a different device.
+  const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+  const expires = new Date(Date.now() + 20 * 60000).toISOString();
+  const [{ data: row }] = await Promise.all([
+    db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await sha256(`${m.id}|${secret}|${salt}`), expires_at: expires }).select("id").single(),
+    db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await sha256(`${m.id}|code:${code}|${salt}`), expires_at: expires }),
+  ]);
   if (!row) return;
   const url = `${SITE}/me.html#invite=${row.id}.${secret}`, F = "font-family:Arial,Helvetica,sans-serif";
   const addr = String(await setting("mailing_address", "") || "");
@@ -81,11 +88,13 @@ async function sendSignin(email: string) {
 <tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">Tap to sign in</td></tr>
 <tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Your tickets, your shows and your crews, all in one place. No code, no password.</td></tr>
 <tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:16px;font-weight:bold;text-align:center;text-decoration:none;padding:16px 12px;text-transform:uppercase;letter-spacing:1px">Sign me in</a></td></tr>
+<tr><td style="padding:20px 24px 0;${F};font-size:13px;line-height:1.5;color:#9a958f;text-align:center">Or type this code on the sign-in page:</td></tr>
+<tr><td style="padding:6px 24px 0;font-family:Courier,monospace;font-size:34px;font-weight:bold;letter-spacing:8px;color:#f4f1ee;text-align:center">${code}</td></tr>
 <tr><td style="padding:18px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.${addr && !/TBD/i.test(addr) ? "<br>" + esc(addr) : ""}</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = ["Tap to sign in:", url, "", "Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes."].join("\n");
+  const text = ["Tap to sign in:", url, "", `Or type this code on the sign-in page: ${code}`, "", "Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes."].join("\n");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ sender: { name: "Subduction", email: Deno.env.get("FROM_EMAIL") || CONTACT }, to: [{ email }], subject: "Your sign-in button", htmlContent: html, textContent: text, tags: ["signin"] }) });
+    body: JSON.stringify({ sender: { name: "Subduction", email: Deno.env.get("FROM_EMAIL") || CONTACT }, to: [{ email }], subject: `Your sign-in code: ${code}`, htmlContent: html, textContent: text, tags: ["signin"] }) });
   if (!r.ok) console.error("account: sign-in email failed", r.status, (await r.text().catch(() => "")).slice(0, 200));
 }
 
@@ -208,6 +217,27 @@ Deno.serve(async (req) => {
         if ((n ?? 0) > 6) return no("Too many tries. Wait a minute and try again.", 429);
         await sendSignin(email);
         return json({ sent: true });   // same answer either way, so this can't be used to find out who's here
+      }
+      if (b.a === "code") {
+        const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-code") });
+        if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
+        const email = String(b.email || "").trim().toLowerCase().slice(0, 254), code = String(b.code || "").replace(/\D/g, "");
+        const bad = () => no("That code didn't work. Check it, or send a new one.");
+        if (!EMAIL_RE.test(email) || code.length !== 6) return bad();
+        const { data: m } = await db.from("subscribers").select("id,email,status").eq("email", email).maybeSingle();
+        if (!m || m.status === "deleted") return bad();
+        const { data: rows } = await db.from("signin_codes").select("id,code_hash,attempts").eq("subscriber_id", m.id).is("used_at", null)
+          .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(6);
+        const live = (rows || []).filter((r) => r.attempts < 5);
+        if (!live.length) return bad();
+        const want = await sha256(`${m.id}|code:${code}|${await setting("ip_salt", "unset")}`);
+        const hit = live.find((r) => r.code_hash === want);
+        // A wrong guess counts against every open code for this email (5 wrong and they're all dead).
+        if (!hit) { await Promise.all(live.map((r) => db.from("signin_codes").update({ attempts: r.attempts + 1 }).eq("id", r.id))); return bad(); }
+        await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", hit.id);
+        const token = hex(32);
+        await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
+        return json({ token, email: m.email });
       }
       if (b.a === "redeem") {
         const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-redeem") });
