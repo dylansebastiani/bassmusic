@@ -235,8 +235,13 @@ async function crew(m: { id: string; email: string }, slug: string) {
     tix.push(...(data || []));
   }
   const paidOrders = new Set((orders || []).filter((o) => o.status === "paid" && !o.comp_list && !o.artist_invite_id).map((o) => o.id));
-  const byType = (types || []).map((t) => ({ name: t.name, sold: tix.filter((x) => x.type_id === t.id && !x.is_comp && paidOrders.has(x.order_id)).length,
-    comps: tix.filter((x) => x.type_id === t.id && (x.is_comp || !paidOrders.has(x.order_id))).length }));
+  // Per ticket type: sold, guest list, and its tier ladder (for the ticket meter: how full each tier is).
+  const byType = (types || []).map((t) => {
+    const sold = tix.filter((x) => x.type_id === t.id && !x.is_comp && paidOrders.has(x.order_id)).length;
+    const comps = tix.filter((x) => x.type_id === t.id && (x.is_comp || !paidOrders.has(x.order_id))).length;
+    const tiers = (Array.isArray(t.tiers) ? t.tiers : []).map((x: any) => ({ name: x.name, qty: x.qty || 0, price_cents: x.price_cents ?? 0 }));
+    return { name: t.name, on_sale: !!t.on_sale, sold, comps, cap: tiers.reduce((a: number, x: any) => a + x.qty, 0), tiers };
+  });
   const sold = byType.reduce((a, t) => a + t.sold, 0), comps = byType.reduce((a, t) => a + t.comps, 0);
   const money = (orders || []).filter((o) => paidOrders.has(o.id)).reduce((a, o) => a + (o.subtotal_cents || 0) - (o.discount_cents || 0), 0);
   // Last 7 days, a sale count per day, for a quick "is it moving" read.

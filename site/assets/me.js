@@ -119,13 +119,14 @@
       d.crews.slice().sort(function (a, b) { return (a.kind === "promoter" ? 0 : 1) - (b.kind === "promoter" ? 0 : 1); }).forEach(function (c) {
         h += '<div class="crewh"><div><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") +
           (c.kind === "original" ? " · original ticketing" : c.stripe_ready ? " · sells with your Stripe" : " · connect Stripe to sell") + "</div></div>" +
-          (c.kind === "promoter" ? '<a class="mbtn" href="promoter.html#show/new/1">+ Add a show</a>' : "") + "</div>";
+          (c.kind === "promoter" ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>";
         if (c.kind === "promoter" && !c.stripe_ready && c.role === "owner") h += '<div class="mcard warn"><b>Connect Stripe</b> so ticket money goes straight to your bank. <a class="mlink" href="promoter.html">Open promoter app</a></div>';
-        h += (c.shows || []).length ? '<div class="tiles">' + c.shows.map(function (sh) {
-          return '<button type="button" class="tile" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
-            (sh.image ? '<span class="tart" style="background-image:url(\'' + esc(sh.image) + '\')"></span>' : '<span class="tart blank"></span>') +
-            '<span class="tbody"><b>' + esc(sh.name) + '</b><span>' + esc(sh.nights.join(" + ")) + '</span><i class="tchip">' + (sh.on_sale ? "On sale" : "Not on sale") + "</i></span></button>";
-        }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (c.kind === "promoter" ? " Tap + Add a show." : "") + "</p>";
+        h += (c.shows || []).length ? '<div class="posters">' + c.shows.map(function (sh) {
+          return '<button type="button" class="poster" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
+            '<span class="poart"' + (sh.image ? ' style="background-image:url(\'' + esc(sh.image) + '\')"' : "") + "></span>" +
+            '<span class="pcap"><span class="pname">' + esc(sh.name) + '</span><span class="pwhen">' + esc(sh.nights.join(" + ")) + "</span>" +
+            '<span class="state' + (sh.on_sale ? " live" : "") + '">' + (sh.on_sale ? "On sale" : "Not on sale yet") + "</span></span></button>";
+        }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (c.kind === "promoter" ? " Tap Add a show to start one." : "") + "</p>";
       });
       if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
     }
@@ -154,35 +155,48 @@
 
   // ---- the show hub: one show, in its own colors ----
   var hub = "", hubData = null;
+  function initials(n) { return String(n || "?").replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase() || "?"; }
   function drawHub() {
     var r = hubData, P = $("panes");
     if (!r) { P.innerHTML = '<p class="mempty">Loading the show...</p>'; return; }
-    var max = Math.max.apply(null, r.last7.map(function (x) { return x.tickets; }).concat([1]));
     var qr = FN + "?a=qr&e=" + encodeURIComponent(r.slug);
+    var max = Math.max.apply(null, r.last7.map(function (x) { return x.tickets; }).concat([1]));
+    var week = r.last7.reduce(function (a, x) { return a + x.tickets; }, 0);
+    var types = r.by_type.filter(function (t) { return t.cap > 0; });
+    var cap = types.reduce(function (a, t) { return a + t.cap; }, 0);
+    var todo = r.checks.filter(function (c) { return !c.ok; });
+    // The ticket meter: one bar per ticket type, split into its price tiers, filled as it sells.
+    var meter = types.map(function (t) {
+      var taken = t.sold + t.comps, start = 0, cur = null;
+      var segs = t.tiers.map(function (x) {
+        var fill = Math.max(0, Math.min(x.qty, taken - start)); start += x.qty;
+        if (!cur && fill < x.qty) cur = x;
+        return '<span class="seg" style="flex:' + x.qty + '" title="' + esc(x.name) + " · " + usd(x.price_cents) + '"><i style="width:' + (x.qty ? Math.round(100 * fill / x.qty) : 0) + '%"></i></span>';
+      }).join("");
+      return '<div class="mtr"><div class="mtop"><b>' + esc(t.name) + "</b><span>" + taken + " of " + t.cap + "</span></div>" +
+        '<div class="mbar">' + segs + "</div>" +
+        '<div class="mnow">' + (cur ? esc(cur.name) + " at " + usd(cur.price_cents) : "Sold out") + (t.comps ? ", " + t.comps + " on the guest list" : "") + (t.on_sale ? "" : ", not on sale") + "</div></div>";
+    }).join("");
     P.innerHTML = '<div class="hub" style="--m:' + esc(r.colors.main) + ';--a:' + esc(r.colors.accent) + ';--d:' + esc(r.colors.deep) + '">' +
-      '<button type="button" class="hback" data-back>← All shows</button>' +
-      '<div class="hhero">' + (r.image ? '<span class="hart" style="background-image:url(\'' + esc(r.image) + '\')"></span>' : "") +
-        '<div class="hhead"><h2>' + esc(r.show) + '</h2><div>' + esc([r.nights.join(" + "), r.venue, r.city, r.age].filter(Boolean).join(" · ")) + '</div><i class="tchip">' + (r.on_sale ? "On sale" : "Not on sale") + "</i></div></div>" +
-      // Share
-      '<section class="hsec"><h4>Share</h4><div class="share"><img src="' + esc(qr) + '" alt="QR code for the show link" width="104" height="104"><div>' +
-        '<div class="slink">' + esc(r.link.replace(/^https?:\/\//, "")) + '</div><button type="button" class="mbtn" data-copy="' + esc(r.link) + '">Copy link</button> ' +
-        '<a class="mbtn ghost" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the page</a> <a class="mbtn ghost" href="' + esc(qr) + '" target="_blank" rel="noopener">Save QR</a></div></div></section>' +
-      // Numbers
-      '<section class="hsec"><h4>Numbers</h4><div class="stats"><div><b>' + r.sold + '</b><span>Sold</span></div><div><b>' + usd(r.money_cents) + '</b><span>Tickets in</span></div><div><b>' + r.comps + "</b><span>Guest list</span></div></div>" +
-        r.by_type.filter(function (t) { return t.sold || t.comps; }).map(function (t) { return '<div class="mrow"><span>' + esc(t.name) + "</span><span>" + t.sold + " sold" + (t.comps ? " · " + t.comps + " guest" : "") + "</span></div>"; }).join("") +
-        '<div class="sub" style="margin-top:12px">Last 7 days</div><div class="bars">' + r.last7.map(function (x) { return '<i style="height:' + Math.round(100 * x.tickets / max) + '%" title="' + x.tickets + '"></i>'; }).join("") + "</div>" +
-        '<div class="barl">' + r.last7.map(function (x) { return "<span>" + x.day.slice(8) + "</span>"; }).join("") + "</div></section>" +
-      // Is everything right?
-      '<section class="hsec"><h4>Is everything right?</h4>' + r.checks.map(function (c) { return '<div class="chk ' + (c.ok ? "ok" : "no") + '"><i>' + (c.ok ? "✓" : "!") + "</i>" + esc(c.label) + "</div>"; }).join("") +
-        (r.prices.length ? '<div class="sub" style="margin-top:12px">On sale now</div>' + r.prices.map(function (p) { return '<div class="mrow"><span>' + esc(p.name) + ' <span class="mono">' + esc(p.tier) + "</span></span><span>" + (p.price_cents != null ? usd(p.price_cents) + " · " + p.left + " left" : "Sold out") + "</span></div>"; }).join("") : "") + "</section>" +
-      // Artists
-      '<section class="hsec"><h4>Artists</h4>' + (r.artists.length ? r.artists.map(function (a) {
-          return '<div class="mrow"><span><b>' + esc(a.name) + '</b><br><span class="mono">' + (a.claimed ? "Pass sent" : "Pass not claimed yet") + " · " + a.tickets + " sold · " + a.taps + " taps</span></span>" +
-            (a.link ? '<button type="button" class="mbtn ghost" data-copy="' + esc(a.link) + '">Copy sell link</button>' : "") + "</div>";
+      '<button type="button" class="hback" data-back>All shows</button>' +
+      '<header class="hhero"' + (r.image ? ' style="background-image:url(\'' + esc(r.image) + '\')"' : "") + '><div class="hcap">' +
+        '<span class="state' + (r.on_sale ? " live" : "") + '">' + (r.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
+        "<h2>" + esc(r.show) + "</h2><p>" + esc(r.nights.join(" + ")) + "<br>" + esc([r.venue, r.city].filter(Boolean).join(", ")) + (r.age ? ", " + esc(r.age) : "") + "</p></div></header>" +
+      '<section class="hs"><p class="lede"><b>' + r.sold + "</b> sold" + (cap ? " of " + cap : "") + ", <b>" + usd(r.money_cents) + "</b> in tickets, <b>" + r.comps + "</b> on the guest list.</p>" + meter + "</section>" +
+      '<section class="hs"><h3>Share the show</h3><div class="share"><div class="sfield"><span>' + esc(r.link.replace(/^https?:\/\//, "")) + '</span><button type="button" data-copy="' + esc(r.link) + '">Copy</button></div>' +
+        '<a class="qrbox" href="' + esc(qr) + '" target="_blank" rel="noopener" title="Open the QR code to save it"><img src="' + esc(qr) + '" alt="QR code for the show link" width="76" height="76"></a></div>' +
+        '<a class="tlink" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the show page</a></section>' +
+      '<section class="hs"><h3>' + (todo.length ? todo.length + (todo.length === 1 ? " thing to check" : " things to check") : "Everything's set") + "</h3>" +
+        '<ul class="checks">' + r.checks.map(function (c) { return '<li class="' + (c.ok ? "ok" : "no") + '">' + esc(c.label) + "</li>"; }).join("") + "</ul></section>" +
+      '<section class="hs"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
+          return '<div class="arow"><span class="av">' + esc(initials(a.name)) + '</span><span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span></span>" +
+            '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
         }).join("") : '<p class="mempty">No artists yet.</p>') +
-        '<p class="soon">Adding artists, guest passes and set times from here is coming next.</p></section>' +
-      // Playlist
-      '<section class="hsec"><h4>Playlist</h4><div class="mrow"><span>' + (r.playlist.artist_tracks + r.playlist.tracks) + ' tracks in rotation</span><span class="mono">' + (r.playlist.mode === "subduction" && !r.playlist.tracks ? "plus Subduction picks" : "") + "</span></div></section>" +
+        '<p class="soon">Adding artists, guest passes and set times from here is next.</p></section>' +
+      '<section class="hs two"><div><h3>This week</h3><p class="lede small"><b>' + week + "</b> " + (week === 1 ? "ticket" : "tickets") + " in the last 7 days</p>" +
+        '<div class="bars">' + r.last7.map(function (x) { return '<i style="height:' + Math.max(4, Math.round(100 * x.tickets / max)) + '%" title="' + x.tickets + '"></i>'; }).join("") + "</div>" +
+        '<div class="barl">' + r.last7.map(function (x) { return "<span>" + new Date(x.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" }) + "</span>"; }).join("") + "</div></div>" +
+        '<div><h3>Playlist</h3><p class="lede small"><b>' + (r.playlist.artist_tracks + r.playlist.tracks) + "</b> tracks in rotation" + (r.playlist.mode === "subduction" && !r.playlist.tracks ? ", plus Subduction picks" : "") + "</p></div></section>" +
       "</div>";
   }
   document.addEventListener("click", function (e) {
