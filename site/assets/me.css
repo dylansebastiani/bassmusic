@@ -23,3 +23,8 @@
 .roleh{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
 .codef{margin-top:18px}.codef label{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
 #ccode{letter-spacing:.3em;font-family:var(--mono)}
+.prof{display:flex;gap:14px;align-items:flex-start}.pimg{width:84px;height:84px;object-fit:cover;flex:none;border:1px solid var(--line)}
+.pbio{color:#d9d5cf;font-size:14px;line-height:1.5;margin:6px 0 10px}.plinks{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}.plinks a{color:var(--hot);font-size:13px}
+.pform label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:12px 0 4px}
+.pform input,.pform textarea{width:100%;background:#000;border:1px solid #6c6567;color:var(--fg);padding:10px;font:inherit;font-size:16px;border-radius:0}
+.pform .mbtn{margin-top:14px}

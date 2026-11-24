@@ -11,6 +11,7 @@
 //   POST {a:"code", email, code}    the 6-digit code from the same email -> a session token
 //   GET  ?a=me                      the home page (x-admin-token)
 //   GET  ?a=crew&e=<slug>           a show's numbers for its crew: sales by type, artists selling (x-admin-token)
+//   POST {a:"profile", ...}         save your one artist profile; copied onto every show you're booked on (preview only for now)
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -34,6 +35,25 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
 async function ipHash(req: Request, tag: string) {
   const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
   return sha256(ip + "|" + (await setting("ip_salt", "unset")) + "|" + tag);   // hashed, never stored raw
+}
+const LINK_HOSTS: Record<string, string[]> = {
+  instagram: ["instagram.com"], soundcloud: ["soundcloud.com", "on.soundcloud.com"], spotify: ["open.spotify.com", "spotify.link"],
+  tiktok: ["tiktok.com"], youtube: ["youtube.com", "youtu.be"], website: [],
+};
+const clean = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, max) : "");
+function cleanLink(key: string, raw: unknown): string | null {
+  let v = clean(raw, 300).replace(/\s+/g, "");
+  if (!v) return null;
+  if (key === "instagram" && /^@?[A-Za-z0-9._]{1,30}$/.test(v)) v = "https://instagram.com/" + v.replace(/^@/, "");
+  if (key === "tiktok" && /^@?[A-Za-z0-9._]{1,30}$/.test(v)) v = "https://tiktok.com/@" + v.replace(/^@/, "");
+  if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+  let u: URL; try { u = new URL(v); } catch { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  u.protocol = "https:";
+  const host = u.hostname.toLowerCase().replace(/^(www|m)\./, "");
+  const ok = LINK_HOSTS[key];
+  if (!ok || (ok.length && !ok.some((h) => host === h || host.endsWith("." + h)))) return null;
+  return u.toString().slice(0, 300);
 }
 const admins = async () => ((await setting<unknown[]>("admin_emails", [])) || []).map((e) => String(e).toLowerCase());
 
@@ -111,7 +131,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
   const email = String(m.email).toLowerCase();
   const [{ data: orders }, { data: invites }, { data: staff }] = await Promise.all([
     db.from("ticket_orders").select("id,event_id,status,comp_list,artist_invite_id").eq("email", email).in("status", ["paid", "comp"]).order("created_at", { ascending: false }).limit(100),
-    db.from("artist_invites").select("id,event_id,name,token,claimed_at").ilike("email", email).is("revoked_at", null).order("created_at", { ascending: false }),
+    db.from("artist_invites").select("id,event_id,name,token,claimed_at,bio,hometown,genre,links,photo_path,sell_ref,sell_promo_id").ilike("email", email).is("revoked_at", null).order("created_at", { ascending: false }),
     db.from("company_staff").select("company_id,role").eq("subscriber_id", m.id),
   ]);
   const orderIds = (orders || []).map((o) => o.id);
@@ -142,8 +162,26 @@ async function home(m: { id: string; email: string; first_name: string | null })
   }
   const tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
     .sort((a, b) => String(a.when).localeCompare(String(b.when)));
+  // Every show they're booked on, each with its own sell link and how many tickets it has moved.
+  const sold: Record<string, number> = {};
+  for (const i of (invites || []).filter((x) => x.sell_ref || x.sell_promo_id)) {
+    const { data: os } = await db.from("ticket_orders").select("id,ref,promo_id").eq("event_id", i.event_id).eq("status", "paid").is("comp_list", null).is("artist_invite_id", null);
+    const mine = (os || []).filter((o) => (i.sell_promo_id && o.promo_id === i.sell_promo_id) || (i.sell_ref && o.ref && o.ref.toLowerCase() === String(i.sell_ref).toLowerCase())).map((o) => o.id);
+    sold[i.id] = mine.length ? ((await db.from("tickets").select("id", { count: "exact", head: true }).in("order_id", mine)).count ?? 0) : 0;
+  }
   const artist = (invites || []).filter((i) => evMap[i.event_id]).map((i) => ({ name: i.name, show: evMap[i.event_id].name, when: firstNight(i.event_id),
-    nights: (nights[i.event_id] || []).map((n) => n.label), url: `${SITE}/artist.html?k=${i.token}`, claimed: !!i.claimed_at }));
+    nights: (nights[i.event_id] || []).map((n) => n.label), url: `${SITE}/artist.html?k=${i.token}`, claimed: !!i.claimed_at,
+    sell_link: i.sell_ref ? `${SITE}/go/${i.sell_ref}` : null, sold: sold[i.id] || 0 }));
+  // One artist profile per person. First time we see them, it's carried over from their artist pass.
+  let { data: prof } = await db.from("artist_profiles").select("name,bio,hometown,genre,links,photo_path").eq("subscriber_id", m.id).maybeSingle();
+  if (!prof && (invites || []).length) {
+    const src = (invites || []).find((i) => i.bio || i.hometown || i.genre || i.photo_path || Object.keys(i.links || {}).length) || (invites || [])[0];
+    prof = { name: src.name, bio: src.bio || null, hometown: src.hometown || null, genre: src.genre || null, links: src.links || {}, photo_path: src.photo_path || null };
+    await db.from("artist_profiles").insert({ subscriber_id: m.id, ...prof });
+  }
+  let photo: string | null = null;
+  if (prof?.photo_path) photo = (await db.storage.from("artist-photos").createSignedUrl(prof.photo_path, 3600)).data?.signedUrl || null;
+  const profile = prof ? { name: prof.name, bio: prof.bio, hometown: prof.hometown, genre: prof.genre, links: prof.links || {}, photo } : null;
   const crews = (cos || []).filter((c) => companyIds.includes(c.id)).map((c) => {
     const role = (staff || []).find((s) => s.company_id === c.id)?.role || "staff";
     return { id: c.id, name: c.name, role, kind: c.legacy_stripe ? "original" : "promoter" };
@@ -156,7 +194,9 @@ async function home(m: { id: string; email: string; first_name: string | null })
     (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, nights: (nn[s.id] || []).map((n) => n.label) }));
   }
   const isStaff = (await admins()).includes(email);
-  return { email: m.email, name: m.first_name || "", staff: isStaff, tickets, artist, crews, music: `${SITE}/collection.html` };
+  // Creating and editing artist profiles isn't open to everyone yet: staff see it to test it.
+  const preview = isStaff || (await setting<boolean>("artist_profiles_open", false)) === true;
+  return { email: m.email, name: m.first_name || "", staff: isStaff, tickets, artist, profile, artist_preview: preview, crews, music: `${SITE}/collection.html`, demo: `${SITE}/demo.html`, waitlist: `${SITE}/artists.html` };
 }
 
 // ---- a show's numbers for its crew (read-only) ----
@@ -256,6 +296,26 @@ Deno.serve(async (req) => {
         const token = hex(32);
         await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
         return json({ token, email: m.email });
+      }
+      if (b.a === "profile") {
+        const me = await who(req);
+        if (!me) return no("Sign in again.", 401);
+        const email = String(me.email).toLowerCase();
+        const preview = (await admins()).includes(email) || (await setting<boolean>("artist_profiles_open", false)) === true;
+        if (!preview) return no("Artist profiles are coming soon.", 403);
+        const name = clean(b.name, 60);
+        if (!name) return no("Add your artist name.");
+        const typed = (b.links && typeof b.links === "object" ? b.links : {}) as Record<string, unknown>;
+        const links: Record<string, string> = {};
+        for (const k of Object.keys(LINK_HOSTS)) { const v = cleanLink(k, typed[k]); if (v) links[k] = v; }
+        const bad = Object.keys(LINK_HOSTS).filter((k) => clean(typed[k], 300) && !links[k]);
+        if (bad.length) return no("Check your " + bad.join(" and ") + " link. Paste the full address from the app.");
+        const patch = { bio: clean(b.bio, 400) || null, hometown: clean(b.hometown, 60) || null, genre: clean(b.genre, 60) || null, links };
+        const { data: cur } = await db.from("artist_profiles").select("photo_path").eq("subscriber_id", me.id).maybeSingle();
+        await db.from("artist_profiles").upsert({ subscriber_id: me.id, name, ...patch, photo_path: cur?.photo_path || null, updated_at: new Date().toISOString() }, { onConflict: "subscriber_id" });
+        // Copy onto every show they're booked on. The billing name on each show stays the promoter's.
+        await db.from("artist_invites").update(patch).ilike("email", email).is("revoked_at", null);
+        return json({ saved: true });
       }
       return no("Bad request");
     }

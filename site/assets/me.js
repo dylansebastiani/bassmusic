@@ -56,73 +56,98 @@
       me = d; $("msg").textContent = ""; show("home");
       $("hi").innerHTML = "Hey" + (d.name ? " <em>" + esc(d.name) + "</em>" : "");
       $("who").textContent = d.email;
-      var tabs = [];
-      var roles = (d.tickets.length ? 1 : 0) + (d.artist.length ? 1 : 0) + (d.crews.length || d.staff ? 1 : 0);
-      if (roles > 1) tabs.push(["home", "Home"]);
-      if (d.tickets.length || (!d.artist.length && !d.crews.length)) tabs.push(["fan", "Tickets & music"]);
-      if (d.artist.length) tabs.push(["artist", "Artist"]);
-      if (d.crews.length || d.staff) tabs.push(["crew", "Promoter"]);
-      if (!tab || !tabs.some(function (t) { return t[0] === tab; })) tab = tabs[0][0];
-      $("tabs").hidden = tabs.length < 2;
+      // Everyone gets the same three tabs. Empty ones invite them in instead of hiding.
+      var tabs = [["fan", "Fan"], ["artist", "Artist"], ["crew", "Promoter"]];
+      if (!tab) { try { tab = localStorage.getItem("me_tab") || ""; } catch (e) {} }
+      if (!/^(fan|artist|crew)$/.test(tab)) tab = d.crews.length || d.staff ? "crew" : d.artist.length || d.profile ? "artist" : "fan";
+      $("tabs").hidden = false;
       $("tabs").innerHTML = tabs.map(function (t) { return '<button type="button" role="tab" data-tab="' + t[0] + '" aria-selected="' + (t[0] === tab) + '">' + esc(t[1]) + "</button>"; }).join("");
       draw();
     }).catch(function (err) { if (tok) $("msg").textContent = err.message; });
   }
-  $("tabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (!b) return; tab = b.getAttribute("data-tab"); load(); });
-  document.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-go]"); if (!b) return; tab = b.getAttribute("data-go"); load(); });
+  $("tabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (!b) return; tab = b.getAttribute("data-tab"); try { localStorage.setItem("me_tab", tab); } catch (err) {} load(); });
 
+  var LINKS = [["instagram", "Instagram"], ["soundcloud", "SoundCloud"], ["spotify", "Spotify"], ["tiktok", "TikTok"], ["youtube", "YouTube"], ["website", "Website"]];
+  var editing = false;
+  function profileForm(p) {
+    p = p || { links: {} };
+    return '<form class="mcard pform" id="pform" novalidate><h3>' + (me.profile ? "Edit your artist profile" : "Create your artist profile") + '</h3>' +
+      '<div class="sub">One profile for every show you play. Promoters who book you get it already filled in.</div>' +
+      '<label for="pname">Artist name</label><input id="pname" maxlength="60" value="' + esc(p.name || "") + '">' +
+      '<label for="pgenre">Sound</label><input id="pgenre" maxlength="60" placeholder="e.g. riddim, dubstep, wave" value="' + esc(p.genre || "") + '">' +
+      '<label for="phome">Hometown</label><input id="phome" maxlength="60" placeholder="e.g. Peoria, IL" value="' + esc(p.hometown || "") + '">' +
+      '<label for="pbio">Bio</label><textarea id="pbio" maxlength="400" rows="3">' + esc(p.bio || "") + "</textarea>" +
+      LINKS.map(function (l) { return '<label for="pl-' + l[0] + '">' + l[1] + '</label><input id="pl-' + l[0] + '" maxlength="300" value="' + esc((p.links || {})[l[0]] || "") + '">'; }).join("") +
+      '<button class="mbtn" type="submit">Save profile</button> ' + (me.profile ? '<button class="mbtn ghost" type="button" data-cancel>Cancel</button>' : "") +
+      '<p class="msg" id="pmsg" role="status"></p></form>';
+  }
   function draw() {
     var d = me, h = "";
-    // Home: one card per role with its main buttons, so nothing hides behind a tab.
-    if (tab === "home") {
-      if (d.crews.length || d.staff) {
-        h += '<div class="roleh">Promoter</div>';
-        if (d.staff) h += '<div class="mcard"><h3>Subduction staff</h3><a class="mbtn" href="admin.html">Staff app</a></div>';
-        d.crews.forEach(function (c) {
-          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") + "</div>" +
-            (c.kind === "promoter" ? '<a class="mbtn" href="promoter.html">Open promoter app</a>' : '<button type="button" class="mbtn" data-go="crew">Show numbers</button>') + "</div>";
-        });
-      }
-      if (d.artist.length) {
-        h += '<div class="roleh">Artist</div>';
-        d.artist.forEach(function (a) {
-          h += '<div class="mcard"><h3>' + esc(a.name) + '</h3><div class="sub">' + esc(a.show) + " · " + esc(a.nights.join(" + ")) + "</div>" +
-            '<a class="mbtn" href="' + esc(a.url) + '">' + (a.claimed ? "Artist dashboard" : "Get my artist pass") + '</a><div class="sub" style="margin:8px 0 0">Your pass, guest list, tracks and sell link.</div></div>';
-        });
-      }
-      if (d.tickets.length) {
-        var n = d.tickets.reduce(function (a, s) { return a + s.tickets.length; }, 0);
-        h += '<div class="roleh">Fan</div><div class="mcard"><h3>' + n + (n === 1 ? " ticket" : " tickets") + '</h3><div class="sub">' + esc(d.tickets.map(function (s) { return s.show; }).join(", ")) + "</div>" +
-          '<button type="button" class="mbtn" data-go="fan">My tickets</button> <a class="mbtn ghost" href="' + esc(d.music) + '">My music</a></div>';
-      }
-    }
     if (tab === "fan") {
       h += d.tickets.length ? d.tickets.map(function (s) {
         return '<div class="mcard"><h3>' + esc(s.show) + '</h3><div class="sub">' + esc([s.nights.join(" + "), s.city].filter(Boolean).join(" · ")) + "</div>" +
-          s.tickets.map(function (t) { return '<div class="mrow"><span>' + esc(t.type) + ' <span class="mono">' + esc(t.code) + '</span></span><a href="' + esc(t.url) + '">Open ticket</a></div>'; }).join("") + "</div>";
-      }).join("") : '<p class="mempty">No tickets on this email yet.</p>';
+          s.tickets.map(function (t) { return '<div class="mrow"><span>' + esc(t.type) + ' <span class="mono">' + esc(t.code) + '</span></span><a href="' + esc(t.url) + '">Open</a></div>'; }).join("") + "</div>";
+      }).join("") : '<div class="mcard"><h3>No tickets yet</h3><div class="sub">Tickets you buy with this email show up here automatically.</div></div>';
       h += '<div class="mcard"><h3>Your music</h3><div class="sub">Every track you\'ve unlocked, to play or download.</div><a class="mbtn" href="' + esc(d.music) + '">Open my collection</a></div>';
     }
     if (tab === "artist") {
-      h += d.artist.map(function (a) {
-        return '<div class="mcard"><h3>' + esc(a.show) + '</h3><div class="sub">As ' + esc(a.name) + " · " + esc(a.nights.join(" + ")) + "</div>" +
-          '<a class="mbtn" href="' + esc(a.url) + '">' + (a.claimed ? "Pass, guest list, tracks + sell link" : "Get my artist pass") + "</a></div>";
-      }).join("");
+      if (editing) h += profileForm(d.profile);
+      else if (d.profile) {
+        var p = d.profile, ls = LINKS.filter(function (l) { return p.links && p.links[l[0]]; });
+        h += '<div class="mcard prof">' + (p.photo ? '<img class="pimg" src="' + esc(p.photo) + '" alt="">' : "") +
+          "<div><h3>" + esc(p.name || "") + '</h3><div class="sub">' + esc([p.genre, p.hometown].filter(Boolean).join(" · ")) + "</div>" +
+          (p.bio ? '<p class="pbio">' + esc(p.bio) + "</p>" : "") +
+          (ls.length ? '<div class="plinks">' + ls.map(function (l) { return '<a href="' + esc(p.links[l[0]]) + '" target="_blank" rel="noopener">' + l[1] + "</a>"; }).join("") + "</div>" : "") +
+          (d.artist_preview ? '<button type="button" class="mbtn ghost" data-edit>Edit profile</button>' : "") + "</div></div>";
+      }
+      if (d.artist.length) {
+        h += '<div class="roleh">Your shows</div>' + d.artist.map(function (a) {
+          return '<div class="mcard"><h3>' + esc(a.show) + '</h3><div class="sub">As ' + esc(a.name) + " · " + esc(a.nights.join(" + ")) + "</div>" +
+            (a.sell_link ? '<div class="mrow"><span><b>' + a.sold + (a.sold === 1 ? " ticket" : " tickets") + ' sold</b><br><span class="mono">' + esc(a.sell_link.replace(/^https?:\/\//, "")) + '</span></span><button type="button" class="mbtn ghost" data-copy="' + esc(a.sell_link) + '">Copy link</button></div>' : "") +
+            '<a class="mbtn" href="' + esc(a.url) + '">' + (a.claimed ? "Artist dashboard" : "Get my artist pass") + "</a></div>";
+        }).join("");
+      }
+      if (!d.profile && !d.artist.length && !editing) {
+        h += d.artist_preview
+          ? '<div class="mcard"><h3>Play shows?</h3><div class="sub">Make one artist profile. Every promoter who books you gets it already filled in, and your shows, passes and sell links all live here.</div><button type="button" class="mbtn" data-edit>Create artist profile</button></div>'
+          : '<div class="mcard"><h3>Artist profiles are coming soon</h3><div class="sub">One profile for every show you play, with your passes, guest lists and sell links in one place. Join the list and we\'ll tell you the day it opens.</div><a class="mbtn" href="' + esc(d.waitlist) + '">Join the artist list</a></div>';
+      }
     }
     if (tab === "crew") {
       if (d.staff) h += '<div class="mcard"><h3>Subduction staff</h3><div class="sub">Every show, every crew.</div><a class="mbtn" href="admin.html">Staff app</a> <a class="mbtn ghost" href="promoter.html">Promoter app</a></div>';
       d.crews.forEach(function (c) {
         if (c.kind === "promoter") {
-          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You help with this crew") + '</div><a class="mbtn" href="promoter.html">Open promoter app</a></div>';
+          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") + '</div><a class="mbtn" href="promoter.html">Open promoter app</a></div>';
         } else {
           h += '<div class="mcard"><h3>' + esc(c.name) + "</h3>" + ((c.shows || []).length ? c.shows.map(function (s) {
             return '<div class="mrow"><span>' + esc(s.name) + '<br><span class="mono">' + esc(s.nights.join(" + ")) + '</span></span><button type="button" class="mbtn ghost" data-crew="' + esc(s.slug) + '">Numbers</button></div><div id="cw-' + esc(s.slug) + '"></div>';
           }).join("") : '<p class="mempty">No shows yet.</p>') + "</div>";
         }
       });
+      if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
     }
     $("panes").innerHTML = h;
   }
+
+  // Profile: edit, cancel, save. Copy buttons for sell links.
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest("[data-edit]")) { editing = true; draw(); return; }
+    if (e.target.closest("[data-cancel]")) { editing = false; draw(); return; }
+    var c = e.target.closest("[data-copy]");
+    if (c) {
+      var t = c.getAttribute("data-copy"), done = function () { c.textContent = "Copied"; setTimeout(function () { c.textContent = "Copy link"; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { window.prompt("Copy this:", t); }); else window.prompt("Copy this:", t);
+    }
+  });
+  document.addEventListener("submit", function (e) {
+    if (e.target.id !== "pform") return;
+    e.preventDefault();
+    var links = {}; LINKS.forEach(function (l) { links[l[0]] = $("pl-" + l[0]).value.trim(); });
+    $("pmsg").textContent = "Saving...";
+    api("", { a: "profile", name: $("pname").value.trim(), genre: $("pgenre").value.trim(), hometown: $("phome").value.trim(), bio: $("pbio").value.trim(), links: links })
+      .then(function () { editing = false; load(); }).catch(function (err) { $("pmsg").textContent = err.message; });
+  });
 
   // ---- a show's numbers (crew view, read-only) ----
   document.addEventListener("click", function (e) {
