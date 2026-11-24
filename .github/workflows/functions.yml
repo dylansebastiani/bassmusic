@@ -2,7 +2,7 @@ name: deploy-functions
 # Deploys the backend (Supabase Edge Functions) straight from this repo, so what's live always matches
 # what's committed. Needs one GitHub secret: SUPABASE_ACCESS_TOKEN (Supabase dashboard > Account > Access Tokens).
 #
-# T.O.F.T.U.'s functions are left OUT of the list below on purpose, so nothing here can touch the first show's
+# T.O.F.T.U.'s functions (and artist + playlist, which serve its artist passes and uploads) are left OUT of the list below on purpose, so nothing here can touch the first show's
 # checkout, tickets, door or payments. Deploy those by hand, deliberately, only when Dylan says so.
 # Fan-wide functions (signup, emails, collection) also reach T.O.F.T.U.'s buyers, so they're held back too.
 #   held back: tickets, stripe-webhook, door, checkin, subscribe, confirm, verify, me, unsubscribe, engage,
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "Deploy just these (space-separated names). Leave empty for the whole safe list."
+        description: "Deploy just these (space-separated names). Leave empty for the whole safe list. Held-back names deploy only when listed here on purpose."
         required: false
 concurrency:
   group: functions
@@ -26,7 +26,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       PROJECT: hxfuelulxsituzcgsvhg
       SAFE: >-
-        page promoter demo checkout connect playlist artist artist-waitlist owner shows artist-sales account
+        page promoter demo checkout connect artist-waitlist owner shows artist-sales account
     steps:
       - uses: actions/checkout@v4
       - name: Stop if the token isn't set
@@ -39,7 +39,8 @@ jobs:
           LIST="${{ github.event.inputs.only }}"
           [ -z "$LIST" ] && LIST="$SAFE"
           for f in $LIST; do
-            case " $SAFE " in *" $f "*) ;; *) echo "Skipping $f: not on the safe list"; continue;; esac
+            # On a push only the safe list deploys. A held-back function deploys only when named on purpose (manual run).
+            if [ -z "${{ github.event.inputs.only }}" ]; then case " $SAFE " in *" $f "*) ;; *) echo "Skipping $f: not on the safe list"; continue;; esac; fi
             echo "::group::$f"
             supabase functions deploy "$f" --project-ref "$PROJECT" --no-verify-jwt --use-api
             echo "::endgroup::"

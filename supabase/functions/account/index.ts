@@ -10,9 +10,12 @@
 //   POST {a:"redeem", invite}       the button's link -> a session token
 //   POST {a:"code", email, code}    the 6-digit code from the same email -> a session token
 //   GET  ?a=me                      the home page (x-admin-token)
-//   GET  ?a=crew&e=<slug>           a show's numbers for its crew: sales by type, artists selling (x-admin-token)
+//   GET  ?a=crew&e=<slug>           the show hub for its crew: art + colors, share link, page checklist, numbers,
+//                                   artists (pass status + sell links), playlist (x-admin-token)
+//   GET  ?a=qr&e=<slug>             a QR code of the show's public link (public: it's the same link anyone can see)
 //   POST {a:"profile", ...}         save your one artist profile; copied onto every show you're booked on (preview only for now)
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import QRCode from "npm:qrcode@1.5.4";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -118,6 +121,16 @@ async function sendSignin(email: string) {
   if (!r.ok) console.error("account: sign-in email failed", r.status, (await r.text().catch(() => "")).slice(0, 200));
 }
 
+// ---- how a show looks and where it lives ----
+type Look = { link: string; image: string | null; colors: { main: string; accent: string; deep: string } };
+function lookFor(ev: any, co: any): Look {
+  const link = co?.legacy_stripe ? (ev.slug === "underground" ? `${SITE}/underground/` : `${SITE}/tickets.html?e=${ev.slug}`) : `${SITE}/${ev.slug}`;
+  const bc = (co?.brand && co.brand.colors) || {};
+  const c = ev.hub_colors || {};
+  return { link, image: ev.hub_image || ev.share_url || ev.poster_url || null,
+    colors: { main: c.main || bc.main || "#b6ff00", accent: c.accent || bc.accent || "#f4f1ee", deep: c.deep || bc.dark || "#1a1a1a" } };
+}
+
 // ---- the home page ----
 type Night = { label: string; starts_at: string };
 async function nightsFor(eventIds: string[]) {
@@ -141,7 +154,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
   const [{ data: evs }, { data: types }, { data: cos }] = await Promise.all([
     eventIds.length ? db.from("events").select("id,slug,name,city,company_id").in("id", eventIds) : Promise.resolve({ data: [] as any[] }),
     (tix || []).length ? db.from("ticket_types").select("id,name").in("id", [...new Set((tix || []).map((t) => t.type_id))]) : Promise.resolve({ data: [] as any[] }),
-    companyIds.length ? db.from("companies").select("id,slug,name,legacy_stripe").in("id", companyIds) : Promise.resolve({ data: [] as any[] }),
+    companyIds.length ? db.from("companies").select("id,slug,name,legacy_stripe,brand,stripe_charges_enabled").in("id", companyIds) : Promise.resolve({ data: [] as any[] }),
   ]);
   const evMap: Record<string, any> = {}; (evs || []).forEach((e: any) => { evMap[e.id] = e; });
   const tyMap: Record<string, string> = {}; (types || []).forEach((t: any) => { tyMap[t.id] = t.name; });
@@ -184,14 +197,16 @@ async function home(m: { id: string; email: string; first_name: string | null })
   const profile = prof ? { name: prof.name, bio: prof.bio, hometown: prof.hometown, genre: prof.genre, links: prof.links || {}, photo } : null;
   const crews = (cos || []).filter((c) => companyIds.includes(c.id)).map((c) => {
     const role = (staff || []).find((s) => s.company_id === c.id)?.role || "staff";
-    return { id: c.id, name: c.name, role, kind: c.legacy_stripe ? "original" : "promoter" };
+    return { id: c.id, name: c.name, role, kind: c.legacy_stripe ? "original" : "promoter", stripe_ready: !!c.legacy_stripe || !!c.stripe_charges_enabled };
   });
-  // The original account's crew view lists its real shows (test events stay out of it).
+  // Every crew's shows, each with its art, colors and public link (test events on the original account stay out).
   for (const c of crews) {
-    if (c.kind !== "original") continue;
-    const { data: shows } = await db.from("events").select("id,slug,name").eq("company_id", c.id).not("slug", "ilike", "test%").order("created_at", { ascending: false });
+    const co = (cos || []).find((x) => x.id === c.id);
+    let q = db.from("events").select("id,slug,name,sales_open,hub_image,hub_colors,share_url,poster_url").eq("company_id", c.id).order("created_at", { ascending: false });
+    if (c.kind === "original") q = q.not("slug", "ilike", "test%");
+    const { data: shows } = await q;
     const nn = await nightsFor((shows || []).map((s) => s.id));
-    (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, nights: (nn[s.id] || []).map((n) => n.label) }));
+    (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, on_sale: !!s.sales_open, nights: (nn[s.id] || []).map((n) => n.label), ...lookFor(s, co) }));
   }
   const isStaff = (await admins()).includes(email);
   // Creating and editing artist profiles isn't open to everyone yet: staff see it to test it.
@@ -201,7 +216,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
 
 // ---- a show's numbers for its crew (read-only) ----
 async function crew(m: { id: string; email: string }, slug: string) {
-  const { data: ev } = await db.from("events").select("id,slug,name,company_id,artist_milestone").eq("slug", slug).maybeSingle();
+  const { data: ev } = await db.from("events").select("id,slug,name,company_id,artist_milestone,sales_open,venue,city,address,location_secret,age,hub_image,hub_colors,share_url,poster_url,playlist,page_published_at").eq("slug", slug).maybeSingle();
   if (!ev) return null;
   const isStaff = (await admins()).includes(String(m.email).toLowerCase());
   if (!isStaff) {
@@ -210,7 +225,7 @@ async function crew(m: { id: string; email: string }, slug: string) {
   }
   const [{ data: orders }, { data: types }, nights] = await Promise.all([
     db.from("ticket_orders").select("id,status,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
-    db.from("ticket_types").select("id,name,sort").eq("event_id", ev.id).order("sort"),
+    db.from("ticket_types").select("id,name,sort,on_sale,tiers").eq("event_id", ev.id).order("sort"),
     nightsFor([ev.id]),
   ]);
   const ids = (orders || []).map((o) => o.id);
@@ -232,7 +247,7 @@ async function crew(m: { id: string; email: string }, slug: string) {
     days.push({ day, tickets: tix.filter((x) => dayOrders.has(x.order_id)).length });
   }
   // Artists selling: same rules as the artist sales tracker (their link tag or their $0 code).
-  const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
+  const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id,claimed_at,email,phone").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
   const { data: clicks } = (invs || []).length ? await db.from("artist_clicks").select("invite_id").in("invite_id", (invs || []).map((v) => v.id)).limit(20000) : { data: [] };
   const artists = (invs || []).map((v) => {
     let t = 0;
@@ -241,9 +256,33 @@ async function crew(m: { id: string; email: string }, slug: string) {
       const mine = (v.sell_promo_id && o.promo_id === v.sell_promo_id) || (v.sell_ref && o.ref && o.ref.toLowerCase() === v.sell_ref.toLowerCase());
       if (mine) t += tix.filter((x) => x.order_id === o.id).length;
     }
-    return { name: v.name, tickets: t, taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null };
+    return { name: v.name, tickets: t, taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null,
+      claimed: !!v.claimed_at, has_email: !!v.email, has_phone: !!v.phone };
   }).sort((a, b) => b.tickets - a.tickets || b.taps - a.taps || a.name.localeCompare(b.name));
-  return { show: ev.name, nights: (nights[ev.id] || []).map((n) => n.label), sold, comps, money_cents: money, by_type: byType, last7: days, artists };
+  const { data: co } = await db.from("companies").select("legacy_stripe,brand,stripe_charges_enabled").eq("id", ev.company_id).maybeSingle();
+  const look = lookFor(ev, co);
+  // What's on sale right now, at what price (the current tier of each ticket type).
+  const prices = (types || []).filter((t) => t.on_sale && Array.isArray(t.tiers) && t.tiers.length).map((t) => {
+    const taken = tix.filter((x) => x.type_id === t.id).length;
+    let start = 0, cur: any = null;
+    for (const tier of t.tiers as any[]) { const end = start + (tier.qty || 0); if (!cur && taken < end) cur = { ...tier, left: end - taken }; start = end; }
+    return { name: t.name, tier: cur?.name || "Sold out", price_cents: cur?.price_cents ?? null, left: cur?.left ?? 0 };
+  });
+  const { count: artistTracks } = await db.from("playlist_tracks").select("id", { count: "exact", head: true }).eq("event_id", ev.id);
+  const pl = (ev.playlist || {}) as { mode?: string; tracks?: unknown[] };
+  // A quick "is everything right?" list for the promoter.
+  const nightList = nights[ev.id] || [];
+  const checks = [
+    { label: "Tickets on sale", ok: !!ev.sales_open },
+    { label: "Prices set", ok: prices.length > 0 },
+    { label: "Dates and doors", ok: nightList.length > 0 && nightList.every((n) => !!n.starts_at) },
+    { label: ev.location_secret ? "Secret location (address sent before the show)" : "Venue address", ok: ev.location_secret || !!ev.address },
+    { label: "Every artist has their pass", ok: artists.length > 0 && artists.every((a) => a.claimed) },
+    { label: "Show playlist", ok: (artistTracks ?? 0) > 0 || (pl.tracks || []).length > 0 || pl.mode === "subduction" },
+  ];
+  return { show: ev.name, slug: ev.slug, ...look, nights: nightList.map((n) => n.label), venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city, age: ev.age,
+    on_sale: !!ev.sales_open, sold, comps, money_cents: money, by_type: byType, prices, last7: days, artists, checks,
+    playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 } };
 }
 
 Deno.serve(async (req) => {
@@ -320,6 +359,14 @@ Deno.serve(async (req) => {
       return no("Bad request");
     }
     if (req.method !== "GET") return no("Not allowed", 405);
+    if (u.searchParams.get("a") === "qr") {
+      const slug = (u.searchParams.get("e") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+      const { data: ev } = await db.from("events").select("slug,company_id").eq("slug", slug).maybeSingle();
+      if (!ev) return no("Not found", 404);
+      const { data: co } = await db.from("companies").select("legacy_stripe").eq("id", ev.company_id).maybeSingle();
+      const png = await QRCode.toBuffer(lookFor(ev, co).link, { type: "png", width: 480, margin: 2, errorCorrectionLevel: "M" });
+      return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600", ...CORS } });
+    }
     const m = await who(req);
     if (!m) return no("Sign in again.", 401);
     const a = u.searchParams.get("a") || "";
