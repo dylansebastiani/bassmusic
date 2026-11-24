@@ -162,8 +162,9 @@
     var qr = FN + "?a=qr&e=" + encodeURIComponent(r.slug);
     var max = Math.max.apply(null, r.last7.map(function (x) { return x.tickets; }).concat([1]));
     var week = r.last7.reduce(function (a, x) { return a + x.tickets; }, 0);
-    var types = r.by_type.filter(function (t) { return t.cap > 0; });
+    var types = r.by_type.filter(function (t) { return t.cap > 0 && t.on_sale; });
     var cap = types.reduce(function (a, t) { return a + t.cap; }, 0);
+    var off = r.by_type.filter(function (t) { return !t.on_sale && (t.sold || t.comps) && t.name !== "Artist Pass"; });
     var todo = r.checks.filter(function (c) { return !c.ok; });
     // The ticket meter: one bar per ticket type, split into its price tiers, filled as it sells.
     var meter = types.map(function (t) {
@@ -182,7 +183,8 @@
       '<header class="hhero"' + (r.image ? ' style="background-image:url(\'' + esc(r.image) + '\')"' : "") + '><div class="hcap">' +
         '<span class="state' + (r.on_sale ? " live" : "") + '">' + (r.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
         "<h2>" + esc(r.show) + "</h2><p>" + esc(r.nights.join(" + ")) + "<br>" + esc([r.venue, r.city].filter(Boolean).join(", ")) + (r.age ? ", " + esc(r.age) : "") + "</p></div></header>" +
-      '<section class="hs"><p class="lede"><b>' + r.sold + "</b> sold" + (cap ? " of " + cap : "") + ", <b>" + usd(r.money_cents) + "</b> in tickets, <b>" + r.comps + "</b> on the guest list.</p>" + meter + "</section>" +
+      '<section class="hs"><p class="lede"><b>' + r.sold + "</b> sold" + (cap ? " of " + cap : "") + ", <b>" + usd(r.money_cents) + "</b> in tickets, <b>" + r.comps + "</b> on the guest list.</p>" + meter +
+        (off.length ? '<p class="mnow">Also issued, not on sale: ' + off.map(function (t) { return esc(t.name) + " (" + (t.sold + t.comps) + ")"; }).join(", ") + "</p>" : "") + "</section>" +
       '<section class="hs"><h3>Share the show</h3><div class="share"><div class="sfield"><span>' + esc(r.link.replace(/^https?:\/\//, "")) + '</span><button type="button" data-copy="' + esc(r.link) + '">Copy</button></div>' +
         '<a class="qrbox" href="' + esc(qr) + '" target="_blank" rel="noopener" title="Open the QR code to save it"><img src="' + esc(qr) + '" alt="QR code for the show link" width="76" height="76"></a></div>' +
         '<a class="tlink" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the show page</a></section>' +

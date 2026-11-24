@@ -215,7 +215,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
 }
 
 // ---- a show's numbers for its crew (read-only) ----
-async function crew(m: { id: string; email: string }, slug: string) {
+async function crew(m: { id: string; email: string }, slug: string, token = "") {
   const { data: ev } = await db.from("events").select("id,slug,name,company_id,artist_milestone,sales_open,venue,city,address,location_secret,age,hub_image,hub_colors,share_url,poster_url,playlist,page_published_at").eq("slug", slug).maybeSingle();
   if (!ev) return null;
   const isStaff = (await admins()).includes(String(m.email).toLowerCase());
@@ -223,6 +223,8 @@ async function crew(m: { id: string; email: string }, slug: string) {
     const { data: row } = await db.from("company_staff").select("role").eq("subscriber_id", m.id).eq("company_id", ev.company_id).maybeSingle();
     if (!row) return null;
   }
+  // Make sure every artist has a sell link and code (the artist sales tracker creates them the first time it's asked).
+  if (token) { try { await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/artist-sales?a=staff&e=${encodeURIComponent(slug)}`, { headers: { "x-admin-token": token }, signal: AbortSignal.timeout(8000) }); } catch { /* the hub still loads */ } }
   const [{ data: orders }, { data: types }, nights] = await Promise.all([
     db.from("ticket_orders").select("id,status,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
     db.from("ticket_types").select("id,name,sort,on_sale,tiers").eq("event_id", ev.id).order("sort"),
@@ -377,7 +379,7 @@ Deno.serve(async (req) => {
     const a = u.searchParams.get("a") || "";
     if (a === "me") return json(await home(m));
     if (a === "crew") {
-      const r = await crew(m, (u.searchParams.get("e") || "").toLowerCase().replace(/[^a-z0-9-]/g, ""));
+      const r = await crew(m, (u.searchParams.get("e") || "").toLowerCase().replace(/[^a-z0-9-]/g, ""), (req.headers.get("x-admin-token") || "").trim());
       return r ? json(r) : no("Not found", 404);
     }
     return no("Bad request");
