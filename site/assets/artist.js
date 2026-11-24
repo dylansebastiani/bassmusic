@@ -171,6 +171,19 @@
       .then(function (d) { $("tmsg").textContent = "Cover added."; drawTracks(d); })
       .catch(function (err) { $("tmsg").textContent = err.message; });
   });
+  // Replace a track with a new version: same title, cover, fans and download setting.
+  var swapFor = null;
+  $("tswappick").addEventListener("change", function () {
+    var f = $("tswappick").files[0], id = swapFor; $("tswappick").value = ""; if (!f || !id) return;
+    var ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { $("tmsg").textContent = "Use an MP3, WAV or M4A."; return; }
+    if (f.size > 50 * 1048576) { $("tmsg").textContent = "That track is over 50 MB (the most the site can take right now). Export it as a 320 kbps MP3 and it will fit."; return; }
+    $("tmsg").textContent = "Uploading… 0%";
+    pl("artist-upload-url", { ext: ext, replace: id }).then(function (r) { return put(r, f, "Uploading… "); })
+      .then(function (path) { return pl("artist-file", { id: id, path: path }); })
+      .then(function (d) { $("tmsg").textContent = "Replaced. The new version is in the mix."; drawTracks(d); })
+      .catch(function (err) { $("tmsg").textContent = err.message; });
+  });
   // Fans who downloaded: newest first, everything exportable in one tap.
   var FANS = [];
   function drawFans(list) {
@@ -200,17 +213,49 @@
     $("tcount").textContent = d.tracks.length + " of " + d.max;
     $("tf").hidden = full; $("tfull").hidden = !full;
     $("tlist").innerHTML = d.tracks.length ? d.tracks.map(function (t) {
-      return '<div class="guest trk"><div class="tart">' + (t.art_url ? '<img src="' + esc(t.art_url) + '" alt="">' : "") + '</div><div class="tinfo"><b>' + esc(t.title) + "</b><span>In the mix · free download " + (t.free_download ? "on" : "off") + "</span></div>" +
-        '<div class="tbtns"><button type="button" data-art="' + esc(t.id) + '">' + (t.art_url ? "Change cover" : "Add cover") + '</button><button type="button" data-free="' + esc(t.id) + '" data-on="' + (t.free_download ? "1" : "") + '">' + (t.free_download ? "Turn off download" : "Make it free") + '</button><button type="button" data-trm="' + esc(t.id) + '">Remove</button></div></div>';
+      var id = esc(t.id);
+      return '<div class="trk2" data-id="' + id + '">' +
+        '<button type="button" class="tcov" data-art="' + id + '" aria-label="' + (t.art_url ? "Change cover" : "Add a cover") + '">' + (t.art_url ? '<img src="' + esc(t.art_url) + '" alt="">' : "<em>+ Cover</em>") + "<span>Edit</span></button>" +
+        '<div class="tbody"><div class="tname">' + esc(t.title) + "</div>" +
+        '<div class="tact"><button type="button" data-ren="' + id + '" data-title="' + esc(t.title) + '">Rename</button><button type="button" data-swap="' + id + '">Replace file</button>' +
+        '<label class="tsw"><input type="checkbox" data-freebox="' + id + '"' + (t.free_download ? " checked" : "") + '><i aria-hidden="true"></i>Free download</label>' +
+        '<button type="button" class="tdel" data-trm="' + id + '">Remove</button></div></div></div>';
     }).join("") : '<div class="empty">No tracks yet.</div>';
   }
   $("tfile").addEventListener("change", function () { var f = $("tfile").files[0]; if (f && !$("ttitle").value) $("ttitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80); });
   $("tlist").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-art")) { artFor = b.getAttribute("data-art"); $("tartpick").click(); return; }
-    var job = b.hasAttribute("data-trm") ? pl("artist-remove", { id: b.getAttribute("data-trm") }) : b.hasAttribute("data-free") ? pl("artist-set", { id: b.getAttribute("data-free"), free_download: !b.getAttribute("data-on") }) : null;
+    if (b.hasAttribute("data-swap")) { swapFor = b.getAttribute("data-swap"); $("tswappick").click(); return; }
+    if (b.hasAttribute("data-ren")) {
+      // Rename in place: the title turns into a box with Save / Cancel.
+      var info = b.closest(".tbody"), id = b.getAttribute("data-ren"), old = b.getAttribute("data-title");
+      info.innerHTML = '<input type="text" class="tren" maxlength="80" aria-label="Track title"><div class="tact"><button type="button" class="tsave" data-rsave="' + esc(id) + '">Save</button><button type="button" data-rcancel>Cancel</button></div>';
+      var box = info.querySelector(".tren"); box.value = old; box.focus(); box.select();
+      box.addEventListener("keydown", function (ev) { if (ev.key === "Enter") info.querySelector("[data-rsave]").click(); if (ev.key === "Escape") info.querySelector("[data-rcancel]").click(); });
+      return;
+    }
+    if (b.hasAttribute("data-rcancel")) { pl("artist").then(drawTracks).catch(function () {}); return; }
+    if (b.hasAttribute("data-rsave")) {
+      var t = b.closest(".tbody").querySelector(".tren").value.trim();
+      if (!t) { $("tmsg").textContent = "Give it a title."; return; }
+      b.disabled = true;
+      pl("artist-rename", { id: b.getAttribute("data-rsave"), title: t }).then(function (d) { $("tmsg").textContent = "Renamed."; drawTracks(d); })
+        .catch(function (err) { $("tmsg").textContent = err.message; b.disabled = false; });
+      return;
+    }
+    if (b.hasAttribute("data-trm") && !confirm("Remove this track from the show? Fans won't hear it anymore.")) return;
+    var job = b.hasAttribute("data-trm") ? pl("artist-remove", { id: b.getAttribute("data-trm") }) : null;
     if (!job) return; b.disabled = true;
     job.then(drawTracks).catch(function (err) { $("tmsg").textContent = err.message; b.disabled = false; });
+  });
+  // The free download switch saves as soon as it's flipped.
+  $("tlist").addEventListener("change", function (e) {
+    var box = e.target.closest("[data-freebox]"); if (!box) return;
+    box.disabled = true;
+    pl("artist-set", { id: box.getAttribute("data-freebox"), free_download: box.checked })
+      .then(function (d) { $("tmsg").textContent = box.checked ? "Fans can download it free now." : "Free download is off."; drawTracks(d); })
+      .catch(function (err) { box.checked = !box.checked; box.disabled = false; $("tmsg").textContent = err.message; });
   });
   $("tf").addEventListener("submit", function (e) {
     e.preventDefault();

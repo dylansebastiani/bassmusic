@@ -17,6 +17,9 @@
 //   POST {a:"artist-set", k, id, free_download}    turn free download on or off
 //   POST {a:"artist-art", k, id, art_path}         put cover art on one of my tracks (art_path from artist-upload-url with ext jpg/png/webp)
 //   POST {a:"artist-remove", k, id}
+//   POST {a:"artist-rename", k, id, title}         rename one of my tracks
+//   POST {a:"artist-upload-url", k, ext, replace:<track id>}   upload link for a new version of one of my tracks
+//   POST {a:"artist-file", k, id, path}            swap one of my tracks for the new version
 // Fans:
 //   GET  ?a=meta&id=<track>                     the track page (/t?d=): title, artist, cover, follow links
 //   POST {a:"member-dl", id, t}                 a member unlocks an artist's free track into their collection (same flow as
@@ -212,7 +215,10 @@ Deno.serve(async (req) => {
     if (a === "artist-upload-url") {
       const ext = String(b.ext || "").toLowerCase();
       if (!EXT[ext]) return json({ error: "Upload an MP3, WAV or M4A." }, 400);
-      if ((await mine()).tracks.length >= ARTIST_MAX) return json({ error: "You've added the most tracks one artist can. Remove one first." }, 400);
+      // A new version of a track they already have doesn't count against the limit.
+      const rep = String(b.replace || "");
+      const swapping = UUID_RE.test(rep) && !!(await db.from("playlist_tracks").select("id").eq("id", rep).eq("invite_id", inv.id).maybeSingle()).data;
+      if (!swapping && (await mine()).tracks.length >= ARTIST_MAX) return json({ error: "You've added the most tracks one artist can. Remove one first." }, 400);
       const path = newPath(inv.event_id, ext);
       const { data, error } = await db.storage.from("playlists").createSignedUploadUrl(path);
       if (error || !data) { console.error("playlist artist-upload-url", error?.message); return json({ error: "Couldn't start the upload. Try again." }, 500); }
@@ -228,7 +234,7 @@ Deno.serve(async (req) => {
       if (error) { console.error("playlist artist-add", error.message); return json({ error: "Couldn't add that. Try again." }, 500); }
       return json(await mine());
     }
-    if (a === "artist-set" || a === "artist-remove" || a === "artist-art") {
+    if (a === "artist-set" || a === "artist-remove" || a === "artist-art" || a === "artist-rename" || a === "artist-file") {
       const id = String(b.id || "");
       if (!UUID_RE.test(id)) return json({ error: "Which track?" }, 400);
       const { data: tr } = await db.from("playlist_tracks").select("id,path,art_path").eq("id", id).eq("invite_id", inv.id).maybeSingle();
@@ -238,6 +244,15 @@ Deno.serve(async (req) => {
         if (!artPath || !ART_RE(inv.event_id).test(artPath)) return json({ error: "That cover didn't finish uploading. Try again." }, 400);
         await db.from("playlist_tracks").update({ art_path: artPath }).eq("id", tr.id);
         if (tr.art_path && tr.art_path !== artPath) await db.storage.from("playlists").remove([tr.art_path]);
+      } else if (a === "artist-rename") {
+        const title = clean(b.title, 80);
+        if (!title) return json({ error: "Give it a title." }, 400);
+        await db.from("playlist_tracks").update({ title }).eq("id", tr.id);
+      } else if (a === "artist-file") {
+        const path = clean(b.path, 200);
+        if (!path || !PATH_RE(inv.event_id).test(path)) return json({ error: "That upload didn't finish. Try again." }, 400);
+        await db.from("playlist_tracks").update({ path }).eq("id", tr.id);
+        if (tr.path !== path) await db.storage.from("playlists").remove([tr.path]);
       } else if (a === "artist-set") await db.from("playlist_tracks").update({ free_download: b.free_download === true }).eq("id", tr.id);
       else { await db.from("playlist_tracks").delete().eq("id", tr.id); await db.storage.from("playlists").remove([tr.path, ...(tr.art_path ? [tr.art_path] : [])]); }
       return json(await mine());
