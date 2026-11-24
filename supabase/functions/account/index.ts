@@ -302,7 +302,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
       guests: inNight.filter((x) => x.kind === "guest").length, artists: inNight.filter((x) => x.kind === "artist").length };
   });
   // Artists selling: same rules as the artist sales tracker (their link tag or their $0 code).
-  const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id,claimed_at,email,phone,photo_path").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
+  const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id,claimed_at,email,phone,photo_path,created_by").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
   // Each artist's own photo (from their pass page), signed for an hour.
   const photos: Record<string, string> = {};
   const paths = (invs || []).map((v) => v.photo_path).filter(Boolean) as string[];
@@ -318,7 +318,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
       const mine = (v.sell_promo_id && o.promo_id === v.sell_promo_id) || (v.sell_ref && o.ref && o.ref.toLowerCase() === v.sell_ref.toLowerCase());
       if (mine) t += tix.filter((x) => x.order_id === o.id).length;
     }
-    return { name: v.name, tickets: t, taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null,
+    return { id: canAdd && (isStaff || v.created_by === m.id) ? v.id : "", name: v.name, tickets: t, taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null,
       claimed: !!v.claimed_at, has_email: !!v.email, has_phone: !!v.phone, photo: (v.photo_path && photos[v.photo_path]) || null };
   }).sort((a, b) => b.tickets - a.tickets || b.taps - a.taps || a.name.localeCompare(b.name));
   const { data: co } = await db.from("companies").select("legacy_stripe,brand,stripe_charges_enabled").eq("id", ev.company_id).maybeSingle();

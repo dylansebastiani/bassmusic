@@ -1,5 +1,5 @@
 import { db, setting } from "../_shared/db.ts";
-import { json, preflight, clean, ipHash, EMAIL_RE } from "../_shared/util.ts";
+import { json, preflight, clean, ipHash, EMAIL_RE, sha256 } from "../_shared/util.ts";
 import { requireAdmin } from "../_shared/admin.ts";
 import { sendTickets } from "../_shared/send.ts";
 import { SITE_URL } from "../_shared/config.ts";
@@ -98,11 +98,73 @@ Deno.serve(async (req) => {
     if (!SLUG.test(slug)) return no("Bad request");
     const { data: ev } = await db.from("events").select("id").eq("slug", slug).maybeSingle();
     if (!ev) return json({ artists: [] }, 200, { "Cache-Control": "public, max-age=300", ...CORS_A });
-    const { data: rows } = await db.from("artist_invites").select("name,photo_path,bio,hometown,genre,links")
-      .eq("event_id", ev.id).is("revoked_at", null).not("claimed_at", "is", null).eq("profile_hidden", false);
-    const artists = (rows || []).filter((r) => r.photo_path || r.bio || r.hometown || r.genre || Object.keys(r.links || {}).length)
+    const [{ data: rows }, { data: ns }] = await Promise.all([
+      db.from("artist_invites").select("name,photo_path,bio,hometown,genre,links")
+        .eq("event_id", ev.id).is("revoked_at", null).not("claimed_at", "is", null).eq("profile_hidden", false),
+      db.from("ticket_nights").select("lineup,lineup_full").eq("event_id", ev.id),
+    ]);
+    // A show holding its lineup back (a draft in lineup_full) only gives out the artists already on the
+    // published lineup, so this can't leak who's playing before the reveal. Other shows: unchanged.
+    const held = (ns || []).some((n) => n.lineup_full != null);
+    const shown = (ns || []).flatMap((n) => (Array.isArray(n.lineup) ? n.lineup : []).map((x: { name?: string }) => String(x?.name || ""))).join(" | ").toLowerCase();
+    const artists = (rows || []).filter((r) => !held || (r.name && shown.includes(String(r.name).toLowerCase())))
+      .filter((r) => r.photo_path || r.bio || r.hometown || r.genre || Object.keys(r.links || {}).length)
       .map((r) => ({ name: r.name, photo_url: photoUrl(r.photo_path), bio: r.bio, hometown: r.hometown, genre: r.genre, links: cleanLinks(r.links) }));
     return json({ artists }, 200, { "Cache-Control": "public, max-age=300", ...CORS_A });
+  }
+
+  // ================= the show's crew owner, from their account page =================
+  // Same steps as the staff "create" below (name, contact, pass issued and emailed), but signed in as the
+  // show's own crew owner. Contact is required here, so the pass always goes out right away.
+  if (a === "crew_create" || a === "crew_revoke") {
+    const tok = (req.headers.get("x-admin-token") || "").trim();
+    if (!/^[0-9a-f]{64}$/.test(tok)) return no("Sign in again.", 401);
+    const { data: sess } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tok)).maybeSingle();
+    if (!sess || new Date(sess.expires_at).getTime() < Date.now()) return no("Sign in again.", 401);
+    const { data: mem } = await db.from("subscribers").select("id,email,status").eq("id", sess.subscriber_id).maybeSingle();
+    if (!mem || mem.status === "deleted") return no("Sign in again.", 401);
+    const slug = String(b.e || u.searchParams.get("e") || "");
+    if (!SLUG.test(slug)) return no("Bad request");
+    const { data: ev } = await db.from("events").select("id,slug,company_id").eq("slug", slug).maybeSingle();
+    if (!ev) return no("Not found", 404);
+    const isStaff = ((await setting<string[]>("admin_emails", [])) || []).map((e) => String(e).toLowerCase()).includes(String(mem.email).toLowerCase());
+    let allowed = isStaff;
+    if (!allowed && ev.company_id) {
+      const { data: row } = await db.from("company_staff").select("role").eq("subscriber_id", mem.id).eq("company_id", ev.company_id).maybeSingle();
+      allowed = row?.role === "owner";
+    }
+    if (!allowed) return no("Only the show's crew owner can add artists.", 403);
+    const { data: rl } = await db.rpc("bump_rate_limit", { p_ip_hash: "crewartist|" + mem.id });
+    if ((rl ?? 0) > 20) return no("Too many changes at once. Wait a minute.", 429);
+    const clog = (type: string, meta: Record<string, unknown>) => db.from("engagement_events").insert({ subscriber_id: mem.id, type: "crew:" + type, meta });
+
+    if (a === "crew_revoke") {
+      const id = clean(b.id, 40) || "";
+      const { data: inv } = await db.from("artist_invites").select("id,name,created_by,revoked_at").eq("id", id).eq("event_id", ev.id).maybeSingle();
+      if (!inv) return no("Not found", 404);
+      if (!isStaff && inv.created_by !== mem.id) return no("Only artists you added can be taken off here.");
+      if (inv.revoked_at) return ok({ revoked: true });
+      await db.from("artist_invites").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+      const { data: os } = await db.from("ticket_orders").select("id").eq("artist_invite_id", id);
+      if (os?.length) await db.from("tickets").update({ status: "void" }).in("order_id", os.map((o) => o.id));
+      await clog("artist_revoke", { event: slug, id, name: inv.name, tickets_cancelled: os?.length || 0 });
+      return ok({ revoked: true });
+    }
+
+    const name = clean(b.name, 80); if (!name) return no("Add the artist's name (how it shows on the lineup).");
+    const p = contact(b, "full_name");
+    if ("err" in p) return no(p.err!);
+    const { data: dup } = await db.from("artist_invites").select("id").eq("event_id", ev.id).is("revoked_at", null).ilike("name", name).maybeSingle();
+    if (dup) return no(name + " is already on this show.");
+    const t = (await db.from("ticket_types").select("id,name").eq("event_id", ev.id).eq("slug", "artist").maybeSingle()).data;
+    if (!t) return no("Artist passes aren't set up for this show yet.");
+    const spots = Math.max(0, Math.min(10, Math.floor(Number(b.spots ?? 2))));
+    const { data: inv, error } = await db.from("artist_invites").insert({ event_id: ev.id, name, guest_spots: spots, created_by: mem.id,
+      full_name: p.name, email: p.email, phone: p.phone, claimed_at: new Date().toISOString() }).select("id,event_id,name,token").single();
+    if (error || !inv) return no("Couldn't save that artist.", 500);
+    const r = await issueOrder(inv, p as { name: string; email: string; phone: string }, t, "Artist", "Artist", true);
+    await clog("artist_invite", { event: slug, name, spots, pass_sent: r ? r.sent : false });
+    return ok({ added: true, pass_sent: r ? !!r.sent : false });
   }
 
   // ================= staff =================

@@ -183,8 +183,48 @@
       (p.order_id && hubData && hubData.can_add_guests ? '<button type="button" class="prm" data-rm="' + esc(p.order_id) + '" data-rmname="' + esc(p.name) + '">Remove</button>' : "") +
       '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
   }
+  function artistForm() {
+    return '<details class="gadd"' + (aOpen ? " open" : "") + '><summary class="mbtn">Add an artist</summary><form id="aform" class="cform" novalidate>' +
+      '<p class="mnow">Their artist pass is emailed right away, with their own guest spots and sell link. Adding them here doesn\'t put them on the public lineup.</p>' +
+      '<label for="aname">Artist name</label><input id="aname" autocomplete="off" maxlength="80" placeholder="How it shows on the lineup">' +
+      '<label for="afull">Their full name</label><input id="afull" autocomplete="off" maxlength="80" placeholder="First and last">' +
+      '<label for="aphone">Phone</label><input id="aphone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="(309) 555-0123">' +
+      '<label for="aemail">Email</label><input id="aemail" type="email" inputmode="email" autocomplete="off" maxlength="254" placeholder="Where their pass goes">' +
+      '<label for="aspots">Guest spots</label><input id="aspots" type="number" inputmode="numeric" min="0" max="10" value="2">' +
+      '<button class="mbtn" type="submit" id="ago">Add and send pass</button><p class="msg" id="amsg" role="status"></p></form></details>';
+  }
+  var aOpen = false;
+  function artistFn(a, body) {
+    body.a = a; body.e = hub;
+    return fetch((C.supabaseUrl || "") + "/functions/v1/artist", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": tok }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+  }
+  document.addEventListener("submit", function (e) {
+    if (e.target.id !== "aform") return;
+    e.preventDefault();
+    var name = $("aname").value.trim(), full = $("afull").value.trim(), phone = $("aphone").value.trim(), email = $("aemail").value.trim(), spots = $("aspots").value;
+    var m = $("amsg");
+    if (!name) { m.textContent = "Add the artist name, how it shows on the lineup."; return; }
+    if (full.split(/\s+/).length < 2) { m.textContent = "Enter their full name (first and last)."; return; }
+    if (phone.replace(/\D/g, "").length < 10) { m.textContent = "Enter a phone number we can reach them at."; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { m.textContent = "Enter the email their pass should go to."; return; }
+    $("ago").disabled = true; m.textContent = "Adding...";
+    artistFn("crew_create", { name: name, full_name: full, phone: phone, email: email, spots: spots }).then(function (j) {
+      aOpen = true;
+      return api("?a=crew&e=" + encodeURIComponent(hub)).then(function (r) { hubData = r; drawHub();
+        $("amsg").textContent = name + " is on the show." + (j.pass_sent ? " Their pass is on its way to " + email + "." : " The pass email didn't send; I can resend it."); });
+    }).catch(function (err) { m.textContent = err.message; $("ago").disabled = false; });
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-off]");
+    if (!b) return;
+    if (!window.confirm("Take " + b.getAttribute("data-offname") + " off this show? Their artist pass and their guests' tickets will stop working.")) return;
+    b.disabled = true; b.textContent = "Taking off...";
+    artistFn("crew_revoke", { id: b.getAttribute("data-off") }).then(function () { return reloadHub(); })
+      .catch(function (err) { b.disabled = false; b.textContent = "Take off show"; window.alert(err.message); });
+  });
   function guestForm() {
-    return '<details class="gadd"' + (gOpen ? " open" : "") + '><summary class="mbtn">Add a guest</summary><form id="gform" novalidate>' +
+    return '<details class="gadd"' + (gOpen ? " open" : "") + '><summary class="mbtn">Add a guest</summary><form id="gform" class="cform" novalidate>' +
       '<p class="mnow">They get a free 2-day ticket by email right away. It doesn\'t use any of the ' + "150 spots." + "</p>" +
       '<label for="gname">Full name</label><input id="gname" autocomplete="off" maxlength="80" placeholder="First and last">' +
       '<label for="gphone">Phone</label><input id="gphone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="(309) 555-0123">' +
@@ -276,10 +316,11 @@
         '<a class="tlink" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the show page</a></section>' +
       (todo.length ? "" : checksHtml) +
       '<section class="hs"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
-          return '<div class="arow">' + (a.photo ? '<img class="av" src="' + esc(a.photo) + '" alt="" loading="lazy">' : '<span class="av">' + esc(initials(a.name)) + "</span>") + '<span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span></span>" +
+          return '<div class="arow">' + (a.photo ? '<img class="av" src="' + esc(a.photo) + '" alt="" loading="lazy">' : '<span class="av">' + esc(initials(a.name)) + "</span>") + '<span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span>" +
+            (a.id ? '<button type="button" class="aoff" data-off="' + esc(a.id) + '" data-offname="' + esc(a.name) + '">Take off show</button>' : "") + "</span>" +
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
         }).join("") : '<p class="mempty">No artists yet.</p>') +
-        '<p class="soon">Adding artists, guest passes and set times from here is next.</p></section>' +
+        (r.can_add_guests ? artistForm() : "") + '<p class="soon">Set times from here are next.</p></section>' +
       guestList(r) +
       '<section class="hs two"><div><h3>This week</h3><p class="lede small"><b>' + week + "</b> " + (week === 1 ? "ticket" : "tickets") + " in the last 7 days</p>" +
         '<div class="bars">' + r.last7.map(function (x) { return '<i style="height:' + Math.max(4, Math.round(100 * x.tickets / max)) + '%" title="' + x.tickets + '"></i>'; }).join("") + "</div>" +
