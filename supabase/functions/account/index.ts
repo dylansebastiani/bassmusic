@@ -170,7 +170,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
     const ev = evMap[t.event_id]; if (!ev) continue;
     const page = legacyCo.has(ev.company_id) ? "ticket" : "pass";
     const o = (orders || []).find((x) => x.id === t.order_id);
-    const kind = o?.artist_invite_id ? "artist" : o?.status === "comp" ? "guest" : "ticket";
+    const kind = o?.artist_invite_id && (!o.comp_list || o.comp_list === "Artist") ? "artist" : o?.status === "comp" ? "guest" : "ticket";
     (ticketsByEvent[t.event_id] ||= []).push({ type: kind === "artist" ? "Artist pass" : (tyMap[t.type_id] || "Ticket") + (kind === "guest" ? " · guest list" : ""), kind, code: t.code, url: `${SITE}/${page}.html?t=${t.token}` });
   }
   const tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
@@ -288,7 +288,9 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     const kinds: Record<string, number> = {}; mine.forEach((x) => { const n = tyName[x.type_id] || "Ticket"; kinds[n] = (kinds[n] || 0) + 1; });
     return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length,
       what: Object.entries(kinds).map(([n, q]) => (q > 1 ? q + "× " : "") + n).join(", "), checked_in: mine.filter((x) => scanned.has(x.id)).length,
-      list: o.artist_invite_id ? "Artist" : o.status === "comp" ? (o.comp_list || "Guest list") : "", when: o.paid_at || o.created_at, paid: paidOrders.has(o.id) };
+      // An artist's own pass says "Artist"; people an artist put on their list say whose guest they are.
+      list: o.artist_invite_id ? (o.comp_list && o.comp_list !== "Artist" ? "Guest of " + o.comp_list : "Artist") : o.status === "comp" ? (o.comp_list || "Guest list") : "",
+      when: o.paid_at || o.created_at, paid: paidOrders.has(o.id) };
   }).filter((p) => p.tickets > 0);
   const guests = people.filter((p) => !p.paid).sort((a, b) => (a.list === "Artist" ? 0 : 1) - (b.list === "Artist" ? 0 : 1) || a.name.localeCompare(b.name));
   const buyers = people.filter((p) => p.paid).sort((a, b) => String(b.when).localeCompare(String(a.when)));
