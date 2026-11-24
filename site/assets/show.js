@@ -131,6 +131,7 @@
   function icons(idx) { return '<span class="icons">' + idx.map(function (i) { var a = nightArt(i); return a.icon ? img(a.icon, "", "", ' loading="lazy" decoding="async"') : ""; }).join("") + "</span>"; }
   function renderTypes() {
     var open = data.event.sales_open && data.stripe_key, f = fee();
+    if (open && !data.preview) warmStripe();
     if (!data.types.length) { $("types").innerHTML = '<p class="msg" style="text-align:center">Tickets go on sale soon.</p>'; $("buy").hidden = true; return; }
     $("types").innerHTML = data.types.map(function (t) {
       var n = cart[t.slug] || 0, tier = t.tier, max = Math.min(t.left, data.event.max_per_order);
@@ -183,13 +184,24 @@
     if (phoneOk(v)) { hint(i, h, "ok", "&#10003; Looks good"); return true; }
     hint(i, h, final ? "bad" : "", final ? "Enter a 10-digit phone number." : ""); return false;
   }
+  // Stripe's script loads once, and early: as soon as a show is on sale we start fetching it in the background,
+  // so tapping Buy only waits on the ticket hold, not on Stripe's code too.
+  var stripeP = null;
   function loadStripe() {
     if (window.Stripe) return Promise.resolve(window.Stripe);
-    return new Promise(function (ok, no) {
+    if (stripeP) return stripeP;
+    stripeP = new Promise(function (ok, no) {
       var s = document.createElement("script"); s.src = "https://js.stripe.com/v3/";
-      s.onload = function () { ok(window.Stripe); }; s.onerror = function () { no(new Error("Couldn't load checkout. Check your connection.")); };
+      s.onload = function () { ok(window.Stripe); };
+      s.onerror = function () { stripeP = null; no(new Error("Couldn't load checkout. Check your connection.")); };
       document.head.appendChild(s);
     });
+    return stripeP;
+  }
+  function warmStripe() {
+    if (window.Stripe || stripeP) return;
+    var go = function () { loadStripe().catch(function () {}); };
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 1200);
   }
   // The tickets section is redrawn on every render (the studio re-renders live), so its handlers are attached each time.
   function wireCheckout() {
@@ -227,7 +239,7 @@
       Promise.all([
         fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, phone: phone, promo: $("bpromo").value.trim() || null, ref: ref || null, page: "show" }) })
-          .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; }); }),
+          .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); if (!j.free) $("bmsg").textContent = "Tickets held. Opening secure checkout..."; return j; }); }),
         loadStripe(),
       ]).then(function (res) {
         if (res[0].free) { $("shop").hidden = true; $("done").hidden = false; $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Your tickets are on their way to ' + esc(email) + ".</p></div>"; return null; }
