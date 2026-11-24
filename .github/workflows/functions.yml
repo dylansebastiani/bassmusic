@@ -1,0 +1,46 @@
+name: deploy-functions
+# Deploys the backend (Supabase Edge Functions) straight from this repo, so what's live always matches
+# what's committed. Needs one GitHub secret: SUPABASE_ACCESS_TOKEN (Supabase dashboard > Account > Access Tokens).
+#
+# T.O.F.T.U.'s functions are left OUT of the list below on purpose, so nothing here can touch the first show's
+# checkout, tickets, door or payments. Deploy those by hand, deliberately, only when Dylan says so.
+# Fan-wide functions (signup, emails, collection) also reach T.O.F.T.U.'s buyers, so they're held back too.
+#   held back: tickets, stripe-webhook, door, checkin, subscribe, confirm, verify, me, unsubscribe, engage,
+#              profile, email-runner, email-webhook, collection, track, meta, admin, pageview, health
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/functions/**"]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Deploy just these (space-separated names). Leave empty for the whole safe list."
+        required: false
+concurrency:
+  group: functions
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT: hxfuelulxsituzcgsvhg
+      SAFE: >-
+        page promoter demo checkout connect playlist artist artist-waitlist owner shows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stop if the token isn't set
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "Add the SUPABASE_ACCESS_TOKEN secret first."; exit 1; fi
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Deploy
+        run: |
+          LIST="${{ github.event.inputs.only }}"
+          [ -z "$LIST" ] && LIST="$SAFE"
+          for f in $LIST; do
+            case " $SAFE " in *" $f "*) ;; *) echo "Skipping $f: not on the safe list"; continue;; esac
+            echo "::group::$f"
+            supabase functions deploy "$f" --project-ref "$PROJECT" --no-verify-jwt --use-api
+            echo "::endgroup::"
+          done
