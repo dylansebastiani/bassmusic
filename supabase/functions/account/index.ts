@@ -206,7 +206,18 @@ async function home(m: { id: string; email: string; first_name: string | null })
     if (c.kind === "original") q = q.not("slug", "ilike", "test%");
     const { data: shows } = await q;
     const nn = await nightsFor((shows || []).map((s) => s.id));
-    (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, on_sale: !!s.sales_open, nights: (nn[s.id] || []).map((n) => n.label), ...lookFor(s, co) }));
+    // Tickets sold per show for the cards (paid only: no comps, no test tickets) and the night capacity.
+    const ids = (shows || []).map((s) => s.id), soldBy: Record<string, number> = {};
+    if (ids.length) {
+      const [{ data: tt }, { data: sold }] = await Promise.all([
+        db.from("ticket_types").select("id").in("event_id", ids).eq("slug", "test"),
+        db.from("tickets").select("event_id,type_id").in("event_id", ids).eq("status", "valid").eq("is_comp", false),
+      ]);
+      const test = new Set((tt || []).map((t) => t.id));
+      (sold || []).forEach((x) => { if (!test.has(x.type_id)) soldBy[x.event_id] = (soldBy[x.event_id] || 0) + 1; });
+    }
+    (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, on_sale: !!s.sales_open, nights: (nn[s.id] || []).map((n) => n.label),
+      sold: soldBy[s.id] || 0, cap: Math.max(0, ...(nn[s.id] || []).map((n) => n.capacity || 0)) || null, ...lookFor(s, co) }));
   }
   const isStaff = (await admins()).includes(email);
   // Creating and editing artist profiles isn't open to everyone yet: staff see it to test it.
@@ -328,6 +339,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     const mine = real.filter((x) => x.order_id === o.id);
     const kinds: Record<string, number> = {}; mine.forEach((x) => { const n = tyName[x.type_id] || "Ticket"; kinds[n] = (kinds[n] || 0) + 1; });
     return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length, kind: mine[0]?.kind || "",
+      stage: o.artist_invite_id && (!o.comp_list || o.comp_list === "Artist") ? (invs || []).find((v) => v.id === o.artist_invite_id)?.name || "" : "",
       what: Object.entries(kinds).map(([n, q]) => (q > 1 ? q + "× " : "") + n).join(", "), checked_in: mine.filter((x) => scanned.has(x.id)).length,
       // Whose list a guest is on: an artist's ("Guest of B3RMUDA") or the promoter's own list name.
       list: o.artist_invite_id && o.comp_list && o.comp_list !== "Artist" ? "Guest of " + o.comp_list : o.comp_list && o.comp_list !== "Artist" ? o.comp_list : "",

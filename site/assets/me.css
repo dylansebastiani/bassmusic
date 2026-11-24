@@ -119,3 +119,11 @@ img.av{object-fit:cover;padding:0;background:var(--d)}
 .prices li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid rgba(255,255,255,.08);font-size:.92rem}
 .prices li span{opacity:.75;text-align:right}
 .gh{margin:16px 0 4px;font-size:.85rem;opacity:.8}
+.hcap .state{background:rgba(0,0,0,.72);padding:5px 10px 5px 8px;border-radius:999px}
+.psold{display:block;margin-top:6px;font-size:13px;color:var(--a)}.psold b{color:#fff;font-size:15px}
+.preal{display:block;font-size:13px;opacity:.65;margin-top:1px}
+.allset summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+.allset summary::-webkit-details-marker{display:none}
+.allset summary::before{content:"";width:18px;height:18px;border-radius:50%;background:var(--m) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat}
+.allset[open] summary{margin-bottom:10px}
+.allset summary:focus-visible{outline:2px solid var(--m);outline-offset:4px}

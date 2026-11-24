@@ -135,7 +135,8 @@
           return '<button type="button" class="poster" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
             '<span class="poart"' + (sh.image ? ' style="background-image:url(\'' + esc(sh.image) + '\')"' : "") + "></span>" +
             '<span class="pcap"><span class="pname">' + esc(sh.name) + '</span><span class="pwhen">' + esc(sh.nights.join(" + ")) + "</span>" +
-            '<span class="state' + (sh.on_sale ? " live" : "") + '">' + (sh.on_sale ? "On sale" : "Not on sale yet") + "</span></span></button>";
+            '<span class="state' + (sh.on_sale ? " live" : "") + '">' + (sh.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
+            (sh.on_sale || sh.sold ? '<span class="psold"><b>' + (sh.sold || 0) + "</b> sold" + (sh.cap ? ", " + sh.cap + " spots a night" : "") + "</span>" : "") + "</span></button>";
         }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (p ? " Tap Add a show to start one." : "") + "</p>";
       });
       if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
@@ -174,9 +175,10 @@
   function initials(n) { return String(n || "?").replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase() || "?"; }
   function phoneFmt(v) { var m = String(v || "").match(/^\+1(\d{3})(\d{3})(\d{4})$/); return m ? "(" + m[1] + ") " + m[2] + "-" + m[3] : v; }
   function personRow(p, tag) {
-    return '<div class="prow" data-find="' + esc((p.name + " " + p.email + " " + p.phone + " " + (p.list || "")).toLowerCase()) + '">' +
+    return '<div class="prow" data-find="' + esc(((p.stage || "") + " " + p.name + " " + p.email + " " + p.phone + " " + (p.list || "")).toLowerCase()) + '">' +
       '<span class="pin' + (p.checked_in ? " in" : "") + '" title="' + (p.checked_in ? "Checked in" : "Not checked in") + '"></span>' +
-      '<span class="pinfo"><b>' + esc(p.name || "No name") + "</b>" + (tag && p.list ? '<i class="ptag">' + esc(p.list) + "</i>" : "") +
+      '<span class="pinfo"><b>' + esc(p.stage || p.name || "No name") + "</b>" + (p.stage && p.name && p.stage !== p.name ? '<span class="preal">' + esc(p.name) + "</span>" : "") +
+      (tag && p.list ? '<i class="ptag">' + esc(/^Guest of /.test(p.list) ? p.list : p.list + "'s list") + "</i>" : "") +
       "<span>" + esc(p.what) + (p.checked_in ? ", checked in" : "") + "</span>" +
       '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(phoneFmt(p.phone)) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
   }
@@ -184,7 +186,7 @@
     var art = r.artist_people || [], g = r.guests || [], b = r.buyers || [];
     var sum = function (l, k) { return l.reduce(function (a, p) { return a + p[k]; }, 0); };
     var at = sum(art, "tickets"), gt = sum(g, "tickets");
-    return '<section class="hs"><h3>Who\'s coming</h3><p class="lede small"><b>' + at + "</b> " + (at === 1 ? "artist" : "artists") + ", <b>" + gt + "</b> " + (gt === 1 ? "guest" : "guests") + ", <b>" + sum(b, "tickets") + "</b> sold. <b>" + (sum(art, "checked_in") + sum(g, "checked_in") + sum(b, "checked_in")) + "</b> checked in.</p>" +
+    return '<section class="hs"><h3>Who\'s coming</h3><p class="lede small"><b>' + at + "</b> " + (at === 1 ? "artist" : "artists") + ", <b>" + gt + "</b> " + (gt === 1 ? "guest" : "guests") + ", <b>" + sum(b, "tickets") + "</b> sold." + (function (n) { return n ? " <b>" + n + "</b> checked in." : ""; })(sum(art, "checked_in") + sum(g, "checked_in") + sum(b, "checked_in")) + "</p>" +
       (art.length + g.length + b.length > 6 ? '<input class="find" type="search" placeholder="Find someone by name, email or phone" aria-label="Find someone" data-findbox>' : "") +
       '<h4 class="gh">Artists (' + at + ")</h4>" + (art.length ? art.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No artist passes yet.</p>') +
       '<h4 class="gh">Guest list (' + gt + ")</h4>" + (g.length ? g.map(function (p) { return personRow(p, true); }).join("") : '<p class="mempty">Nobody on the guest list yet.</p>') +
@@ -203,18 +205,22 @@
     // One bar per night. Only sold tickets fill it; artists and guests are noted but never take a spot.
     var meter = nm.map(function (n) {
       var pct = n.cap ? Math.min(100, Math.round(100 * n.sold / n.cap)) : 0;
-      var why = n.parts.length ? n.parts.map(function (p) { return p.sold + " " + esc(p.name); }).join(" + ") : "Nothing sold yet";
+      var why = n.parts.length ? "Sold: " + n.parts.map(function (p) { return esc(p.name) + " (" + p.sold + ")"; }).join(", ") : "Nothing sold yet";
       return '<div class="mtr"><div class="mtop"><b>' + esc(n.label) + "</b><span>" + n.sold + (n.cap ? " of " + n.cap + " sold" : " sold") + "</span></div>" +
         '<div class="mbar"><span class="seg" style="flex:1"><i style="width:' + pct + '%"></i></span></div>' +
-        '<div class="mnow">' + why + (n.cap ? ", " + Math.max(0, n.cap - n.sold) + " left" : "") +
-        (n.artists || n.guests ? ". Not counted: " + [n.artists ? n.artists + (n.artists === 1 ? " artist" : " artists") : "", n.guests ? n.guests + (n.guests === 1 ? " guest" : " guests") : ""].filter(Boolean).join(", ") : "") + "</div></div>";
+        '<div class="mnow">' + (n.cap ? Math.max(0, n.cap - n.sold) + " spots left. " : "") + why + ".</div></div>";
     }).join("");
     // What each ticket costs right now, from its price ladder.
     var prices = (r.now_prices || []).map(function (t) {
       return "<li><b>" + esc(t.name) + "</b><span>" + (t.sold_out ? "Sold out" : usd(t.price_cents) + (t.tier && t.tier !== t.name ? " (" + esc(t.tier) + ")" : "") + ", " + (t.tier === t.name ? t.left + " left, price follows both nights" : t.left_at_price + " left at this price")) + "</span></li>";
     }).join("");
+    // Show checklist: open and near the top when something's missing, folded into one line when it's all done.
+    var checkList = '<ul class="checks">' + r.checks.slice().sort(function (a, b) { return a.ok - b.ok; }).map(function (c) { return '<li class="' + (c.ok ? "ok" : "no") + '">' + esc(c.label) + "</li>"; }).join("") + "</ul>";
+    var checksHtml = todo.length
+      ? '<section class="hs"><h3>' + todo.length + (todo.length === 1 ? " thing to fix before the show" : " things to fix before the show") + "</h3>" + checkList + "</section>"
+      : '<section class="hs"><details class="allset"><summary>Show checklist: all ' + r.checks.length + " done</summary>" + checkList + "</details></section>";
     var lede = "<b>" + r.sold + "</b> " + (r.sold === 1 ? "ticket" : "tickets") + " sold for <b>" + usd(r.money_cents) + "</b>. " +
-      "<b>" + r.artist_passes + "</b> " + (r.artist_passes === 1 ? "artist" : "artists") + " and <b>" + r.guest_count + "</b> " + (r.guest_count === 1 ? "guest" : "guests") + " on top of that, <b>" + r.checked_in + "</b> checked in.";
+      "<b>" + r.artist_passes + "</b> " + (r.artist_passes === 1 ? "artist" : "artists") + " and <b>" + r.guest_count + "</b> " + (r.guest_count === 1 ? "guest" : "guests") + " on top of that" + (r.checked_in ? ", <b>" + r.checked_in + "</b> checked in" : "") + ".";
     P.innerHTML = '<div class="hub" style="--m:' + esc(r.colors.main) + ';--a:' + esc(r.colors.accent) + ';--d:' + esc(r.colors.deep) + '">' +
       '<button type="button" class="hback" data-back>All shows</button>' +
       '<header class="hhero"' + (r.image ? ' style="background-image:url(\'' + esc(r.image) + '\')"' : "") + '><div class="hcap">' +
@@ -222,12 +228,13 @@
         "<h2>" + esc(r.show) + "</h2><p>" + esc(r.nights.join(" + ")) + "<br>" + esc([r.venue, r.city].filter(Boolean).join(", ")) + (r.age ? ", " + esc(r.age) : "") + "</p></div></header>" +
       '<section class="hs"><p class="lede">' + lede + "</p>" + meter +
         (prices ? '<h3 class="sub">Prices right now</h3><ul class="prices">' + prices + "</ul>" : "") +
+        ((r.artist_passes || r.guest_count) ? '<p class="mnow">Artists and guests get in free and don\'t use any of the ' + (nm[0] && nm[0].cap ? nm[0].cap : "") + " spots.</p>" : "") +
         (r.tests ? '<p class="mnow">Test tickets are left out of every number here (' + r.tests + ").</p>" : "") + "</section>" +
+      (todo.length ? checksHtml : "") +
       '<section class="hs"><h3>Share the show</h3><div class="share"><div class="sfield"><span>' + esc(r.link.replace(/^https?:\/\//, "")) + '</span><button type="button" data-copy="' + esc(r.link) + '">Copy</button></div>' +
         '<a class="qrbox" href="' + esc(qr) + '" target="_blank" rel="noopener" title="Open the QR code to save it"><img src="' + esc(qr) + '" alt="QR code for the show link" width="76" height="76"></a></div>' +
         '<a class="tlink" href="' + esc(r.link) + '" target="_blank" rel="noopener">Open the show page</a></section>' +
-      '<section class="hs"><h3>' + (todo.length ? todo.length + (todo.length === 1 ? " thing to check" : " things to check") : "Everything's set") + "</h3>" +
-        '<ul class="checks">' + r.checks.map(function (c) { return '<li class="' + (c.ok ? "ok" : "no") + '">' + esc(c.label) + "</li>"; }).join("") + "</ul></section>" +
+      (todo.length ? "" : checksHtml) +
       '<section class="hs"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
           return '<div class="arow">' + (a.photo ? '<img class="av" src="' + esc(a.photo) + '" alt="" loading="lazy">' : '<span class="av">' + esc(initials(a.name)) + "</span>") + '<span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span></span>" +
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
@@ -237,7 +244,9 @@
       '<section class="hs two"><div><h3>This week</h3><p class="lede small"><b>' + week + "</b> " + (week === 1 ? "ticket" : "tickets") + " in the last 7 days</p>" +
         '<div class="bars">' + r.last7.map(function (x) { return '<i style="height:' + Math.max(4, Math.round(100 * x.tickets / max)) + '%" title="' + x.tickets + '"></i>'; }).join("") + "</div>" +
         '<div class="barl">' + r.last7.map(function (x) { return "<span>" + new Date(x.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" }) + "</span>"; }).join("") + "</div></div>" +
-        '<div><h3>Playlist</h3><p class="lede small"><b>' + (r.playlist.artist_tracks + r.playlist.tracks) + "</b> tracks in rotation" + (r.playlist.mode === "subduction" && !r.playlist.tracks ? ", plus Subduction picks" : "") + "</p></div></section>" +
+        '<div><h3>Playlist</h3><p class="lede small">' + (r.playlist.artist_tracks + r.playlist.tracks
+          ? "<b>" + (r.playlist.artist_tracks + r.playlist.tracks) + "</b> " + (r.playlist.artist_tracks + r.playlist.tracks === 1 ? "track" : "tracks") + " playing on the show page" + (r.playlist.mode === "subduction" ? ", plus Subduction picks" : "")
+          : "Subduction picks are playing on the show page. Artists can add their own tracks from their pass.") + "</p></div></section>" +
       "</div>";
   }
   document.addEventListener("click", function (e) {
