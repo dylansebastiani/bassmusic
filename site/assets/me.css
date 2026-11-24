@@ -113,3 +113,4 @@
 .pcontact{display:flex;flex-wrap:wrap;gap:4px 12px}.pcontact a{color:#d9d5cf;font-size:13px;text-decoration:none;overflow-wrap:anywhere}.pcontact a:hover{color:var(--m)}
 .buyers{margin-top:16px}.buyers summary{cursor:pointer;color:#fff;font-weight:600;padding:8px 0;list-style:none}
 .buyers summary::before{content:"+ ";color:var(--m)}.buyers[open] summary::before{content:"– "}
+img.av{object-fit:cover;padding:0;background:var(--d)}

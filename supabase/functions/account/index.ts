@@ -254,7 +254,14 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     days.push({ day, tickets: tix.filter((x) => dayOrders.has(x.order_id)).length });
   }
   // Artists selling: same rules as the artist sales tracker (their link tag or their $0 code).
-  const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id,claimed_at,email,phone").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
+  const { data: invs } = await db.from("artist_invites").select("id,name,sell_ref,sell_promo_id,claimed_at,email,phone,photo_path").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
+  // Each artist's own photo (from their pass page), signed for an hour.
+  const photos: Record<string, string> = {};
+  const paths = (invs || []).map((v) => v.photo_path).filter(Boolean) as string[];
+  if (paths.length) {
+    const { data: signed } = await db.storage.from("artist-photos").createSignedUrls(paths, 3600);
+    (signed || []).forEach((x: any) => { if (x.path && x.signedUrl) photos[x.path] = x.signedUrl; });
+  }
   const { data: clicks } = (invs || []).length ? await db.from("artist_clicks").select("invite_id").in("invite_id", (invs || []).map((v) => v.id)).limit(20000) : { data: [] };
   const artists = (invs || []).map((v) => {
     let t = 0;
@@ -264,7 +271,7 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
       if (mine) t += tix.filter((x) => x.order_id === o.id).length;
     }
     return { name: v.name, tickets: t, taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null,
-      claimed: !!v.claimed_at, has_email: !!v.email, has_phone: !!v.phone };
+      claimed: !!v.claimed_at, has_email: !!v.email, has_phone: !!v.phone, photo: (v.photo_path && photos[v.photo_path]) || null };
   }).sort((a, b) => b.tickets - a.tickets || b.taps - a.taps || a.name.localeCompare(b.name));
   const { data: co } = await db.from("companies").select("legacy_stripe,brand,stripe_charges_enabled").eq("id", ev.company_id).maybeSingle();
   const look = lookFor(ev, co);

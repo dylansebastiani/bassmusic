@@ -225,7 +225,7 @@
       '<section class="hs"><h3>' + (todo.length ? todo.length + (todo.length === 1 ? " thing to check" : " things to check") : "Everything's set") + "</h3>" +
         '<ul class="checks">' + r.checks.map(function (c) { return '<li class="' + (c.ok ? "ok" : "no") + '">' + esc(c.label) + "</li>"; }).join("") + "</ul></section>" +
       '<section class="hs"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
-          return '<div class="arow"><span class="av">' + esc(initials(a.name)) + '</span><span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span></span>" +
+          return '<div class="arow">' + (a.photo ? '<img class="av" src="' + esc(a.photo) + '" alt="" loading="lazy">' : '<span class="av">' + esc(initials(a.name)) + "</span>") + '<span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span></span>" +
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
         }).join("") : '<p class="mempty">No artists yet.</p>') +
         '<p class="soon">Adding artists, guest passes and set times from here is next.</p></section>' +
