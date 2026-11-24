@@ -13,7 +13,7 @@
 // Artist side (private link artist.html?k=<token>, same token as the artist pass):
 //   GET  ?a=artist&k=                          my tracks on this show
 //   POST {a:"artist-upload-url", k, ext}       one-time link to upload one track
-//   POST {a:"artist-add", k, path, title, free_download}
+//   POST {a:"artist-add", k, path, title, free_download, art_path}   (a cover is required)
 //   POST {a:"artist-set", k, id, free_download}    turn free download on or off
 //   POST {a:"artist-art", k, id, art_path}         put cover art on one of my tracks (art_path from artist-upload-url with ext jpg/png/webp)
 //   POST {a:"artist-remove", k, id}
@@ -70,7 +70,7 @@ const MAX_TRACKS = 20;
 const ARTIST_MAX = 3;      // tracks one artist can add to one show
 const PATH_RE = (eventId: string) => new RegExp("^" + eventId + "/[0-9a-f]{12}\\.(mp3|wav|m4a)$");
 const newPath = (eventId: string, ext: string) => eventId + "/" + Array.from(crypto.getRandomValues(new Uint8Array(6))).map((x) => x.toString(16).padStart(2, "0")).join("") + "." + ext;
-type Track = { path: string; title: string; artist: string | null };
+type Track = { path: string; title: string; artist: string | null; art_path?: string | null };
 
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -100,7 +100,9 @@ function cleanTracks(raw: unknown, eventId: string): Track[] {
     const path = clean((t as Track)?.path, 200);
     // Only files uploaded for this show, by name pattern: nobody can point a playlist at someone else's audio.
     if (!path || !PATH_RE(eventId).test(path)) continue;
-    out.push({ path, title: clean((t as Track).title, 80) || "Untitled", artist: clean((t as Track).artist, 80) });
+    // A cover only if it was uploaded for this show (same rule as the audio).
+    const art = clean((t as Track).art_path, 200);
+    out.push({ path, title: clean((t as Track).title, 80) || "Untitled", artist: clean((t as Track).artist, 80), art_path: art && ART_RE(eventId).test(art) ? art : null });
   }
   return out;
 }
@@ -123,7 +125,7 @@ Deno.serve(async (req) => {
     const own = pl?.mode === "upload" ? cleanTracks(pl.tracks, ev.id) : [];
     type AT = { id: string; path: string; title: string; artist: string | null; free_download: boolean; art_path: string | null; created_at: string; inv: unknown };
     const fromArtists = ((ev.pt ?? []) as unknown as AT[]).sort((x, y) => x.created_at.localeCompare(y.created_at)).slice(0, 200).map(({ created_at: _c, ...t }) => t);
-    const all = [...own.map((t) => ({ ...t, id: null as string | null, free_download: false, art_path: null as string | null, inv: null as unknown })), ...fromArtists];
+    const all = [...own.map((t) => ({ ...t, id: null as string | null, free_download: false, art_path: t.art_path ?? null, inv: null as unknown })), ...fromArtists];
     // mix: the promoter left it on "Subduction tracks", so artists' tracks play alongside the catalogue instead of replacing it.
     const mix = pl?.mode !== "upload";
     if (!all.length) return json({ tracks: [], mix }, 200, { "Cache-Control": "public, max-age=300" });
@@ -234,6 +236,8 @@ Deno.serve(async (req) => {
       if (!path || !PATH_RE(inv.event_id).test(path)) return json({ error: "That upload didn't finish. Try again." }, 400);
       if ((await mine()).tracks.length >= ARTIST_MAX) return json({ error: "You've added the most tracks one artist can. Remove one first." }, 400);
       const artPath = clean(b.art_path, 200);
+      // Every track needs a cover picture (it shows in the music bar while the track plays).
+      if (!artPath || !ART_RE(inv.event_id).test(artPath)) return json({ error: "Add a cover picture for this track." }, 400);
       const { error } = await db.from("playlist_tracks").insert({ event_id: inv.event_id, invite_id: inv.id, path, title: clean(b.title, 80) || "Untitled", artist: inv.name, free_download: b.free_download === true,
         art_path: artPath && ART_RE(inv.event_id).test(artPath) ? artPath : null });
       if (error) { console.error("playlist artist-add", error.message); return json({ error: "Couldn't add that. Try again." }, 500); }
@@ -309,7 +313,12 @@ Deno.serve(async (req) => {
     }
     return json({ artist_tracks: await artistTracks() });
   }
-  if (a === "get") return json({ mode: pl.mode === "upload" ? "upload" : "subduction", tracks: cleanTracks(pl.tracks, ev.id), max: MAX_TRACKS, artist_tracks: await artistTracks() }, 200, { "Cache-Control": "no-store" });
+  if (a === "get") {
+    // The promoter's own tracks with a 1-hour link to each cover, for the music screen.
+    const own = cleanTracks(pl.tracks, ev.id), art = await signArt(own.map((t) => t.art_path));
+    return json({ mode: pl.mode === "upload" ? "upload" : "subduction", tracks: own.map((t) => ({ ...t, art_url: (t.art_path && art.get(t.art_path)) || null })),
+      max: MAX_TRACKS, artist_tracks: await artistTracks() }, 200, { "Cache-Control": "no-store" });
+  }
   if (a === "artist-remove") {
     const tid = String(b.id || "");
     if (!UUID_RE.test(tid)) return json({ error: "Which track?" }, 400);

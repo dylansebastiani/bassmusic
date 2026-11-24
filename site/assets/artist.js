@@ -265,6 +265,8 @@
     if (f.size > 50 * 1048576) { $("tmsg").textContent = "That track is over 50 MB (the most the site can take right now). Export it as a 320 kbps MP3 and it will fit."; return; }
     if (!title) { $("tmsg").textContent = "Give it a title."; $("ttitle").focus(); return; }
     var cover = $("tart").files[0], bad = cover ? artCheck(cover) : "";
+    // Every track needs a cover: it shows in the music bar while the track plays.
+    if (!cover) { $("tmsg").textContent = "Add a cover picture for this track."; $("tart").focus(); return; }
     if (bad) { $("tmsg").textContent = bad; return; }
     $("tgo").disabled = true; $("tmsg").textContent = "Uploading… 0%";
     var artPath = null;

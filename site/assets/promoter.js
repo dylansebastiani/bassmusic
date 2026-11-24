@@ -287,9 +287,12 @@
       var own = pl.mode === "upload", full = pl.tracks.length >= (pl.max || 20);
       app.innerHTML = top(homeHref()) + "<h1>Show music</h1><p class=lead>What plays on the page for <b>" + esc(s.name) + "</b>. It always plays in a random order.</p>" +
         '<div class=choice><button type=button data-mode=subduction aria-pressed="' + !own + '">Subduction tracks</button><button type=button data-mode=upload aria-pressed="' + own + '">My own tracks</button></div>' +
-        (own ? pl.tracks.map(function (t, i) { return '<div class=card><label for=tt' + i + '>Track ' + (i + 1) + ' title</label><input type=text id=tt' + i + ' maxlength=80 value="' + esc(t.title) + '"><label for=ta' + i + '>Artist</label><input type=text id=ta' + i + ' maxlength=80 value="' + esc(t.artist || "") + '"><button type=button class=linkbtn data-rm="' + i + '">Remove</button></div>'; }).join("") +
-          (full ? "<p class=note>That's the most a show can have.</p>" : '<div class=drop id=d-track><span class=thumb></span><span><b>Add a track</b><small>MP3, WAV or M4A, up to 50 MB</small><small class=st>Tap to add</small><div class=bar2></div></span><input type=file accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Add a track"></div>') +
-          "<p class=note>Only upload music you have the right to share.</p>"
+        (own ? (pl.tracks.length ? "<p class=note>Every track needs a cover picture. It shows in the music bar while the track plays.</p>" : "") +
+          pl.tracks.map(function (t, i) { return '<div class="card ptrack' + (t.art_path ? "" : " need") + '">' +
+            '<div class="drop tcover" id=cv' + i + '><span class=thumb' + (t.art_url ? ' style="background-image:url(' + "'" + esc(t.art_url) + "'" + ')"' : "") + '></span><span><b>' + (t.art_path ? "Cover" : "Add a cover (required)") + '</b><small>JPG, PNG or WebP. Square works best.</small><small class=st>' + (t.art_path ? "Tap to change" : "Tap to add") + '</small><div class=bar2></div></span><input type=file accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" aria-label="Cover for track ' + (i + 1) + '" data-cv="' + i + '"></div>' +
+            '<label for=tt' + i + '>Track ' + (i + 1) + ' title</label><input type=text id=tt' + i + ' maxlength=80 value="' + esc(t.title) + '"><label for=ta' + i + '>Artist</label><input type=text id=ta' + i + ' maxlength=80 value="' + esc(t.artist || "") + '"><button type=button class=linkbtn data-rm="' + i + '">Remove</button></div>'; }).join("") +
+          (full ? "<p class=note>That's the most a show can have.</p>" : '<div class=drop id=d-track><span class=thumb></span><span><b>Add a track</b><small>MP3, WAV or M4A, up to 50 MB. You add its cover next.</small><small class=st>Tap to add</small><div class=bar2></div></span><input type=file accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Add a track"></div>') +
+          "<p class=note>Only upload music and pictures you have the right to share.</p>"
           : "<p class=note>Your page plays a random mix of Subduction's tracks. Nothing to upload.</p>") +
         '<button class=btn type=button id=save>Save music</button><p class=msg role=status></p>' +
         "<h2>From your artists</h2>" + ((pl.artist_tracks || []).length ? pl.artist_tracks.map(function (t) { return "<div class=card><b>" + esc(t.title) + "</b><small>" + esc(t.artist || "") + (t.free_download ? " · free download on" : "") + '</small><button type=button class=linkbtn data-arm="' + esc(t.id) + '">Remove</button></div>'; }).join("")
@@ -299,8 +302,12 @@
       app.querySelectorAll("[data-mode]").forEach(function (b) { b.onclick = function () { keep(); pl.mode = b.getAttribute("data-mode"); draw(); }; });
       app.querySelectorAll("[data-rm]").forEach(function (b) { b.onclick = function () { keep(); pl.tracks.splice(+b.getAttribute("data-rm"), 1); draw(); }; });
       var inp = app.querySelector("#d-track input"); if (inp) inp.onchange = function () { add(inp); };
+      app.querySelectorAll("[data-cv]").forEach(function (el) { el.onchange = function () { cover(el, +el.getAttribute("data-cv")); }; });
       document.getElementById("save").onclick = function () {
-        keep(); say("Saving…");
+        keep();
+        var missing = pl.mode === "upload" ? pl.tracks.filter(function (t) { return !t.art_path; }).length : 0;
+        if (missing) { var first = app.querySelector(".ptrack.need"); if (first) first.scrollIntoView({ block: "center" }); return say(missing === 1 ? "One track still needs a cover picture." : missing + " tracks still need a cover picture.", true); }
+        say("Saving…");
         api(PL, { a: "save", show: s.id, mode: pl.mode, tracks: pl.tracks }).then(function (r) { pl.mode = r.mode; pl.tracks = r.tracks; flash = "Music saved."; go(homeHref()); }).catch(function (x) { say(x.message, true); });
       };
     }
@@ -318,7 +325,25 @@
           x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); }; x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
           x.send(f);
         });
-      }).then(function (path) { pl.tracks.push({ path: path, title: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80), artist: "" }); draw(); say("Added. Check the title, then Save music."); })
+      }).then(function (path) { pl.tracks.push({ path: path, title: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80), artist: "" }); draw();
+          var last = app.querySelector("#cv" + (pl.tracks.length - 1)); if (last) last.scrollIntoView({ block: "center" }); say("Track added. Now add its cover picture."); })
+        .catch(function (e) { st.textContent = e.message; st.className = "st warn"; });
+    }
+    // A cover for one of the promoter's own tracks: uploaded straight to storage, previewed right away.
+    function cover(input, i) {
+      var f = input.files[0]; if (!f) return;
+      var box = input.closest(".drop"), st = box.querySelector(".st"), bar = box.querySelector(".bar2"), ext = (f.name.split(".").pop() || "").toLowerCase().replace("jpeg", "jpg");
+      if (["jpg", "png", "webp"].indexOf(ext) < 0) { st.textContent = "Use a JPG, PNG or WebP."; st.className = "st warn"; return; }
+      if (f.size > 10 * 1048576) { st.textContent = "That picture is over 10 MB. Try a smaller one."; st.className = "st warn"; return; }
+      st.textContent = "Uploading…"; st.className = "st"; keep();
+      api(PL, { a: "upload-url", show: s.id, ext: ext, kind: "art" }).then(function (r) {
+        return new Promise(function (ok, no) {
+          var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
+          x.upload.onprogress = function (e) { if (e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + "%"; };
+          x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); }; x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
+          x.send(f);
+        });
+      }).then(function (path) { pl.tracks[i].art_path = path; try { pl.tracks[i].art_url = URL.createObjectURL(f); } catch (e) {} draw(); say(""); })
         .catch(function (e) { st.textContent = e.message; st.className = "st warn"; });
     }
     app.innerHTML = top(homeHref()) + "<h1>Show music</h1><p class=msg role=status>Loading…</p>"; wireTop();
@@ -343,15 +368,41 @@
   }
 
   // ---------- send to Subduction ----------
+  // After a show is sent: what they sent, their link, where it stands, and what they can do while they wait.
+  function doneScreen(s, co) {
+    var money = function (c) { return "$" + (c / 100).toFixed(c % 100 ? 2 : 0); };
+    var when = s.nights.map(function (n) { var d = n.starts_at ? new Date(n.starts_at) : null;
+      return esc(n.label) + (d ? " · doors " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "") : ""); }).join("<br>");
+    var where = s.secret ? "Secret location" + (s.city ? ", " + esc(s.city) : "") : [s.venue, s.city].filter(Boolean).map(esc).join(", ");
+    var tix = s.tickets.map(function (t) { return t.tiers.map(function (r) { return esc(t.name) + (t.tiers.length > 1 ? " · " + esc(r.name) : "") + " · " + money(r.price_cents) + (r.qty ? " <span class=dim>(" + r.qty + ")</span>" : ""); }).join("<br>"); }).join("<br>");
+    var link = "subduction.art/" + s.slug, kit = s.kit || {};
+    var hasFlyer = !!((kit.flyers || []).some(Boolean) || kit.links), brandDone = !!(co.brand && (co.brand.logo || (co.brand.colors && co.brand.colors.accent)));
+    var stage = s.live ? 4 : s.review_status === "approved" ? 3 : 2;
+    var step = function (n, t, d) { return '<li class="' + (n < stage ? "done" : n === stage ? "next" : "") + '"><span class=n>' + (n < stage ? "&#10003;" : n) + "</span><span><b>" + t + "</b><small>" + d + "</small></span></li>"; };
+    var extra = function (ok, t, d, href, cta) { return '<div class="card todo' + (ok ? " ok" : "") + '" data-href="' + href + '"><b>' + (ok ? "&#10003; " : "") + t + "</b><small>" + d + "</small>" + (ok ? "" : '<span class=go>' + cta + " &rarr;</span>") + "</div>"; };
+    return "<div class=qnum>" + (s.live ? "Live" : "Sent") + "</div><h1>" + (s.live ? "You're live" : "We've got it") + "</h1><p class=lead>" +
+      (s.live ? "<b>" + esc(s.name) + "</b> is up and selling. Share your link everywhere." : "<b>" + esc(s.name) + "</b> is with us. Nothing else you have to do right now. We'll email you the moment your page is ready to look over.") + "</p>" +
+      '<div class=linkbox><small>Your link</small><b>' + link + '</b><button type=button class=ghostbtn id=copy>Copy link</button><small class=dim>' + (s.live ? "Your page is live at this link." : "It works once your page goes live. You can start telling people now.") + "</small></div>" +
+      "<h2>Where it's at</h2><ol class=\"steps plain\">" + step(1, "Sent to us", "Got it, thanks.") + step(2, "We build your page", "Usually within a day.") +
+        step(3, "You look it over", "We email you a preview. Tell us what to change.") + step(4, "It goes live", "Tickets go on sale at your link.") + "</ol>" +
+      "<h2>What you sent</h2><div class=\"card summary\"><b>" + esc(s.name) + "</b>" +
+        (when ? "<div><span class=lbl>When</span>" + when + "</div>" : "") + (where ? "<div><span class=lbl>Where</span>" + where + (s.age ? " · " + esc(s.age) : "") + "</div>" : "") +
+        (tix ? "<div><span class=lbl>Tickets</span>" + tix + "</div>" : "") + "<div><span class=lbl>Flyer</span>" + (hasFlyer ? "Added" : "None yet. We'll start your page in our neon look.") + "</div>" +
+        '<a class=linkbtn href="#show/' + s.id + '/1">Change something</a></div>' +
+      "<h2>Make it yours <span class=dim>(optional)</span></h2>" +
+        extra(co.paid_ready, "Get paid", co.paid_ready ? "Your bank is connected. Ticket money goes straight to you." : "Connect your bank. You need this before tickets go on sale.", "#paid", "Connect my bank") +
+        extra(hasFlyer, "Your flyer", hasFlyer ? "Added." : "Drop it in so your page uses your art.", "#art/" + s.id, "Add my flyer") +
+        extra(brandDone, "Your logo and colors", brandDone ? "Added. Every page of yours uses them." : "So your page looks like you, not like us.", "#brand", "Add them") +
+        extra(false, "Your show music", "Play your own tracks on your page, or a mix of ours.", "#music/" + s.id, "Pick music") +
+      '<p class=note>Questions? Email <a href="mailto:hello@subduction.art">hello@subduction.art</a>.</p>';
+  }
+
   function send(id) {
     var s = showById(id); if (!s) return go(homeHref());
     var co = company(), hasFlyer = !!(s.kit && ((s.kit.flyers || []).some(Boolean) || s.kit.links));
     var line = function (ok, t, d, href) { return '<li class="' + (ok ? "done" : "") + '"' + (href ? ' data-href="' + href + '"' : "") + '><span class=n>' + (ok ? "&#10003;" : "!") + "</span><span><b>" + t + "</b><small>" + d + "</small></span></li>"; };
     app.innerHTML = top(homeHref()) + (s.checklist.submitted
-      ? "<h1>" + (s.live ? "You're live" : "We've got it") + "</h1><p class=lead>" + (s.live ? "Your page is up and selling." : "Nothing else you need to do right now.") + "</p>" +
-        (s.live ? "" : '<ol class="steps plain"><li><span class=n>1</span><span><b>We build your page</b><small>Usually within a day.</small></span></li><li><span class=n>2</span><span><b>You get an email to look it over</b><small>Tell us what to change.</small></span></li><li><span class=n>3</span><span><b>It goes live</b><small>You get your own link to share.</small></span></li></ol>') +
-        (!co.paid_ready ? '<a class=btn href="#paid">Connect my bank</a>' : "") +
-        '<h2>While you wait (optional)</h2><div class=card data-href="#brand"><b>Add your logo and colors</b><small>So the page looks like you.</small></div><div class=card data-href="#music/' + s.id + '"><b>Pick your show music</b><small>Your own tracks, or ours.</small></div>'
+      ? doneScreen(s, co)
       : "<div class=qnum>Last thing</div><h1>Ready to send?</h1><p class=lead>We build your page and email you when it's ready to look over.</p><ol class=steps>" +
         line(!!s.checklist.details, "Your show", esc(s.name), "#show/" + s.id + "/1") +
         line(hasFlyer, "Your flyer", hasFlyer ? "Added" : "None yet. Your page starts in our neon look.", "#art/" + s.id) +
@@ -360,6 +411,8 @@
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     wireTop();
     var b = document.getElementById("go");
+    var cp = document.getElementById("copy");
+    if (cp) cp.onclick = function () { var t = "https://subduction.art/" + s.slug; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { cp.textContent = "Copied"; }, function () { cp.textContent = t; }); };
     if (b) b.onclick = function () { say("Sending…"); call("submit", { show: s.id }).then(function () { return load(); }).then(function () { send(id); }).catch(function (x) { say(x.message, true); }); };
   }
 
