@@ -328,7 +328,8 @@ Deno.serve(async (req) => {
       ui_mode: "embedded", mode: "payment", return_url: `${SITE}/show.html?e=${ev.slug}&s={CHECKOUT_SESSION_ID}`,
       customer_email: email, line_items, discounts, expires_at: Math.floor(Date.now() / 1000) + 31 * 60, client_reference_id: o!.id,
       metadata: { order_id: o!.id, event: ev.slug },
-      payment_intent_data: { application_fee_amount: platform, metadata: { order_id: o!.id, event: ev.slug }, description: `${ev.name} tickets` },
+      // A crew on a $0 fee sends no platform fee at all (Stripe only takes its own card fee).
+      payment_intent_data: { ...(platform > 0 ? { application_fee_amount: platform } : {}), metadata: { order_id: o!.id, event: ev.slug }, description: `${ev.name} tickets` },
     });
     await db.from("ticket_orders").update({ stripe_session_id: session.id }).eq("id", o!.id);
     return json({ client_secret: session.client_secret, session_id: session.id, stripe_account: acct });
