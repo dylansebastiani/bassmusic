@@ -116,17 +116,27 @@
     if (tab === "crew") {
       if (hub) { drawHub(); return; }
       if (d.staff) h += '<div class="mcard"><h3>Subduction staff</h3><div class="sub">Every show, every crew.</div><a class="mbtn" href="admin.html">Staff app</a> <a class="mbtn ghost" href="promoter.html">Promoter app</a></div>';
-      d.crews.slice().sort(function (a, b) { return (a.kind === "promoter" ? 0 : 1) - (b.kind === "promoter" ? 0 : 1); }).forEach(function (c) {
-        h += '<div class="crewh"><div><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") +
-          (c.kind === "original" ? " · original ticketing" : c.stripe_ready ? " · sells with your Stripe" : " · connect Stripe to sell") + "</div></div>" +
-          (c.kind === "promoter" ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>";
-        if (c.kind === "promoter" && !c.stripe_ready && c.role === "owner") h += '<div class="mcard warn"><b>Connect Stripe</b> so ticket money goes straight to your bank. <a class="mlink" href="promoter.html">Open promoter app</a></div>';
-        h += (c.shows || []).length ? '<div class="posters">' + c.shows.map(function (sh) {
+      // One card per crew name: a crew on the new system and its shows on the original ticketing show together.
+      var groups = [], byName = {};
+      d.crews.forEach(function (c) {
+        var k = String(c.name || "").toLowerCase();
+        if (!byName[k]) { byName[k] = { name: c.name, owner: false, promo: null, shows: [] }; groups.push(byName[k]); }
+        var g = byName[k]; if (c.role === "owner") g.owner = true;
+        if (c.kind === "promoter") g.promo = c;
+        g.shows = g.shows.concat(c.shows || []);
+      });
+      groups.forEach(function (g) {
+        var p = g.promo;
+        h += '<div class="crewh"><div><h3>' + esc(g.name) + '</h3><div class="sub">' + (g.owner ? "You run this crew" : "You're on this crew") +
+          (p ? (p.stripe_ready ? ", selling with your Stripe" : "") : "") + "</div></div>" +
+          (p ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>";
+        if (p && !p.stripe_ready && p.role === "owner") h += '<div class="mcard warn"><b>Connect Stripe</b> before your next show goes on sale, so ticket money goes straight to your bank. <a class="mlink" href="promoter.html">Connect it</a></div>';
+        h += g.shows.length ? '<div class="posters">' + g.shows.map(function (sh) {
           return '<button type="button" class="poster" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
             '<span class="poart"' + (sh.image ? ' style="background-image:url(\'' + esc(sh.image) + '\')"' : "") + "></span>" +
             '<span class="pcap"><span class="pname">' + esc(sh.name) + '</span><span class="pwhen">' + esc(sh.nights.join(" + ")) + "</span>" +
             '<span class="state' + (sh.on_sale ? " live" : "") + '">' + (sh.on_sale ? "On sale" : "Not on sale yet") + "</span></span></button>";
-        }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (c.kind === "promoter" ? " Tap Add a show to start one." : "") + "</p>";
+        }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (p ? " Tap Add a show to start one." : "") + "</p>";
       });
       if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
     }
@@ -144,6 +154,12 @@
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { window.prompt("Copy this:", t); }); else window.prompt("Copy this:", t);
     }
   });
+  document.addEventListener("input", function (e) {
+    if (!e.target.hasAttribute || !e.target.hasAttribute("data-findbox")) return;
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll(".prow").forEach(function (row) { row.hidden = !!q && row.getAttribute("data-find").indexOf(q) < 0; });
+    if (q) document.querySelectorAll("details.buyers").forEach(function (d) { d.open = true; });
+  });
   document.addEventListener("submit", function (e) {
     if (e.target.id !== "pform") return;
     e.preventDefault();
@@ -156,6 +172,23 @@
   // ---- the show hub: one show, in its own colors ----
   var hub = "", hubData = null;
   function initials(n) { return String(n || "?").replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase() || "?"; }
+  function personRow(p, tag) {
+    return '<div class="prow" data-find="' + esc((p.name + " " + p.email + " " + p.phone + " " + (p.list || "")).toLowerCase()) + '">' +
+      '<span class="pin' + (p.checked_in ? " in" : "") + '" title="' + (p.checked_in ? "Checked in" : "Not checked in") + '"></span>' +
+      '<span class="pinfo"><b>' + esc(p.name || "No name") + "</b>" + (tag && p.list ? '<i class="ptag">' + esc(p.list) + "</i>" : "") +
+      "<span>" + esc(p.what) + (p.checked_in ? ", checked in" : "") + "</span>" +
+      '<span class="pcontact">' + [p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + "</a>" : "", p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + "</a>" : ""].filter(Boolean).join(" ") + "</span></span></div>";
+  }
+  function guestList(r) {
+    var g = r.guests || [], b = r.buyers || [];
+    var gin = g.reduce(function (a, p) { return a + p.checked_in; }, 0), gt = g.reduce(function (a, p) { return a + p.tickets; }, 0);
+    return '<section class="hs"><h3>Guest list</h3><p class="lede small"><b>' + gt + "</b> on the list, <b>" + gin + "</b> checked in</p>" +
+      (g.length + b.length > 6 ? '<input class="find" type="search" placeholder="Find someone by name, email or phone" aria-label="Find someone" data-findbox>' : "") +
+      (g.length ? g.map(function (p) { return personRow(p, true); }).join("") : '<p class="mempty">Nobody on the guest list yet.</p>') +
+      '<p class="soon">Adding guests from here is next.</p>' +
+      '<details class="buyers"' + (b.length && b.length <= 8 ? " open" : "") + '><summary>Ticket buyers (' + b.length + ")</summary>" +
+      (b.length ? b.map(function (p) { return personRow(p, false); }).join("") : '<p class="mempty">No tickets sold yet.</p>') + "</details></section>";
+  }
   function drawHub() {
     var r = hubData, P = $("panes");
     if (!r) { P.innerHTML = '<p class="mempty">Loading the show...</p>'; return; }
@@ -195,6 +228,7 @@
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
         }).join("") : '<p class="mempty">No artists yet.</p>') +
         '<p class="soon">Adding artists, guest passes and set times from here is next.</p></section>' +
+      guestList(r) +
       '<section class="hs two"><div><h3>This week</h3><p class="lede small"><b>' + week + "</b> " + (week === 1 ? "ticket" : "tickets") + " in the last 7 days</p>" +
         '<div class="bars">' + r.last7.map(function (x) { return '<i style="height:' + Math.max(4, Math.round(100 * x.tickets / max)) + '%" title="' + x.tickets + '"></i>'; }).join("") + "</div>" +
         '<div class="barl">' + r.last7.map(function (x) { return "<span>" + new Date(x.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" }) + "</span>"; }).join("") + "</div></div>" +

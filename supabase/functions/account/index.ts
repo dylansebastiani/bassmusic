@@ -226,14 +226,14 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   // Make sure every artist has a sell link and code (the artist sales tracker creates them the first time it's asked).
   if (token) { try { await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/artist-sales?a=staff&e=${encodeURIComponent(slug)}`, { headers: { "x-admin-token": token }, signal: AbortSignal.timeout(8000) }); } catch { /* the hub still loads */ } }
   const [{ data: orders }, { data: types }, nights] = await Promise.all([
-    db.from("ticket_orders").select("id,status,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
+    db.from("ticket_orders").select("id,status,name,email,phone,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at,created_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
     db.from("ticket_types").select("id,name,sort,on_sale,tiers").eq("event_id", ev.id).order("sort"),
     nightsFor([ev.id]),
   ]);
   const ids = (orders || []).map((o) => o.id);
   const tix: any[] = [];
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await db.from("tickets").select("order_id,type_id,is_comp,status").in("order_id", ids.slice(i, i + 200)).eq("status", "valid");
+    const { data } = await db.from("tickets").select("id,order_id,type_id,is_comp,status,holder_name").in("order_id", ids.slice(i, i + 200)).eq("status", "valid");
     tix.push(...(data || []));
   }
   const paidOrders = new Set((orders || []).filter((o) => o.status === "paid" && !o.comp_list && !o.artist_invite_id).map((o) => o.id));
@@ -276,6 +276,22 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     return { name: t.name, tier: cur?.name || "Sold out", price_cents: cur?.price_cents ?? null, left: cur?.left ?? 0 };
   });
   const { count: artistTracks } = await db.from("playlist_tracks").select("id", { count: "exact", head: true }).eq("event_id", ev.id);
+  // The full guest list and every buyer, with who's checked in at the door.
+  const scanned = new Set<string>();
+  for (let i = 0; i < tix.length; i += 200) {
+    const { data: sc } = await db.from("ticket_scans").select("ticket_id").in("ticket_id", tix.slice(i, i + 200).map((x) => x.id));
+    (sc || []).forEach((r) => scanned.add(r.ticket_id));
+  }
+  const tyName: Record<string, string> = {}; (types || []).forEach((t) => { tyName[t.id] = t.name; });
+  const people = (orders || []).map((o) => {
+    const mine = tix.filter((x) => x.order_id === o.id);
+    const kinds: Record<string, number> = {}; mine.forEach((x) => { const n = tyName[x.type_id] || "Ticket"; kinds[n] = (kinds[n] || 0) + 1; });
+    return { name: o.name || mine[0]?.holder_name || "", email: o.email || "", phone: o.phone || "", tickets: mine.length,
+      what: Object.entries(kinds).map(([n, q]) => (q > 1 ? q + "× " : "") + n).join(", "), checked_in: mine.filter((x) => scanned.has(x.id)).length,
+      list: o.artist_invite_id ? "Artist" : o.status === "comp" ? (o.comp_list || "Guest list") : "", when: o.paid_at || o.created_at, paid: paidOrders.has(o.id) };
+  }).filter((p) => p.tickets > 0);
+  const guests = people.filter((p) => !p.paid).sort((a, b) => (a.list === "Artist" ? 0 : 1) - (b.list === "Artist" ? 0 : 1) || a.name.localeCompare(b.name));
+  const buyers = people.filter((p) => p.paid).sort((a, b) => String(b.when).localeCompare(String(a.when)));
   const pl = (ev.playlist || {}) as { mode?: string; tracks?: unknown[] };
   // A quick "is everything right?" list for the promoter.
   const nightList = nights[ev.id] || [];
@@ -289,7 +305,8 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
   ];
   return { show: ev.name, slug: ev.slug, ...look, nights: nightList.map((n) => n.label), venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city, age: ev.age,
     on_sale: !!ev.sales_open, sold, comps, money_cents: money, by_type: byType, prices, last7: days, artists, checks,
-    playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 } };
+    playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
+    guests: guests.map(({ paid, ...g }) => g), buyers: buyers.map(({ paid, list, ...b }) => b) };
 }
 
 Deno.serve(async (req) => {
