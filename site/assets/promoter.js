@@ -337,7 +337,9 @@
     // Just back from Stripe (or still waiting on it): ask Stripe where things stand.
     if (!co.paid_ready && co.can_manage) api(CONNECT + "?a=status&company=" + co.id).then(function (r) { if (r.charges_enabled) { co.paid_ready = true; paid(); } else if (r.connected) say("Stripe is still checking your details. This can take a few minutes."); }).catch(function () {});
     var b = document.getElementById("st");
-    if (b) b.onclick = function () { say("Opening Stripe…"); api(CONNECT, { a: "start", company: co.id }).then(function (r) { location.href = r.url; }).catch(function (x) { say(x.message, true); }); };
+    if (b) b.onclick = function () { say("Opening Stripe…"); api(CONNECT, { a: "start", company: co.id }).then(function (r) { location.href = r.url; })
+      // A promoter never sees a raw message from the payment company. If bank setup isn't open on our side yet, say so plainly.
+      .catch(function (x) { say(/platform profile|dashboard\.stripe|Connect/i.test(x.message) ? "Bank setup isn't open just yet. That's on our side, not yours. We'll email you the moment it is. You can still send your show now." : x.message, true); }); };
   }
 
   // ---------- send to Subduction ----------
