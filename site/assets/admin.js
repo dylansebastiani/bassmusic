@@ -328,7 +328,16 @@
       : '<p class="fine">The page plays a random mix of Subduction tracks, plus anything the artists add. Nothing to upload.</p>';
     var at = pl.artist_tracks || [];
     $("plArt").innerHTML = at.length ? at.map(function (t) {
-      return '<div class="plrow art"><span><b>' + esc(t.title) + '</b><small class="mono">' + esc(t.artist || "") + (t.free_download ? " · free download on" : "") + '</small></span><button type="button" class="mini danger" data-plarm="' + esc(t.id) + '">Remove</button></div>';
+      var id = esc(t.id);
+      return '<div class="plcard" data-plid="' + id + '">' +
+        '<label class="plcov" title="Change cover">' + (t.art_url ? '<img src="' + esc(t.art_url) + '" alt="">' : "<span>+ Cover</span>") + '<input type="file" accept="image/jpeg,image/png,image/webp" data-plcov="' + id + '"></label>' +
+        '<div class="plfields"><input type="text" maxlength="80" value="' + esc(t.title) + '" data-pltitle aria-label="Track name" placeholder="Track name">' +
+        '<input type="text" maxlength="80" value="' + esc(t.artist || "") + '" data-plartist aria-label="Artist" placeholder="Artist">' +
+        '<label class="plchk"><input type="checkbox" data-plfree' + (t.free_download ? " checked" : "") + '> Free download</label>' +
+        '<div class="plbtns"><button type="button" class="mini" data-plsave="' + id + '">Save</button>' +
+        '<label class="mini plrep">Replace file<input type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" data-plfile="' + id + '"></label>' +
+        '<button type="button" class="mini danger" data-plarm="' + id + '">Remove</button></div>' +
+        '<span class="mono plst" data-plst="' + id + '">' + esc((t.ext || "").toUpperCase()) + '</span><span class="plbar"><i data-plbar="' + id + '"></i></span></div></div>';
     }).join("") : '<div class="empty">Artists add their own tracks from their artist link. They show up here.</div>';
     var f = $("plFile"); if (f) f.onchange = plUpload;
   }
@@ -350,27 +359,58 @@
     req(PLF + "?a=get&show=" + id).then(function (r) { pl = r; pl.id = id; plDraw(); }).catch(function (err) { $("plOwn").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
     plFans();
   }
+  function plPut(r, f, bar) {
+    return new Promise(function (ok, no) {
+      var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
+      x.upload.onprogress = function (e) { if (bar && e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + "%"; };
+      x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); };
+      x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
+      x.send(f);
+    });
+  }
+  function plQ(id, attr) { return document.querySelector("[" + attr + '="' + id + '"]'); }
+  // Change an artist track's cover or audio file from admin.
+  $("sv-playlist").addEventListener("change", function (e) {
+    var cov = e.target.getAttribute("data-plcov"), fil = e.target.getAttribute("data-plfile"), id = cov || fil;
+    if (!id || !pl) return;
+    var f = e.target.files[0]; if (!f) return;
+    var st = plQ(id, "data-plst"), bar = plQ(id, "data-plbar"), ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (cov) {
+      if (["jpg", "jpeg", "png", "webp"].indexOf(ext) < 0) { st.textContent = "Use a JPG, PNG or WebP."; return; }
+      if (f.size > 5 * 1048576) { st.textContent = "Cover is over 5 MB. Use a smaller image."; return; }
+    } else {
+      if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { st.textContent = "Use an MP3, WAV or M4A."; return; }
+      if (f.size > 50 * 1048576) { st.textContent = "Over 50 MB. Export it as a 320 kbps MP3 and it will fit."; return; }
+    }
+    st.textContent = "Uploading...";
+    req(PLF, cov ? { a: "upload-url", show: pl.id, ext: ext, kind: "art" } : { a: "upload-url", show: pl.id, ext: ext })
+      .then(function (r) { return plPut(r, f, bar); })
+      .then(function (path) { return req(PLF, cov ? { a: "track-art", show: pl.id, id: id, art_path: path } : { a: "track-file", show: pl.id, id: id, path: path }); })
+      .then(function (r) { pl.artist_tracks = r.artist_tracks; plDraw(); say("plMsg", cov ? "New cover saved." : "File replaced. The show page picks it up within about 5 minutes."); })
+      .catch(function (x) { st.textContent = x.message; });
+  });
   function plUpload() {
     var inp = $("plFile"), f = inp.files[0]; if (!f) return;
     var st = $("plSt"), bar = $("plBar"), ext = (f.name.split(".").pop() || "").toLowerCase();
     if (["mp3", "wav", "m4a"].indexOf(ext) < 0) { st.textContent = "Use an MP3, WAV or M4A."; return; }
     if (f.size > 50 * 1048576) { st.textContent = "Over 50 MB. Export it as a 320 kbps MP3 and it will fit."; return; }
     plKeep(); st.textContent = "Uploading...";
-    req(PLF, { a: "upload-url", show: pl.id, ext: ext }).then(function (r) {
-      return new Promise(function (ok, no) {
-        var x = new XMLHttpRequest(); x.open("PUT", r.upload_url, true); x.setRequestHeader("Content-Type", r.content_type);
-        x.upload.onprogress = function (e) { if (e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + "%"; };
-        x.onload = function () { x.status < 300 ? ok(r.path) : no(new Error("Upload failed. Try again.")); };
-        x.onerror = function () { no(new Error("Upload failed. Check your connection.")); };
-        x.send(f);
-      });
+    req(PLF, { a: "upload-url", show: pl.id, ext: ext }).then(function (r) { return plPut(r, f, bar);
     }).then(function (path) {
       pl.tracks.push({ path: path, title: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 80), artist: "" });
       plDraw(); say("plMsg", "Added. Check the title, then Save playlist.");
     }).catch(function (e) { st.textContent = e.message; });
   }
   $("sv-playlist").addEventListener("click", function (e) {
-    var m = e.target.closest("[data-plmode]"), rm = e.target.closest("[data-plrm]"), arm = e.target.closest("[data-plarm]");
+    var m = e.target.closest("[data-plmode]"), rm = e.target.closest("[data-plrm]"), arm = e.target.closest("[data-plarm]"), sv = e.target.closest("[data-plsave]");
+    if (sv && pl) {
+      var card = sv.closest(".plcard"), tid = sv.getAttribute("data-plsave");
+      sv.disabled = true; say("plMsg", "Saving...");
+      req(PLF, { a: "track-edit", show: pl.id, id: tid, title: card.querySelector("[data-pltitle]").value.trim(), artist: card.querySelector("[data-plartist]").value.trim(), free_download: card.querySelector("[data-plfree]").checked })
+        .then(function (r) { pl.artist_tracks = r.artist_tracks; plDraw(); say("plMsg", "Saved. The show page picks it up within about 5 minutes."); })
+        .catch(function (x) { sv.disabled = false; say("plMsg", x.message); });
+      return;
+    }
     if (m && pl) { plKeep(); pl.mode = m.getAttribute("data-plmode"); plDraw(); say("plMsg", "Hit Save playlist to make it live."); }
     else if (rm && pl) { plKeep(); pl.tracks.splice(+rm.getAttribute("data-plrm"), 1); plDraw(); say("plMsg", "Hit Save playlist to make it live."); }
     else if (arm && pl) {

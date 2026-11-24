@@ -245,3 +245,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .plbar{height:3px;background:#222}.plbar i{display:block;height:100%;width:0;background:#fff}
 .plfan{display:flex;align-items:center;gap:12px;margin:4px 0 8px}
 #sv-playlist .sub{margin-top:22px}
+.plcard{display:flex;gap:12px;border:1px solid var(--line);border-left:4px solid #F2C14E;padding:10px;margin-bottom:8px}
+.plcov{flex:0 0 84px;height:84px;border:1px dashed #6c6567;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.plcov img{width:100%;height:100%;object-fit:cover}.plcov span{font-size:11px;color:var(--mute)}.plcov input,.plrep input{display:none}
+.plcov:hover{border-color:#fff}
+.plfields{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.plfields input[type=text]{background:#000;border:1px solid #6c6567;color:var(--fg);font-size:16px;padding:8px 10px;border-radius:0;width:100%}
+.plchk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg)}
+.plbtns{display:flex;gap:6px;flex-wrap:wrap}.plrep{cursor:pointer}
+.plst{font-size:11px;color:var(--mute)}
