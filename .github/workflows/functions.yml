@@ -1,4 +1,5 @@
 name: deploy-functions
+# one-time branch: deploys tickets only
 # Deploys the backend (Supabase Edge Functions) straight from this repo, so what's live always matches
 # what's committed. Needs one GitHub secret: SUPABASE_ACCESS_TOKEN (Supabase dashboard > Account > Access Tokens).
 #
