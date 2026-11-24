@@ -12,11 +12,22 @@
     $("burst").innerHTML = '<svg viewBox="0 0 800 420" aria-hidden="true" style="background:radial-gradient(ellipse at 50% 50%,#2a0a33,#050505 75%)"><g stroke-width="1" opacity=".75">' + L + "</g></svg>";
   })();
 
+  // The bars up top are buttons: tap any step you've already reached to go back (or forward again).
+  var reached = 1;
   function go(n) {
+    reached = Math.max(reached, n);
     [1, 2, 3, 4, 5].forEach(function (i) { $("s" + i).hidden = i !== n; });
-    Array.prototype.forEach.call($("steps").children, function (el, i) { el.className = i < n ? "on" : ""; });
+    Array.prototype.forEach.call($("steps").children, function (el, i) {
+      el.className = i < n ? "on" : "";
+      el.disabled = i + 1 > reached;
+      if (i + 1 === n) el.setAttribute("aria-current", "step"); else el.removeAttribute("aria-current");
+    });
     window.scrollTo(0, 0);
   }
+  $("steps").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-step]"); if (!b || b.disabled) return;
+    go(parseInt(b.getAttribute("data-step"), 10));
+  });
   function fill(l) {
     lead = l;
     try { localStorage.setItem(KEY, l.token); } catch (e) {}

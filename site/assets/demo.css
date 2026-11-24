@@ -3,7 +3,7 @@
 a{color:inherit}[hidden]{display:none!important}
 .bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:rgba(0,0,0,.92);border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:9px;text-decoration:none}.brand img{width:26px;height:26px}.brand b{font-family:var(--disp);font-weight:400;font-size:19px;letter-spacing:.06em;text-transform:uppercase}
-.steps{display:flex;gap:6px}.steps i{width:26px;height:4px;background:var(--line)}.steps i.on{background:var(--hot)}
+.steps{display:flex;gap:2px}.steps button{background:none;border:0;padding:12px 2px;cursor:pointer;line-height:0}.steps button:disabled{cursor:default}.steps i{display:block;width:26px;height:4px;background:var(--line)}.steps .on i{background:var(--hot)}.steps button:not(:disabled):hover i{background:#fff}.steps button:focus-visible{outline:1px solid var(--hot)}
 main{max-width:480px;margin:0 auto;padding:26px 18px 80px;text-align:center}
 .kick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--hot);margin:0 0 10px}
 h1{font-family:var(--disp);font-weight:400;font-size:clamp(38px,11vw,52px);line-height:1;text-transform:uppercase;margin:0 0 12px}
