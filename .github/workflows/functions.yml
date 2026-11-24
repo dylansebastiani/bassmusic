@@ -26,7 +26,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       PROJECT: hxfuelulxsituzcgsvhg
       SAFE: >-
-        page promoter demo checkout connect playlist artist artist-waitlist owner shows artist-sales
+        page promoter demo checkout connect playlist artist artist-waitlist owner shows artist-sales account
     steps:
       - uses: actions/checkout@v4
       - name: Stop if the token isn't set

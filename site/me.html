@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Your Subduction account">
+<meta property="og:description" content="Your tickets, your shows and your crews in one place.">
+<meta property="og:image" content="https://subduction.art/assets/og-collection.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Your Subduction account">
+<meta name="twitter:description" content="Your tickets, your shows and your crews in one place.">
+<meta name="twitter:image" content="https://subduction.art/assets/og-collection.jpg">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/me.css">
+<!--CONFIG-->
+<title>My account</title>
+</head>
+<body>
+<main class="wrap me">
+  <div class="top"><a href="./"><img src="assets/logo.png" alt="Home"></a><button type="button" id="signout" hidden>Sign out</button></div>
+
+  <section id="signin" hidden>
+    <h1 class="disp">Your <em>account</em></h1>
+    <p class="lead">Tickets, the shows you play and the crews you run, all in one place. Enter your email and we'll send a one-tap sign-in button.</p>
+    <label for="semail" class="sr">Email</label>
+    <form class="unit" id="sf" novalidate><input id="semail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="you@email.com" aria-label="Email"><button class="btn" type="submit" id="sgo">Send it</button></form>
+    <p class="msg" id="smsg" role="status"></p>
+  </section>
+
+  <section id="home" hidden>
+    <h1 class="disp" id="hi">Hey</h1>
+    <p class="mono" id="who"></p>
+    <nav class="mtabs" id="tabs" role="tablist"></nav>
+    <div id="panes"></div>
+  </section>
+  <p class="msg" id="msg" role="status"></p>
+</main>
+<script src="assets/me.js" defer></script>
+</body>
+</html>
