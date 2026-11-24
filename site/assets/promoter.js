@@ -28,23 +28,25 @@
 
   // ---------- sign in ----------
   function signin() {
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Your email, then the 6-digit code we send you. No passwords.</p><p class=note>New here? <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>" +
-      '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off><button class=btn type=submit>Send my code</button></form>' +
-      '<form id=f2 novalidate hidden><label for=cd>6-digit code from the newest email</label><input type=text id=cd inputmode=numeric autocomplete=one-time-code maxlength=6><button class=btn type=submit>Sign in</button></form><p class=msg role=status></p>';
+    var DEMO = FN.replace(/\/promoter$/, "/demo");
+    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. We send you a button that signs you straight in. No codes, no passwords.</p>" +
+      '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off><button class=btn type=submit>Email me a sign-in button</button></form>' +
+      '<div id=sent hidden><div class=card><b>Check your email</b><small>We sent a "Sign me in" button to <span id=to></span>. Open it on this phone and tap the button.</small></div><button class=linkbtn type=button id=again>Send it again</button></div>' +
+      '<p class=msg role=status></p><p class=note id=newhere>New here? <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>';
     var em = document.getElementById("em");
-    document.getElementById("f1").onsubmit = function (e) {
-      e.preventDefault(); say("Sending…");
-      call("login", { email: em.value.trim() }).then(function () { document.getElementById("f1").hidden = true; document.getElementById("f2").hidden = false; document.getElementById("cd").focus(); say("We sent a 6-digit code to " + em.value.trim() + ". Use the newest email: each new code cancels the one before."); var nt = app.querySelector(".note"); if (nt) nt.hidden = true; })
+    function sendLink() {
+      var v = em.value.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v)) return say("Check your email address.", true);
+      say("Sending…");
+      fetch(DEMO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "signin", email: v }) })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); }); })
+        .then(function () { document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false; document.getElementById("to").textContent = v; say(""); })
         .catch(function (x) { say(x.message, true); });
-    };
-    document.getElementById("f2").onsubmit = function (e) {
-      e.preventDefault(); say("Checking…");
-      call("verify", { email: em.value.trim(), code: document.getElementById("cd").value }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (x) {} load().then(route); })
-        .catch(function (x) { say(x.message, true); });
-    };
-    // Coming from the demo: their email is already known, so the code goes out without asking again.
+    }
+    document.getElementById("f1").onsubmit = function (e) { e.preventDefault(); sendLink(); };
+    document.getElementById("again").onclick = function () { say("Sent again. It can take a minute to arrive."); sendLink(); };
+    // Coming from the demo without the email's key: the button is already on its way.
     var pe = ""; try { pe = sessionStorage.getItem("promo_email") || ""; sessionStorage.removeItem("promo_email"); } catch (x) {}
-    if (pe) { em.value = pe; document.getElementById("f1").onsubmit({ preventDefault: function () {} }); }
+    if (pe) { em.value = pe; document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false; document.getElementById("to").textContent = pe; }
   }
 
   // ---------- home: the checklist ----------

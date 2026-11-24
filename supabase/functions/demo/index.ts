@@ -7,7 +7,9 @@
 //   POST {a:"scan", t}                           mark it scanned, like the door app would
 //   POST {a:"claim", t, k?}                      open their promoter account: makes the crew and links their email as its owner.
 //                                                With the key from the email link (proof the inbox is theirs) they're signed
-//                                                straight in; without it they get the normal 6-digit code on the promoter page.
+//                                                straight in; without it they're emailed a one-tap sign-in button.
+//   POST {a:"signin", email}                     email a promoter a one-tap sign-in button (no code to type). The link is the
+//                                                same kind the promoter app already accepts (#invite=...), good once, for 20 minutes.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -45,6 +47,38 @@ async function ping(subject: string, l: Record<string, any>) {
       body: JSON.stringify({ sender: { name: "Subduction leads", email: Deno.env.get("FROM_EMAIL") || CONTACT }, replyTo: { email: l.email }, to: to.map((email) => ({ email })),
         subject, textContent: text, htmlContent: "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>", tags: ["lead"] }) });
   } catch (e) { console.error("demo: ping failed", (e as Error).message); }
+}
+// A one-tap sign-in button by email, for someone who is on a crew (or is staff). Built like the ticket email so it
+// lands in the main inbox: plain sender, no bulk-mail headers. The link is single-use and short-lived, and the
+// secret is stored only as a hash (same scheme the promoter app checks).
+async function sendSigninLink(email: string): Promise<boolean> {
+  const { data: m } = await db.from("subscribers").select("id,status,first_name").eq("email", email).maybeSingle();
+  if (!m || m.status === "deleted") return false;
+  const { count } = await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id);
+  if (!(count ?? 0) && !(await admins()).includes(email)) return false;
+  // One a minute per person, so nobody can flood an inbox by typing someone else's address.
+  const { data: recent } = await db.from("signin_codes").select("id").eq("subscriber_id", m.id).gte("created_at", new Date(Date.now() - 60000).toISOString()).limit(1);
+  if (recent?.length) return true;
+  const key = Deno.env.get("BREVO_API_KEY");
+  if (!key) { console.error("demo: BREVO_API_KEY not set"); return false; }
+  const secret = hex(18);
+  const hash = await sha256(`${m.id}|${secret}|${await setting("ip_salt", "unset")}`);
+  const { data: row } = await db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: hash, expires_at: new Date(Date.now() + 20 * 60000).toISOString() }).select("id").single();
+  if (!row) return false;
+  const url = `${SITE}/promoter.html#invite=${row.id}.${secret}`, F = "font-family:Arial,Helvetica,sans-serif";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Sign in to Subduction</title></head>
+<body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
+<tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">Tap to sign in</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">This button signs you in to your promoter account on this device. No code, no password.</td></tr>
+<tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:16px;font-weight:bold;text-align:center;text-decoration:none;padding:16px 12px;text-transform:uppercase;letter-spacing:1px">Sign me in</a></td></tr>
+<tr><td style="padding:18px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.<br>Subduction · ${esc(await setting("mailing_address", "PO Box TBD, Bloomington, IL 61701"))}</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = ["Tap to sign in to your Subduction promoter account:", url, "", "Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.", "Subduction"].join("\n");
+  const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ sender: { name: "Subduction", email: Deno.env.get("FROM_EMAIL") || CONTACT }, to: [{ email }], subject: "Your Subduction sign-in button", htmlContent: html, textContent: text, tags: ["signin"] }) });
+  if (!r.ok) { console.error("demo: sign-in email failed", r.status, (await r.text().catch(() => "")).slice(0, 200)); return false; }
+  return true;
 }
 const pub = (l: Record<string, any>) => ({ token: l.token, code: l.code, name: l.full_name, crew: l.crew, email: l.email, phone: l.phone, scanned_at: l.scanned_at });
 
@@ -138,10 +172,20 @@ Deno.serve(async (req) => {
     await db.from("company_staff").upsert({ company_id: companyId, subscriber_id: m.id, role: "owner" }, { onConflict: "company_id,subscriber_id", ignoreDuplicates: true });
     // Signed straight in only with the key from their own inbox, and never for a staff email.
     const proven = !!k && !!l.claim_hash && (await sha256(k)) === l.claim_hash && !(await admins()).includes(String(l.email).toLowerCase());
-    if (!proven) return json({ code_needed: true, email: l.email });
+    if (!proven) { await sendSigninLink(String(l.email).toLowerCase()); return json({ link_sent: true, email: l.email }); }
     const session = hex(32);
     await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(session), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
     return json({ session });
+  }
+
+  if (b.a === "signin") {
+    const email = clean(b.email, 254).toLowerCase();
+    if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
+    const ipRaw = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+    const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|signin") });
+    if ((n ?? 0) > 6) return no("Too many tries. Wait a minute and try again.", 429);
+    await sendSigninLink(email);
+    return json({ sent: true });   // same answer either way, so this can't be used to find out who's a promoter
   }
 
   if (b.a !== "start") return no("Bad request");
