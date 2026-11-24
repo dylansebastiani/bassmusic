@@ -10,7 +10,7 @@ name: deploy-functions
 on:
   push:
     branches: [main]
-    paths: ["supabase/functions/**"]
+    paths: ["supabase/functions/**", ".github/workflows/functions.yml"]
   workflow_dispatch:
     inputs:
       only:
@@ -42,6 +42,6 @@ jobs:
             # On a push only the safe list deploys. A held-back function deploys only when named on purpose (manual run).
             if [ -z "${{ github.event.inputs.only }}" ]; then case " $SAFE " in *" $f "*) ;; *) echo "Skipping $f: not on the safe list"; continue;; esac; fi
             echo "::group::$f"
-            supabase functions deploy "$f" --project-ref "$PROJECT" --no-verify-jwt --use-api
+            supabase functions deploy "$f" --project-ref "$PROJECT" --no-verify-jwt --use-api --yes
             echo "::endgroup::"
           done
