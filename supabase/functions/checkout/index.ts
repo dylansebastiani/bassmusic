@@ -35,7 +35,8 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).replace(":00", "");
 const doors = (s: string | null, e: string | null) => (s ? "Doors " + time(s) + (e ? " – " + time(e) : "") : "");
 
-// ---------- Stripe, always on the promoter's own account ----------
+// ---------- Stripe, always on the promoter's own account, through Subduction's platform account and its own keys ----------
+// (STRIPE_PLATFORM_*). The first show's checkout uses a different account and key and is never called from here.
 function form(obj: Record<string, unknown>, prefix = "", out: string[] = []) {
   for (const [k, v] of Object.entries(obj)) {
     if (v === undefined || v === null) continue;
@@ -46,7 +47,7 @@ function form(obj: Record<string, unknown>, prefix = "", out: string[] = []) {
   return out.join("&");
 }
 async function stripe(account: string, path: string, params?: Record<string, unknown>, method = "POST") {
-  const key = Deno.env.get("STRIPE_SECRET_KEY");
+  const key = Deno.env.get("STRIPE_PLATFORM_SECRET_KEY");
   if (!key) throw new Error("Payments aren't set up yet.");
   const r = await fetch("https://api.stripe.com/v1/" + path, {
     method, headers: { Authorization: "Bearer " + key, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2024-06-20", "Stripe-Account": account },
@@ -239,7 +240,7 @@ Deno.serve(async (req) => {
         location_secret: ev.location_secret, description: ev.description, age: ev.age, poster_url: ev.poster_url, sales_open: !!ev.sales_open && ready, max_per_order: ev.max_per_order },
       nights: nights.map((n) => ({ id: n.id, slug: n.slug, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, lineup: n.lineup, flyer_url: n.lineup?.length ? n.flyer_url || null : null })),
       types: await availability(types.filter((t) => t.on_sale)),
-      stripe_key: ready ? Deno.env.get("STRIPE_PUBLISHABLE_KEY") || null : null, stripe_account: ready ? co.stripe_account_id : null,
+      stripe_key: ready ? Deno.env.get("STRIPE_PLATFORM_PUBLISHABLE_KEY") || null : null, stripe_account: ready ? co.stripe_account_id : null,
       fee: { platform_cents: fee, card_pct: CARD_PCT, card_fixed_cents: CARD_FIXED },
       page: ev.page_published_at ? ev.page ?? null : null,
     });

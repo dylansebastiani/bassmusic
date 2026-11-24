@@ -1,8 +1,30 @@
 import { db } from "../_shared/db.ts";
 import { json, err, preflight, UUID_RE } from "../_shared/util.ts";
 import { SITE_URL } from "../_shared/config.ts";
-import { stripe } from "../_shared/tickets.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
+
+// Promoters connect under Subduction's own Stripe account (the platform), with its own key. The first show's
+// checkout keeps using its original account and key; nothing here touches that.
+async function stripe(path: string, params?: Record<string, unknown>, method = "POST") {
+  const key = Deno.env.get("STRIPE_PLATFORM_SECRET_KEY");
+  if (!key) throw new Error("Bank setup isn't open just yet.");
+  const form = (obj: Record<string, unknown>, prefix = "", out: string[] = []): string => {
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === undefined || v === null) continue;
+      const name = prefix ? `${prefix}[${k}]` : k;
+      if (typeof v === "object") form(v as Record<string, unknown>, name, out);
+      else out.push(encodeURIComponent(name) + "=" + encodeURIComponent(String(v)));
+    }
+    return out.join("&");
+  };
+  const r = await fetch("https://api.stripe.com/v1/" + path, {
+    method, headers: { Authorization: "Bearer " + key, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2024-06-20" },
+    body: method === "GET" ? undefined : form(params || {}), signal: AbortSignal.timeout(20_000),
+  });
+  const j = await r.json();
+  if (!r.ok) { console.error("stripe platform", path, r.status, JSON.stringify(j.error || j).slice(0, 400)); throw new Error(j.error?.message || "Bank setup failed. Try again."); }
+  return j;
+}
 
 // Stripe Connect sign-up for a promoter's company (Standard account, so Stripe handles their
 // identity checks, payouts, refunds and disputes, and Subduction never holds their money).

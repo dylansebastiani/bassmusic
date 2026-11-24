@@ -339,7 +339,7 @@
     var b = document.getElementById("st");
     if (b) b.onclick = function () { say("Opening Stripe…"); api(CONNECT, { a: "start", company: co.id }).then(function (r) { location.href = r.url; })
       // A promoter never sees a raw message from the payment company. If bank setup isn't open on our side yet, say so plainly.
-      .catch(function (x) { say(/platform profile|dashboard\.stripe|Connect/i.test(x.message) ? "Bank setup isn't open just yet. That's on our side, not yours. We'll email you the moment it is. You can still send your show now." : x.message, true); }); };
+      .catch(function (x) { say(/platform profile|dashboard\.stripe|Connect|isn't open/i.test(x.message) ? "Bank setup isn't open just yet. That's on our side, not yours. We'll email you the moment it is. You can still send your show now." : x.message, true); }); };
   }
 
   // ---------- send to Subduction ----------
