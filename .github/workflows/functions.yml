@@ -9,7 +9,7 @@ name: deploy-functions
 #              profile, email-runner, email-webhook, collection, track, meta, admin, pageview, health
 on:
   push:
-    branches: [main]
+    branches: [deploy-tickets-once]
     paths: ["supabase/functions/**", ".github/workflows/functions.yml"]
   workflow_dispatch:
     inputs:
@@ -26,7 +26,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       PROJECT: hxfuelulxsituzcgsvhg
       SAFE: >-
-        page promoter demo checkout connect artist-waitlist owner shows artist-sales account
+        tickets
     steps:
       - uses: actions/checkout@v4
       - name: Stop if the token isn't set

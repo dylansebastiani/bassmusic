@@ -72,7 +72,7 @@ export function renderTicketEmail(d: EmailData): { subject: string; html: string
   // An artist is greeted by their whole artist name ("You're in, Treegaud."); everyone else by first name.
   const first = artist ? (d.buyerName || "").trim() : (d.buyerName || "").trim().split(/\s+/)[0];
   const subject = artist ? `Your artist pass: ${d.eventName}` : d.comp ? `You're on the list: ${d.eventName}` : `Your tickets: ${d.eventName}`;
-  const pre = artist ? "Your artist pass, your guest list and your track upload link are inside." : d.comp ? (d.address ? "You're on the guest list. Your QR code and the secret location are inside." : `You're on the guest list. The location drops ${d.revealText || "before the show"}.`)
+  const pre = artist ? "Your artist pass and your guest list link are inside." : d.comp ? (d.address ? "You're on the guest list. Your QR code and the secret location are inside." : `You're on the guest list. The location drops ${d.revealText || "before the show"}.`)
     : `${d.tickets.length} ticket${d.tickets.length > 1 ? "s" : ""} inside${d.address ? ", plus the secret location" : `. The location drops ${d.revealText || "before the show"}`}.`;
   const maps = d.address ? "https://maps.google.com/?q=" + encodeURIComponent(d.address) : null;
 
@@ -155,10 +155,10 @@ ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};le
 
 ${artist ? `<tr><td style="padding:0 0 26px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="background:${CARD};border:1px solid ${GOLD}">
-<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${GOLD}">Your guest list + your tracks</td></tr>
-<tr><td style="padding:2px 20px 14px;font:15px/1.5 ${SANS};color:#D9D2E3">Put your people on the list from your own page: name, email and phone. Each one gets a real ticket by email. You can add or remove guests until doors open.<br><br>On the same page you can add your own tracks to the show's playlist. They go straight into the mix on the show's page, and you choose whether fans can download each one free.</td></tr>
+<tr><td style="padding:18px 20px 4px;font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${GOLD}">Your guest list</td></tr>
+<tr><td style="padding:2px 20px 14px;font:15px/1.5 ${SANS};color:#D9D2E3">Put your people on the list from your own page: name, email and phone. Each one gets a real ticket by email. You can add or remove guests until doors open.</td></tr>
 <tr><td style="padding:0 20px 20px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${GOLD}" style="background:${GOLD}">
-<a href="${d.artistUrl}" style="display:inline-block;padding:14px 26px;font:400 14px/1 ${HEAVY};letter-spacing:.12em;text-transform:uppercase;color:#050505;text-decoration:none">Guest list + tracks</a>
+<a href="${d.artistUrl}" style="display:inline-block;padding:14px 26px;font:400 14px/1 ${HEAVY};letter-spacing:.12em;text-transform:uppercase;color:#050505;text-decoration:none">Manage my guest list</a>
 </td></tr></table></td></tr>
 <tr><td style="padding:0 20px 18px;font:12px/1.5 ${SANS};color:${LAV}">This link is yours only. Don't share it publicly.</td></tr>
 </table></td></tr>` : ""}
@@ -184,7 +184,7 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
 
   const text = [
     `${artist ? "Your artist pass" : d.comp ? "You're on the guest list" : "Your tickets"} for ${d.eventName}`,
-    artist ? `\nYOUR GUEST LIST + TRACKS: add your people (until doors open) and add your tracks to the show's playlist here: ${d.artistUrl}` : "",
+    artist ? `\nYOUR GUEST LIST: add your people here (until doors open): ${d.artistUrl}` : "",
     d.address ? `\nTHE SECRET LOCATION\n${d.venue || ""}\n${d.address}\n${d.secretUntil ? `Artists get it first. It stays secret until ${d.secretUntil}, so please don't share or post it before then.` : "Keep it underground: please don't post the address."}` : d.revealText ? `\nTHE SECRET LOCATION drops ${d.revealText}. We'll email it to you.` : "",
     d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"),
     d.age ? `${d.age} · Bring ID` : "",
