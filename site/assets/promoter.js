@@ -52,7 +52,9 @@
   // ---------- home: the checklist ----------
   function home() {
     var co = company();
-    if (!co) { app.innerHTML = top() + "<h1>Almost there</h1><p class=lead>Your account isn't linked to a crew yet. Message Subduction and we'll set it up.</p>"; wireTop(); return; }
+    // No promoter crew here: their crew may run on the original account (it has its own view on My account),
+    // or they're a fan or artist. Same saved sign-in, so My account opens already signed in.
+    if (!co) { location.replace("me.html"); return; }
     var shows = me.shows.filter(function (s) { return s.company_id === co.id; });
     var brandDone = !!(co.brand.logo || (co.brand.colors && co.brand.colors.main));
     var s = shows[0];
