@@ -52,7 +52,7 @@ async function who(req: Request) {
 async function hasAnything(email: string, memberId: string | null) {
   if (memberId) return true;
   const [{ count: o }, { count: a }] = await Promise.all([
-    db.from("ticket_orders").select("id", { count: "exact", head: true }).eq("email", email).eq("status", "paid"),
+    db.from("ticket_orders").select("id", { count: "exact", head: true }).eq("email", email).in("status", ["paid", "comp"]),
     db.from("artist_invites").select("id", { count: "exact", head: true }).ilike("email", email).is("revoked_at", null),
   ]);
   return (o ?? 0) + (a ?? 0) > 0;
@@ -110,7 +110,7 @@ async function nightsFor(eventIds: string[]) {
 async function home(m: { id: string; email: string; first_name: string | null }) {
   const email = String(m.email).toLowerCase();
   const [{ data: orders }, { data: invites }, { data: staff }] = await Promise.all([
-    db.from("ticket_orders").select("id,event_id").eq("email", email).eq("status", "paid").order("created_at", { ascending: false }).limit(100),
+    db.from("ticket_orders").select("id,event_id,status,comp_list,artist_invite_id").eq("email", email).in("status", ["paid", "comp"]).order("created_at", { ascending: false }).limit(100),
     db.from("artist_invites").select("id,event_id,name,token,claimed_at").ilike("email", email).is("revoked_at", null).order("created_at", { ascending: false }),
     db.from("company_staff").select("company_id,role").eq("subscriber_id", m.id),
   ]);
@@ -136,7 +136,9 @@ async function home(m: { id: string; email: string; first_name: string | null })
   for (const t of tix || []) {
     const ev = evMap[t.event_id]; if (!ev) continue;
     const page = legacyCo.has(ev.company_id) ? "ticket" : "pass";
-    (ticketsByEvent[t.event_id] ||= []).push({ type: tyMap[t.type_id] || "Ticket", code: t.code, url: `${SITE}/${page}.html?t=${t.token}` });
+    const o = (orders || []).find((x) => x.id === t.order_id);
+    const kind = o?.artist_invite_id ? "artist" : o?.status === "comp" ? "guest" : "ticket";
+    (ticketsByEvent[t.event_id] ||= []).push({ type: kind === "artist" ? "Artist pass" : (tyMap[t.type_id] || "Ticket") + (kind === "guest" ? " · guest list" : ""), kind, code: t.code, url: `${SITE}/${page}.html?t=${t.token}` });
   }
   const tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
     .sort((a, b) => String(a.when).localeCompare(String(b.when)));
@@ -167,7 +169,7 @@ async function crew(m: { id: string; email: string }, slug: string) {
     if (!row) return null;
   }
   const [{ data: orders }, { data: types }, nights] = await Promise.all([
-    db.from("ticket_orders").select("id,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at").eq("event_id", ev.id).eq("status", "paid"),
+    db.from("ticket_orders").select("id,status,ref,promo_id,subtotal_cents,discount_cents,comp_list,artist_invite_id,paid_at").eq("event_id", ev.id).in("status", ["paid", "comp"]),
     db.from("ticket_types").select("id,name,sort").eq("event_id", ev.id).order("sort"),
     nightsFor([ev.id]),
   ]);
@@ -177,7 +179,7 @@ async function crew(m: { id: string; email: string }, slug: string) {
     const { data } = await db.from("tickets").select("order_id,type_id,is_comp,status").in("order_id", ids.slice(i, i + 200)).eq("status", "valid");
     tix.push(...(data || []));
   }
-  const paidOrders = new Set((orders || []).filter((o) => !o.comp_list && !o.artist_invite_id).map((o) => o.id));
+  const paidOrders = new Set((orders || []).filter((o) => o.status === "paid" && !o.comp_list && !o.artist_invite_id).map((o) => o.id));
   const byType = (types || []).map((t) => ({ name: t.name, sold: tix.filter((x) => x.type_id === t.id && !x.is_comp && paidOrders.has(x.order_id)).length,
     comps: tix.filter((x) => x.type_id === t.id && (x.is_comp || !paidOrders.has(x.order_id))).length }));
   const sold = byType.reduce((a, t) => a + t.sold, 0), comps = byType.reduce((a, t) => a + t.comps, 0);

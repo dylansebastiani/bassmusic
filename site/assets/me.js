@@ -57,9 +57,11 @@
       $("hi").innerHTML = "Hey" + (d.name ? " <em>" + esc(d.name) + "</em>" : "");
       $("who").textContent = d.email;
       var tabs = [];
+      var roles = (d.tickets.length ? 1 : 0) + (d.artist.length ? 1 : 0) + (d.crews.length || d.staff ? 1 : 0);
+      if (roles > 1) tabs.push(["home", "Home"]);
       if (d.tickets.length || (!d.artist.length && !d.crews.length)) tabs.push(["fan", "Tickets & music"]);
-      if (d.artist.length) tabs.push(["artist", "My shows"]);
-      if (d.crews.length || d.staff) tabs.push(["crew", "My crews"]);
+      if (d.artist.length) tabs.push(["artist", "Artist"]);
+      if (d.crews.length || d.staff) tabs.push(["crew", "Promoter"]);
       if (!tab || !tabs.some(function (t) { return t[0] === tab; })) tab = tabs[0][0];
       $("tabs").hidden = tabs.length < 2;
       $("tabs").innerHTML = tabs.map(function (t) { return '<button type="button" role="tab" data-tab="' + t[0] + '" aria-selected="' + (t[0] === tab) + '">' + esc(t[1]) + "</button>"; }).join("");
@@ -67,9 +69,33 @@
     }).catch(function (err) { if (tok) $("msg").textContent = err.message; });
   }
   $("tabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (!b) return; tab = b.getAttribute("data-tab"); load(); });
+  document.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-go]"); if (!b) return; tab = b.getAttribute("data-go"); load(); });
 
   function draw() {
     var d = me, h = "";
+    // Home: one card per role with its main buttons, so nothing hides behind a tab.
+    if (tab === "home") {
+      if (d.crews.length || d.staff) {
+        h += '<div class="roleh">Promoter</div>';
+        if (d.staff) h += '<div class="mcard"><h3>Subduction staff</h3><a class="mbtn" href="admin.html">Staff app</a></div>';
+        d.crews.forEach(function (c) {
+          h += '<div class="mcard"><h3>' + esc(c.name) + '</h3><div class="sub">' + (c.role === "owner" ? "You run this crew" : "You're on this crew") + "</div>" +
+            (c.kind === "promoter" ? '<a class="mbtn" href="promoter.html">Open promoter app</a>' : '<button type="button" class="mbtn" data-go="crew">Show numbers</button>') + "</div>";
+        });
+      }
+      if (d.artist.length) {
+        h += '<div class="roleh">Artist</div>';
+        d.artist.forEach(function (a) {
+          h += '<div class="mcard"><h3>' + esc(a.name) + '</h3><div class="sub">' + esc(a.show) + " · " + esc(a.nights.join(" + ")) + "</div>" +
+            '<a class="mbtn" href="' + esc(a.url) + '">' + (a.claimed ? "Artist dashboard" : "Get my artist pass") + '</a><div class="sub" style="margin:8px 0 0">Your pass, guest list, tracks and sell link.</div></div>';
+        });
+      }
+      if (d.tickets.length) {
+        var n = d.tickets.reduce(function (a, s) { return a + s.tickets.length; }, 0);
+        h += '<div class="roleh">Fan</div><div class="mcard"><h3>' + n + (n === 1 ? " ticket" : " tickets") + '</h3><div class="sub">' + esc(d.tickets.map(function (s) { return s.show; }).join(", ")) + "</div>" +
+          '<button type="button" class="mbtn" data-go="fan">My tickets</button> <a class="mbtn ghost" href="' + esc(d.music) + '">My music</a></div>';
+      }
+    }
     if (tab === "fan") {
       h += d.tickets.length ? d.tickets.map(function (s) {
         return '<div class="mcard"><h3>' + esc(s.show) + '</h3><div class="sub">' + esc([s.nights.join(" + "), s.city].filter(Boolean).join(" · ")) + "</div>" +
