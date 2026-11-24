@@ -22,12 +22,29 @@
     ".sbx-dl{flex:none;background:#fff;color:#050505;text-decoration:none;font:400 11px/1 'Bungee','Arial Black',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:10px 12px;white-space:nowrap}" +
     ".sbx-dl:hover{background:#FF5A1F}.sbx-min{color:#8E84A0!important}" +
     ".sbx.mini .sbx-meta,.sbx.mini .sbx-time,.sbx.mini .sbx-skip,.sbx.mini .sbx-dl{display:none}.sbx.mini{left:auto;right:12px;bottom:12px;border:1px solid #2D1052;padding:6px}" +
+    ".sbx-meta{cursor:pointer}.sbx.mini .sbx-list{display:none}" +
+    // The full playlist: a sheet that slides up over the bar.
+    ".sbx-sh{position:fixed;inset:0;z-index:41;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .18s}.sbx-sh.on{opacity:1}" +
+    ".sbx-pn{width:100%;max-width:560px;max-height:78vh;display:flex;flex-direction:column;background:#0b0710;border:1px solid #2D1052;border-bottom:0;color:#E7E0F0;font:14px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;transform:translateY(24px);transition:transform .2s;padding-bottom:env(safe-area-inset-bottom,0px)}.sbx-sh.on .sbx-pn{transform:none}" +
+    ".sbx-hd{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid #2D1052}.sbx-hd b{font:400 15px/1 'Bungee','Arial Black',Arial,sans-serif;letter-spacing:.04em;color:#fff;flex:1}.sbx-hd small{display:block;margin-top:4px;font:11px 'Space Mono','Courier New',monospace;color:#8E84A0;letter-spacing:0}" +
+    ".sbx-hd button{background:none;border:1px solid #2D1052;color:#fff;cursor:pointer;padding:8px 10px;font:12px/1 inherit;display:flex;align-items:center;gap:6px}.sbx-hd button:hover{border-color:#AA6EFF}" +
+    ".sbx-ul{list-style:none;margin:0;padding:6px 0;overflow-y:auto;-webkit-overflow-scrolling:touch}" +
+    ".sbx-li{display:flex;align-items:center;gap:12px;padding:8px 14px;cursor:pointer;min-height:60px}.sbx-li:hover,.sbx-li:focus-visible{background:#160d22;outline:none}" +
+    ".sbx-li.now{background:#1c0f2c}.sbx-li.now .sbx-lt{color:#FF5A1F}" +
+    ".sbx-lc{width:46px;height:46px;flex:none;background:#2D1052 center/cover;position:relative}" +
+    ".sbx-li.now .sbx-lc:after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.45) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF5A1F'%3E%3Cpath d='M4 10h3v10H4zM10.5 4h3v16h-3zM17 13h3v7h-3z'/%3E%3C/svg%3E\") center/20px no-repeat}" +
+    ".sbx-lm{flex:1;min-width:0}.sbx-lt{font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sbx-la{color:#B5A1C8;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}" +
+    ".sbx-free{flex:none;font:400 10px/1 'Bungee','Arial Black',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#050505;background:#fff;padding:8px 9px;text-decoration:none}.sbx-free:hover{background:#FF5A1F}" +
+    "@media (prefers-reduced-motion:reduce){.sbx-sh,.sbx-pn{transition:none}}" +
     "@media (max-width:560px){.sbx-time,.sbx-prev{display:none}.sbx-dl{padding:9px 9px;font-size:10px}.sbx-art{width:38px;height:38px}}";
   var I = {
     play: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>',
     pause: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>',
     prev: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2.5v14H6zM20 5v14L9 12z"/></svg>',
     next: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.5 5H18v14h-2.5zM4 5v14l11-7z"/></svg>',
+    list: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h12M3 11h12M3 16h7"/><path d="M19 17V6l3-1" /><circle cx="17" cy="17.5" r="2.5" fill="currentColor" stroke="none"/></svg>',
+    shuf: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>',
+    x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     min: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
     max: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
   };
@@ -43,22 +60,90 @@
     $(".sbx-t").textContent = k.title;
     $(".sbx-a").textContent = (k.artist || "Subduction") + "  ·  " + (i + 1) + "/" + tracks.length;
     // A 96px thumbnail ships with the site; the full-size cover from storage is only the fallback.
-    var art = $(".sbx-art"), own = /^show:/.test(k.slug || ""), thumb = "/assets/covers/" + encodeURIComponent(k.slug || "") + ".webp";
-    var probe = new Image();
-    probe.onload = function () { art.style.backgroundImage = 'url("' + thumb + '")'; };
-    probe.onerror = function () { art.style.backgroundImage = k.artwork_url ? 'url("' + k.artwork_url.replace(/"/g, "%22") + '")' : ""; };
-    if (k.slug && !own) probe.src = thumb; else probe.onerror();
+    cover(k, $(".sbx-art"));
     var dl = $(".sbx-dl");
     dl.hidden = !k.downloadable || !(k.code || k.dl);
     // Every free download goes through the same track page (email, then name/phone/ZIP once), catalogue or artist.
-    dl.href = k.dl ? "/t?d=" + encodeURIComponent(k.dl) : "/t?c=" + encodeURIComponent(k.code || "");
+    dl.href = dlHref(k);
     dl.setAttribute("aria-label", "Download " + k.title + " free");
   }
+  function cover(k, node) {
+    var own = /^show:/.test(k.slug || ""), thumb = "/assets/covers/" + encodeURIComponent(k.slug || "") + ".webp", probe = new Image();
+    probe.onload = function () { node.style.backgroundImage = 'url("' + thumb + '")'; };
+    probe.onerror = function () { node.style.backgroundImage = k.artwork_url ? 'url("' + k.artwork_url.replace(/"/g, "%22") + '")' : ""; };
+    if (k.slug && !own) probe.src = thumb; else probe.onerror();
+  }
+  function dlHref(k) { return k.dl ? "/t?d=" + encodeURIComponent(k.dl) : "/t?c=" + encodeURIComponent(k.code || ""); }
+
+  // ---- the whole playlist, one tap from the bar ----
+  var sheet = null, lastFocus = null;
+  function drawList() {
+    if (!sheet) return;
+    sheet.querySelector(".sbx-hd small").textContent = tracks.length + " track" + (tracks.length === 1 ? "" : "s") + " · tap one to play";
+    var ul = sheet.querySelector(".sbx-ul");
+    ul.innerHTML = tracks.map(function (k, n) {
+      var free = k.downloadable && (k.code || k.dl);
+      return '<li class="sbx-li' + (n === i ? " now" : "") + '" data-n="' + n + '" tabindex="0" role="button" aria-label="Play ' + esc(k.title) + (k.artist ? " by " + esc(k.artist) : "") + '"' + (n === i ? ' aria-current="true"' : "") + ">" +
+        '<div class="sbx-lc" aria-hidden="true"></div><div class="sbx-lm"><div class="sbx-lt">' + esc(k.title) + '</div><div class="sbx-la">' + esc(k.artist || "Subduction") + "</div></div>" +
+        (free ? '<a class="sbx-free" href="' + esc(dlHref(k)) + '" aria-label="Download ' + esc(k.title) + ' free">Free</a>' : "") + "</li>";
+    }).join("");
+    var cells = ul.querySelectorAll(".sbx-lc");
+    for (var n = 0; n < cells.length; n++) cover(tracks[n], cells[n]);
+  }
+  function markNow() {
+    if (!sheet) return;
+    var rows = sheet.querySelectorAll(".sbx-li");
+    for (var n = 0; n < rows.length; n++) { var on = n === i; rows[n].classList.toggle("now", on); if (on) rows[n].setAttribute("aria-current", "true"); else rows[n].removeAttribute("aria-current"); }
+  }
+  function openList() {
+    if (sheet) return;
+    lastFocus = document.activeElement;
+    sheet = document.createElement("div"); sheet.className = "sbx-sh";
+    sheet.innerHTML = '<div class="sbx-pn" role="dialog" aria-modal="true" aria-label="Playlist">' +
+      '<div class="sbx-hd"><b>Playlist<small></small></b><button type="button" class="sbx-sf">' + I.shuf + ' Shuffle</button><button type="button" class="sbx-x" aria-label="Close playlist">' + I.x + "</button></div>" +
+      '<ul class="sbx-ul"></ul></div>';
+    document.body.appendChild(sheet);
+    drawList();
+    var now = sheet.querySelector(".sbx-li.now"); if (now && now.scrollIntoView) now.scrollIntoView({ block: "center" });
+    requestAnimationFrame(function () { sheet.classList.add("on"); });
+    sheet.querySelector(".sbx-x").focus();
+    sheet.addEventListener("click", function (e) {
+      if (e.target === sheet || e.target.closest(".sbx-x")) return closeList();
+      if (e.target.closest(".sbx-free")) { save(); return; }
+      if (e.target.closest(".sbx-sf")) {
+        // Fresh order, the current song stays on top and keeps playing.
+        var cur = tracks[i], rest = shuffle(tracks.filter(function (k, n) { return n !== i; }));
+        tracks = [cur].concat(rest); i = 0; render(); drawList(); sheet.querySelector(".sbx-ul").scrollTop = 0; save(); return;
+      }
+      var li = e.target.closest(".sbx-li");
+      if (li) { var n = +li.getAttribute("data-n"); if (n === i) { if (audio.paused) play(); } else load(n, 0, true); }
+    });
+    sheet.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") return closeList();
+      var li = e.target.closest && e.target.closest(".sbx-li");
+      if (li && (e.key === "Enter" || e.key === " ") && e.target === li) { e.preventDefault(); li.click(); }
+      if (e.key === "Tab") {
+        // Keep keyboard focus inside the sheet while it's open.
+        var f = sheet.querySelectorAll("button, a, .sbx-li"), first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    document.documentElement.style.overflow = "hidden";
+  }
+  function closeList() {
+    if (!sheet) return;
+    var s2 = sheet; sheet = null; s2.classList.remove("on");
+    setTimeout(function () { s2.remove(); }, 200);
+    document.documentElement.style.overflow = "";
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
   function load(n, at, autoplay) {
     i = (n + tracks.length) % tracks.length;
     audio.src = tracks[i].audio_url;
     if (at) audio.addEventListener("loadedmetadata", function once() { audio.removeEventListener("loadedmetadata", once); try { audio.currentTime = at; } catch (e) {} });
-    render(); tick();
+    render(); tick(); markNow();
     if (autoplay) play();
   }
   function play() { audio.play().catch(function () { sync(); }); }
@@ -89,6 +174,7 @@
       '<div class="sbx-meta"><div class="sbx-t"></div><div class="sbx-a"></div><div class="sbx-bar" role="slider" tabindex="0" aria-label="Seek"><div class="sbx-fill"></div></div></div>' +
       '<div class="sbx-time">0:00 / -:--</div>' +
       '<a class="sbx-dl" href="#">Download</a>' +
+      '<button type="button" class="sbx-list" aria-label="See the whole playlist" aria-haspopup="dialog">' + I.list + "</button>" +
       '<button type="button" class="sbx-min" aria-label="Minimize player">' + I.min + "</button></div>";
     document.body.appendChild(el);
     // On the homepage and the artist page the bar starts tucked away, so it never covers the page's own buttons.
@@ -110,6 +196,8 @@
     bar.addEventListener("pointerup", function () { bar.onpointermove = null; save(); });
     bar.addEventListener("keydown", function (e) { if (e.key === "ArrowRight") audio.currentTime += 5; if (e.key === "ArrowLeft") audio.currentTime -= 5; });
     $(".sbx-dl").addEventListener("click", function (e) { save(); });
+    $(".sbx-list").addEventListener("click", openList);
+    $(".sbx-meta").addEventListener("click", function (e) { if (!e.target.closest(".sbx-bar")) openList(); });
 
     audio.addEventListener("play", function () { sync(); save(); });
     audio.addEventListener("pause", function () { sync(); save(); });
