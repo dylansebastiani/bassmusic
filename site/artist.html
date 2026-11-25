@@ -86,8 +86,8 @@
       <div class="acard">
         <div class="row1"><h2>Your profile</h2><span class="spots" id="pfstate"></span></div>
         <p class="lead">Fans see this when they tap your name in the lineup on the show page.</p>
-        <div class="pfphoto"><div class="pfimg" id="pfimg"></div><div><button class="btn ghost" type="button" id="pfpick">Add a photo</button><div class="hint">Square JPG, PNG or WebP, up to 5 MB.</div></div></div>
-        <input id="pffile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
+        <div class="pfphoto"><div class="pfimg" id="pfimg"></div><div><button class="btn ghost" type="button" id="pfpick">Add a photo</button><button class="pfre" type="button" id="pfreframe" hidden>Adjust framing</button><div class="hint">Any photo. You'll frame it next.</div></div></div>
+        <input id="pffile" type="file" accept="image/*" hidden>
         <form id="pf" class="aform" novalidate>
           <label for="pfhome">Hometown</label><input id="pfhome" type="text" maxlength="60" autocomplete="off" placeholder="e.g. Chicago, IL">
           <label for="pfgenre">Sound</label><input id="pfgenre" type="text" maxlength="60" autocomplete="off" placeholder="e.g. riddim, dubstep, wave">

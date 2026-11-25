@@ -139,7 +139,9 @@
   var pfLoaded = false;
   function drawProfile(p) {
     $("pfimg").innerHTML = p.photo_url ? '<img src="' + esc(p.photo_url) + '" alt="">' : "";
+    if (p.photo_url) $("pfimg").setAttribute("data-src", p.photo_url); else $("pfimg").removeAttribute("data-src");
     $("pfpick").textContent = p.photo_url ? "Change photo" : "Add a photo";
+    $("pfreframe").hidden = !p.photo_url;
     var has = p.photo_url || p.bio || p.hometown || p.genre || Object.keys(p.links || {}).length;
     $("pfstate").textContent = has ? "Live on the lineup" : "Not filled in yet";
     if (pfLoaded) return;   // don't overwrite what they're typing when the page refreshes
@@ -158,18 +160,88 @@
       .catch(function (err) { $("pfmsg").textContent = err.message; $("pfgo").disabled = false; });
   });
   $("pfpick").addEventListener("click", function () { $("pffile").click(); });
+  $("pfreframe").addEventListener("click", function () { var u = $("pfimg").getAttribute("data-src"); if (u) frame(u, true); });
   $("pffile").addEventListener("change", function () {
     var f = $("pffile").files[0]; $("pffile").value = ""; if (!f) return;
-    var ext = (f.name.split(".").pop() || "").toLowerCase(); if (ext === "jpeg") ext = "jpg";
-    if (["jpg", "png", "webp"].indexOf(ext) < 0) { $("pfmsg").textContent = "Use a JPG, PNG or WebP photo."; return; }
-    if (f.size > 5 * 1048576) { $("pfmsg").textContent = "That photo is over 5 MB. Use a smaller one."; return; }
-    $("pfpick").disabled = true; $("pfmsg").textContent = "Uploading photo...";
-    call("photo-url", { ext: ext }).then(function (r) {
-      return fetch(r.upload_url, { method: "PUT", headers: { "Content-Type": r.content_type }, body: f }).then(function (x) { if (!x.ok) throw new Error("Upload failed. Try again."); return r.path; });
-    }).then(function (path) { return call("photo", { path: path }); })
-      .then(function (d) { draw(d); $("pfmsg").textContent = "Photo added."; $("pfpick").disabled = false; })
-      .catch(function (err) { $("pfmsg").textContent = err.message; $("pfpick").disabled = false; });
+    if (!/^image\//.test(f.type || "") && !/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) { $("pfmsg").textContent = "Pick a photo (JPG, PNG or WebP)."; return; }
+    if (f.size > 30 * 1048576) { $("pfmsg").textContent = "That photo is too big. Pick a smaller one."; return; }
+    $("pfmsg").textContent = "";
+    frame(URL.createObjectURL(f), false);
   });
+  function uploadPhoto(blob) {
+    $("pfpick").disabled = true; $("pfmsg").textContent = "Saving photo...";
+    return call("photo-url", { ext: "jpg" }).then(function (r) {
+      return fetch(r.upload_url, { method: "PUT", headers: { "Content-Type": r.content_type }, body: blob }).then(function (x) { if (!x.ok) throw new Error("Upload failed. Try again."); return r.path; });
+    }).then(function (path) { return call("photo", { path: path }); })
+      .then(function (d) { draw(d); $("pfmsg").textContent = "Photo saved. It's on the lineup now."; $("pfpick").disabled = false; })
+      .catch(function (err) { $("pfmsg").textContent = err.message; $("pfpick").disabled = false; });
+  }
+
+  // ---- frame your photo: one square, drag to move, pinch (or the slider) to zoom ----
+  // What's inside the square is exactly what shows on the lineup card, so the page crops it here and
+  // uploads that square. The bottom fades like the real card, with their name on it, so they can see it.
+  function frame(src, existing) {
+    var im = new Image(); if (existing) im.crossOrigin = "anonymous";
+    im.onerror = function () { $("pfmsg").textContent = "Couldn't open that photo. Try a JPG or PNG."; };
+    im.onload = function () {
+      var name = (S && S.artist && S.artist.name) || "";
+      var bg = document.createElement("div"); bg.className = "fr-bg"; bg.setAttribute("role", "dialog"); bg.setAttribute("aria-modal", "true"); bg.setAttribute("aria-label", "Frame your photo");
+      bg.innerHTML = '<div class="fr-top"><b>Frame your photo</b><span>Drag to move. Pinch or slide to zoom.</span></div>' +
+        '<div class="fr-box" id="frbox"><img alt="" draggable="false"><div class="fr-fade"></div><div class="fr-name"></div><div class="fr-grid"></div></div>' +
+        '<label class="fr-zoom"><span aria-hidden="true">−</span><input type="range" id="frz" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><span aria-hidden="true">+</span></label>' +
+        '<div class="fr-btns"><button type="button" class="btn" id="frok">Use photo</button><button type="button" class="btn ghost" id="frnew">Pick another</button><button type="button" class="fr-cancel" id="frx">Cancel</button></div>';
+      bg.querySelector(".fr-name").textContent = name;
+      var box = bg.querySelector("#frbox"), img = box.querySelector("img"), z = bg.querySelector("#frz");
+      img.src = src;
+      document.body.appendChild(bg); document.documentElement.style.overflow = "hidden";
+      var W = im.naturalWidth, H = im.naturalHeight, side, base, zoom = 1, cx = W / 2, cy = Math.min(H / 2, H * 0.42);
+      function layout() { side = box.clientWidth; base = side / Math.min(W, H); place(); }
+      function clamp() {
+        var half = side / (base * zoom) / 2;   // half the square, in photo pixels
+        cx = Math.min(W - half, Math.max(half, cx)); cy = Math.min(H - half, Math.max(half, cy));
+      }
+      function place() {
+        clamp(); var k = base * zoom;
+        img.style.width = W * k + "px"; img.style.height = H * k + "px";
+        img.style.transform = "translate(" + (side / 2 - cx * k) + "px," + (side / 2 - cy * k) + "px)";
+      }
+      layout(); window.addEventListener("resize", layout);
+      // Drag with one finger or the mouse; pinch with two fingers.
+      var pts = {}, last = null, pinch = null;
+      box.addEventListener("pointerdown", function (e) { box.setPointerCapture(e.pointerId); pts[e.pointerId] = { x: e.clientX, y: e.clientY }; last = null; pinch = null; box.classList.add("on"); });
+      box.addEventListener("pointermove", function (e) {
+        if (!pts[e.pointerId]) return; pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+        var ids = Object.keys(pts), k = base * zoom;
+        if (ids.length >= 2) {
+          var a = pts[ids[0]], b = pts[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (pinch) { zoom = Math.min(4, Math.max(1, pinch.z * d / pinch.d)); z.value = zoom; }
+          else pinch = { d: d, z: zoom };
+        } else {
+          if (last) { cx -= (e.clientX - last.x) / k; cy -= (e.clientY - last.y) / k; }
+          last = { x: e.clientX, y: e.clientY };
+        }
+        place();
+      });
+      var up = function (e) { delete pts[e.pointerId]; last = null; pinch = null; if (!Object.keys(pts).length) box.classList.remove("on"); };
+      box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+      box.addEventListener("wheel", function (e) { e.preventDefault(); zoom = Math.min(4, Math.max(1, zoom * (e.deltaY < 0 ? 1.08 : 0.93))); z.value = zoom; place(); }, { passive: false });
+      z.addEventListener("input", function () { zoom = +z.value; place(); });
+      function close() { window.removeEventListener("resize", layout); bg.remove(); document.documentElement.style.overflow = ""; if (!existing) URL.revokeObjectURL(src); }
+      bg.querySelector("#frx").addEventListener("click", close);
+      bg.querySelector("#frnew").addEventListener("click", function () { close(); $("pffile").click(); });
+      bg.querySelector("#frok").addEventListener("click", function () {
+        var k = base * zoom, half = side / k / 2, sz = Math.min(1200, Math.round(half * 2));
+        var c = document.createElement("canvas"); c.width = c.height = Math.max(sz, 300);
+        var x = c.getContext("2d"); x.imageSmoothingQuality = "high";
+        try {
+          x.drawImage(im, cx - half, cy - half, half * 2, half * 2, 0, 0, c.width, c.height);
+          c.toBlob(function (blob) { close(); if (blob) uploadPhoto(blob); else $("pfmsg").textContent = "Couldn't save that photo. Try another."; }, "image/jpeg", 0.9);
+        } catch (err) { close(); $("pfmsg").textContent = "Couldn't save that photo. Try another."; }
+      });
+      bg.querySelector("#frok").focus();
+    };
+    im.src = src;
+  }
 
   // ---- your tracks: add music to this show's playlist ----
   var PL = (C.supabaseUrl || "") + "/functions/v1/playlist";
