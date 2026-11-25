@@ -1,4 +1,5 @@
 name: deploy-functions
+# one-time branch: deploys artist + playlist only
 # Deploys the backend (Supabase Edge Functions) straight from this repo, so what's live always matches
 # what's committed. Needs one GitHub secret: SUPABASE_ACCESS_TOKEN (Supabase dashboard > Account > Access Tokens).
 #
@@ -9,7 +10,7 @@ name: deploy-functions
 #              profile, email-runner, email-webhook, collection, track, meta, admin, pageview, health
 on:
   push:
-    branches: [main]
+    branches: [deploy-members-once]
     paths: ["supabase/functions/**", ".github/workflows/functions.yml"]
   workflow_dispatch:
     inputs:
@@ -26,7 +27,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       PROJECT: hxfuelulxsituzcgsvhg
       SAFE: >-
-        page promoter demo checkout connect artist-waitlist owner shows artist-sales account
+        artist playlist
     steps:
       - uses: actions/checkout@v4
       - name: Stop if the token isn't set
