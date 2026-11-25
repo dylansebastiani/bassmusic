@@ -41,9 +41,25 @@ Deno.serve(async (req) => {
   }
   const newsletter = await setting<number | null>("brevo_list_id", null);
 
+  // One person can be several things (an artist who also has a site account, a buyer who joined the
+  // waitlist). The strongest label wins and a weaker step never overwrites it: Artist > Buyer > Guest > Member.
+  const RANK: Record<string, number> = { Artist: 4, Buyer: 3, Guest: 2, Member: 1 };
+  const best = new Map<string, string>();
+  const note = (email: string | null, role: string) => {
+    const e = String(email || "").trim().toLowerCase(); if (!e) return;
+    if ((RANK[role] || 0) > (RANK[best.get(e) || ""] || 0)) best.set(e, role);
+  };
+  for (const r of (await db.from("artist_invites").select("email").is("revoked_at", null).not("email", "is", null)).data || []) note(r.email, "Artist");
+  for (const r of (await db.from("artist_members").select("email").is("revoked_at", null)).data || []) note(r.email, "Artist");
+  for (const r of (await db.from("ticket_orders").select("email,status").in("status", ["paid", "comp"]).not("email", "is", null)).data || []) note(r.email, r.status === "paid" ? "Buyer" : "Guest");
+
   async function upsert(p: Person, withNewsletter: boolean) {
     const [first, ...rest] = (p.name || "").trim().split(/\s+/);
-    const attrs: Record<string, unknown> = { FIRSTNAME: first || undefined, LASTNAME: rest.join(" ") || undefined, ROLE: p.role, SHOW: p.show || undefined, SOURCE: p.source };
+    // Someone known as something stronger keeps that label (and its source); this step only fills in the rest.
+    const top = best.get(p.email.trim().toLowerCase());
+    const weaker = !!top && (RANK[top] || 0) > (RANK[p.role] || 0);
+    const attrs: Record<string, unknown> = { FIRSTNAME: first || undefined, LASTNAME: rest.join(" ") || undefined, SHOW: p.show || undefined,
+      ...(weaker ? {} : { ROLE: p.role, SOURCE: p.source }) };
     const lists = [listId!, ...(withNewsletter && newsletter ? [newsletter] : [])];
     const send = (withSms: boolean) => brevo("/contacts", "POST", { email: p.email, updateEnabled: true, listIds: lists,
       attributes: withSms && p.phone ? { ...attrs, SMS: p.phone } : attrs });
