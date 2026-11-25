@@ -81,6 +81,9 @@
           : '<p class="soon">Lineup coming soon</p>') + "</div></div>";
     }).join("");
     // Phased release: the flyers name the lineup, so they only show once a lineup is published.
+    // The partner strip with the unblurred logos goes up with the lineup reveal, not before.
+    var pl = document.querySelector("img.partners");
+    if (pl && data.nights.some(function (n) { return (n.lineup || []).length; })) pl.src = "assets/toftu/partners-live.webp";
     // A secret act (shown as one "Headliner TBA" line) keeps them hidden too: the flyers name everyone.
     $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; }) ||
       data.nights.some(function (n) { return (n.lineup || []).some(function (a) { return a.tba; }); });
