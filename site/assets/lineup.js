@@ -30,9 +30,9 @@
     "@media(min-width:640px){.lu-bg{align-items:center;padding:20px}}" +
     ".lu-card{position:relative;width:100%;max-width:420px;max-height:92vh;overflow:auto;overscroll-behavior:contain;background:#000;color:#f2efe9;border-top:3px solid var(--lu);font:15px/1.5 var(--text,system-ui,sans-serif)}" +
     "@media(min-width:640px){.lu-card{border:1px solid #fff;border-top:3px solid var(--lu);box-shadow:8px 8px 0 var(--lu)}}" +
-    ".lu-hero{position:relative;aspect-ratio:4/5;background:#111;overflow:hidden}" +
-    ".lu-hero img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}" +
-    ".lu-hero:after{content:'';position:absolute;inset:auto 0 0;height:40%;background:linear-gradient(transparent,#000)}" +
+    ".lu-hero{position:relative;aspect-ratio:1;background:#111;overflow:hidden}" +
+    ".lu-hero img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;display:block;filter:contrast(1.1) saturate(.82) brightness(.95)}" +
+    ".lu-hero:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0,transparent 22%,transparent 50%,rgba(0,0,0,.75) 82%,#000)}" +
     ".lu-hero.np{aspect-ratio:auto;height:28px;background:none}.lu-hero.np:after{display:none}" +
     ".lu-name{position:relative;z-index:1;margin-top:-58px;padding:0 18px}" +
     ".lu-hero.np+.lu-name{margin-top:0}" +
@@ -50,7 +50,7 @@
     ".lu-tt small{display:none}" +
     ".lu-bar{height:2px;background:#222;margin-top:6px}.lu-bar i{display:block;height:100%;width:0;background:var(--lu)}" +
     ".lu-dl{display:flex;align-items:center;gap:3px;color:#aaa;text-decoration:none;font:11px var(--mono,ui-monospace,monospace);text-transform:uppercase;letter-spacing:.06em}.lu-dl:hover{color:#fff}.lu-dl svg{width:14px;height:14px}" +
-    ".lu-links{display:flex;flex-wrap:wrap;gap:4px;margin-left:-10px}" +
+    ".lu-links{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 10px;margin-top:4px}" +
     ".lu-links a{display:flex;align-items:center;justify-content:center;width:46px;height:46px;color:#f2efe9;transition:color .15s,transform .15s}" +
     ".lu-links a svg{width:24px;height:24px}" +
     ".lu-links a:hover,.lu-links a:focus-visible{color:var(--lu);transform:translateY(-2px);outline:none}" +
@@ -88,13 +88,12 @@
     paint(card);
   }
 
-  // Make each artist's photo look right: trim flat black or white bars (phone screenshots, letterboxing),
-  // then size the frame to the photo's own shape, from 4:5 (tall) to 3:2 (wide), so wide shots and logos
-  // aren't chopped and tall ones keep the face (cropped from the upper part).
+  // Every artist gets the same square frame. Flat black or white bars (phone screenshots, letterboxing)
+  // are trimmed first so the photo, not the bars, fills it; tall photos are cropped from the upper part.
   var fitted = {};
   function fitPhoto(url, hero) {
     var img = hero.querySelector("img");
-    var apply = function (f) { hero.style.aspectRatio = f.r; if (f.src) img.src = f.src; };
+    var apply = function (f) { if (f.src) img.src = f.src; };
     if (fitted[url]) return apply(fitted[url]);
     var im = new Image(); im.crossOrigin = "anonymous";
     im.onload = function () {
