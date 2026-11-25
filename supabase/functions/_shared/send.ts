@@ -116,11 +116,18 @@ export async function sendTickets(orderId: string) {
 
 
 // Reveal day: one email per order with the address, sent once (ticket_orders.location_sent_at).
+// "Tonight", "Tomorrow night", "One week out", "3 days out": how far the first night is from now (Chicago days).
+const leadFor = (starts?: string | null) => {
+  if (!starts) return null;
+  const day = (d: Date) => new Date(d.toLocaleDateString("en-US", { timeZone: "America/Chicago" })).getTime();
+  const n = Math.round((day(new Date(starts)) - day(new Date())) / 86400000);
+  return n <= 0 ? "Tonight" : n === 1 ? "Tomorrow night" : n === 7 ? "One week out" : n + " days out";
+};
 export async function sendLocation(orderId: string) {
   const { data: o } = await db.from("ticket_orders").select("id,event_id,email,name,status,location_sent_at").eq("id", orderId).maybeSingle();
   if (!o || !o.email || o.location_sent_at || !["paid", "comp"].includes(o.status)) return false;
   const [{ data: ev }, { data: nights }, { count }] = await Promise.all([
-    db.from("events").select("slug,name,venue,address,age").eq("id", o.event_id).single(),
+    db.from("events").select("slug,name,venue,address,age,reveal_note").eq("id", o.event_id).single(),
     db.from("ticket_nights").select("label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
     db.from("tickets").select("id", { count: "exact", head: true }).eq("order_id", o.id).eq("status", "valid"),
   ]);
@@ -130,6 +137,7 @@ export async function sendLocation(orderId: string) {
     nights: (nights || []).map((n) => ({ label: n.label, doors: doorsText(n.starts_at, n.ends_at) })),
     contactEmail: CONFIG.contactEmail, siteUrl: SITE_URL,
     eventUrl: `${SITE_URL}/${ev.slug === "underground" ? "underground/" : "tickets.html?e=" + ev.slug}`,
+    lead: leadFor(nights?.[0]?.starts_at), note: (ev as { reveal_note?: string | null }).reveal_note || null,
   });
   const res = await provider.send({ to: { email: o.email, name: o.name }, subject: r.subject, html: r.html, text: r.text, tags: ["location"],
     fromName: Deno.env.get("TICKETS_FROM_NAME") || "T.O.F.T.U. Tickets" });

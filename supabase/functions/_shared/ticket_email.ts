@@ -203,6 +203,8 @@ Questions or need a change? Reply to this email or write <a href="mailto:${esc(d
 export interface LocationData {
   buyerName: string | null; eventName: string; venue: string | null; address: string; age: string | null;
   nights: { label: string; doors: string | null }[]; contactEmail: string; siteUrl: string; eventUrl: string;
+  // How far out the drop is ("Tomorrow night", "One week out"), and an optional note set per show (events.reveal_note).
+  lead?: string | null; note?: string | null;
 }
 export function renderLocationEmail(d: LocationData): { subject: string; html: string; text: string } {
   const IMG = d.siteUrl.replace(/\/$/, "") + "/assets/toftu/email/";
@@ -219,7 +221,7 @@ export function renderLocationEmail(d: LocationData): { subject: string; html: s
 <tr><td align="center" style="padding:18px 24px 0"><img src="${IMG}wordmark.png" width="300" alt="T.O.F.T.U." style="display:block;width:300px;max-width:80%;height:auto;border:0"></td></tr>
 <tr><td style="padding:30px 24px 0">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr><td style="font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE};padding-bottom:10px">One week out</td></tr>
+<tr><td style="font:700 12px ${MONO};letter-spacing:.3em;text-transform:uppercase;color:${ORANGE};padding-bottom:10px">${esc(d.lead || "One week out")}</td></tr>
 <tr><td style="font:400 34px/1.05 ${HEAVY};color:#FFFFFF;text-transform:uppercase;padding-bottom:12px">${first ? `Here it is, ${esc(first)}.` : "Here it is."}</td></tr>
 <tr><td style="font:15px/1.6 ${SANS};color:#D9D2E3;padding-bottom:26px">The secret location for ${esc(d.eventName)}. Your tickets are in your earlier email: show the QR code at the door.</td></tr>
 <tr><td style="padding:0 0 26px">
@@ -231,12 +233,13 @@ export function renderLocationEmail(d: LocationData): { subject: string; html: s
 <tr><td style="padding:0 20px 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${UV}">${rows}
 ${d.age ? `<tr><td colspan="2" style="padding:8px 0 2px;font:700 13px ${MONO};letter-spacing:.08em;text-transform:uppercase;color:#FFFFFF">${esc(d.age)} &nbsp;·&nbsp; Bring ID</td></tr>` : ""}</table></td></tr>
 </table></td></tr>
+${d.note ? `<tr><td style="padding:0 0 26px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-left:3px solid ${ORANGE}"><tr><td style="padding:4px 0 4px 16px;font:17px/1.5 ${SANS};color:#FFFFFF">${esc(d.note)}</td></tr></table></td></tr>` : ""}
 </table></td></tr>
 <tr><td align="center" style="padding:6px 0 22px"><img src="${IMG}partners-v3.png" height="40" alt="" style="display:block;height:40px;width:auto;border:0;margin:0 auto"></td></tr>
 <tr><td style="padding:22px 24px 0;border-top:1px solid #1C1228;font:12px/1.7 ${SANS};color:#8E84A0">Questions? Reply to this email or write <a href="mailto:${esc(d.contactEmail)}" style="color:${LAV}">${esc(d.contactEmail)}</a>.</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [`The secret location for ${d.eventName}`, "", d.venue || "", d.address, "Keep it underground: please don't post the address.", "",
     d.nights.map((n) => `${n.label}: ${n.doors || ""}`).join("\n"), d.age ? `${d.age} · Bring ID` : "", "",
-    "Your tickets are in your earlier email. Show the QR code at the door.", `Questions? ${d.contactEmail}`].filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
+    "Your tickets are in your earlier email. Show the QR code at the door.", d.note ? "" : null, d.note || null, "", `Questions? ${d.contactEmail}`].filter((x): x is string => x !== null).filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
   return { subject, html: gmailSafe(html), text };
 }
