@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
   }
 
   // ================= staff =================
-  if (["list", "create", "update", "revoke"].includes(a)) {
+  if (["list", "create", "update", "revoke", "member_add", "member_remove"].includes(a)) {
     const admin = await requireAdmin(req);
     if (!admin) return no("Sign in again.", 401);
     const log = (type: string, meta: Record<string, unknown>) => db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:" + type, meta });
