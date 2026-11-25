@@ -76,6 +76,11 @@ export async function sendTickets(orderId: string) {
   if (o.artist_invite_id) {
     const { data: inv } = await db.from("artist_invites").select("token,order_id,name").eq("id", o.artist_invite_id).maybeSingle();
     if (inv && inv.order_id === o.id) { artistUrl = `${SITE_URL}/artist.html?k=${inv.token}`; greet = inv.name; }
+    else if (inv) {
+      // A member of a duo/group: their own link to the same act page.
+      const { data: m } = await db.from("artist_members").select("token").eq("order_id", o.id).is("revoked_at", null).maybeSingle();
+      if (m) { artistUrl = `${SITE_URL}/artist.html?k=${m.token}`; greet = inv.name; }
+    }
   }
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }] = await Promise.all([
     db.from("events").select("slug,name,venue,address,age,location_secret,address_reveal_at,address_full,venue_full").eq("id", o.event_id).single(),

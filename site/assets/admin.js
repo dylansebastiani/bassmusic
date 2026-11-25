@@ -326,7 +326,11 @@
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
         return '<div class="acard2' + (a.revoked ? " off" : "") + '"><div class="ah"><b>' + esc(a.name) + "</b>" + status + "</div>" +
           (a.full_name || a.email || a.phone ? '<div class="mono asub">' + [a.full_name, a.email, a.phone].filter(Boolean).map(esc).join(" · ") + "</div>" : "") +
-          '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used</div>" +
+          ((a.members || []).map(function (m) {
+            return '<div class="mono asub">+ ' + esc(m.full_name) + " · " + esc(m.email) + ' <button type="button" class="mini" data-copy="' + esc(m.link) + '">Copy their link</button>' +
+              (a.revoked ? "" : ' <button type="button" class="mini danger" data-mrm="' + esc(m.id) + '" data-act="' + esc(a.id) + '" data-name="' + esc(m.full_name) + '">Remove</button>') + "</div>";
+          }).join("")) +
+          '<div class="mono asub">' + a.guests.length + " of " + a.spots + " guest spots used" + ((a.members || []).length ? " (shared)" : "") + "</div>" +
           (a.guests.length ? '<div class="aguests">' + a.guests.map(function (g) { return "<span>" + esc(g.name) + "</span>"; }).join("") + "</div>" : "") +
           aprofile(a) +
           (SOLD[a.id] ? '<div class="asell">' + (SOLD[a.id].milestone_hit ? '<span class="star" title="Hit your milestone">★ Milestone</span> ' : "") +
@@ -339,6 +343,7 @@
           (a.revoked ? "" : '<div class="atools"><button type="button" class="mini" data-copy="' + esc(a.link) + '">Copy pass link</button>' +
             '<a class="mini" href="' + esc(a.link) + '" target="_blank" rel="noopener">Open their page ↗</a>' +
             '<span class="spin"><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + Math.max(0, a.spots - 1) + '" aria-label="Fewer spots">−</button><span>' + a.spots + ' spots</span><button type="button" class="mini" data-spots="' + esc(a.id) + '" data-n="' + (a.spots + 1) + '" aria-label="More spots">+</button></span>' +
+            '<button type="button" class="mini" data-madd="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Add a member</button>' +
             '<button type="button" class="mini danger" data-revoke="' + esc(a.id) + '" data-name="' + esc(a.name) + '">Cancel artist</button></div>') + "</div>";
       }).join("") : '<div class="empty">No artists yet. Create one above.</div>');
     }).catch(function (err) { $("artists").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
@@ -469,7 +474,23 @@
   });
   $("artists").addEventListener("click", function (e) {
     var c = e.target.closest("[data-copy]"), sp = e.target.closest("[data-spots]"), rv = e.target.closest("[data-revoke]"), hd = e.target.closest("[data-hide]");
-    var fx = e.target.closest("[data-fans]");
+    var fx = e.target.closest("[data-fans]"), ma = e.target.closest("[data-madd]"), mr = e.target.closest("[data-mrm]");
+    if (ma) {
+      // Duo/group: another person under the same artist name, with their own pass and link to the same page.
+      var act = ma.getAttribute("data-name"), full = prompt("Add a member to " + act + ".\nTheir full name (first and last):"); if (!full) return;
+      var phone = prompt("Their phone number:"); if (!phone) return;
+      var email = prompt("Their email (their pass goes here):"); if (!email) return;
+      ma.disabled = true;
+      (pre = {}, req)(ART, { a: "member_add", id: ma.getAttribute("data-madd"), full_name: full.trim(), phone: phone.trim(), email: email.trim().toLowerCase() })
+        .then(function (j) { alert(full + " is on " + act + "'s pass." + (j.pass_sent ? " Their pass was emailed." : " The pass email didn't send; copy their link and text it.")); artists(); })
+        .catch(function (err) { ma.disabled = false; alert(err.message); });
+      return;
+    }
+    if (mr) {
+      if (!confirm("Remove " + mr.getAttribute("data-name") + " from this act? Their artist pass stops working.")) return;
+      (pre = {}, req)(ART, { a: "member_remove", id: mr.getAttribute("data-act"), member_id: mr.getAttribute("data-mrm") }).then(artists).catch(function (err) { alert(err.message); });
+      return;
+    }
     if (fx) { dlCsv(DLS[fx.getAttribute("data-fans")] || [], fx.getAttribute("data-name")); return; }
     if (hd) { hd.disabled = true; (pre = {}, req)(ART, { a: "update", id: hd.getAttribute("data-hide"), profile_hidden: !!hd.getAttribute("data-h") }).then(artists).catch(function (err) { alert(err.message); }); }
     if (c) { var t = c.getAttribute("data-copy"); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { c.textContent = "Copied ✓"; }).catch(function () { prompt("Copy this link:", t); }); }

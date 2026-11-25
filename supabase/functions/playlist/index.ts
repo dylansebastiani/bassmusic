@@ -201,7 +201,12 @@ Deno.serve(async (req) => {
   if (a.startsWith("artist") && (req.method === "GET" ? u.searchParams.has("k") : typeof b.k === "string")) {
     const k = String(req.method === "GET" ? u.searchParams.get("k") : b.k).toLowerCase();
     if (!/^[0-9a-f]{48}$/.test(k)) return json({ error: "This link isn't complete." }, 400);
-    const { data: inv } = await db.from("artist_invites").select("id,event_id,name,claimed_at,revoked_at").eq("token", k).maybeSingle();
+    let { data: inv } = await db.from("artist_invites").select("id,event_id,name,claimed_at,revoked_at").eq("token", k).maybeSingle();
+    if (!inv) {
+      // A duo/group member's link: same act, same tracks.
+      const { data: m } = await db.from("artist_members").select("invite_id,revoked_at").eq("token", k).maybeSingle();
+      if (m && !m.revoked_at) inv = (await db.from("artist_invites").select("id,event_id,name,claimed_at,revoked_at").eq("id", m.invite_id).maybeSingle()).data;
+    }
     if (!inv || inv.revoked_at) return json({ error: "This link isn't active anymore. Reach out to the promoter." }, 404);
     if (!inv.claimed_at) return json({ error: "Get your artist pass first." }, 400);
     const mine = async () => {

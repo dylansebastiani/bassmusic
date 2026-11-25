@@ -174,3 +174,10 @@ img.av{object-fit:cover;padding:0;background:var(--d)}
 .prow:has(.prm) .pinfo{padding-right:84px}
 .dlink{min-height:46px}
 .dlink button{align-self:stretch}
+.amem{display:block;font-size:13px;opacity:.8;margin-top:3px}
+.amx{background:none;border:0;padding:0 0 0 4px;color:var(--a);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer}
+.alinks{display:flex;gap:14px;flex-wrap:wrap}
+.aduo{margin-top:14px}.aduo summary{cursor:pointer;color:var(--a);font-size:14px}
+.mform{margin:4px 0 14px;padding:12px;border:1px solid var(--line2)}
+.mform label{display:block;font-size:13px;color:var(--a);margin:10px 0 4px}
+.mform label input{display:block;margin-top:4px}

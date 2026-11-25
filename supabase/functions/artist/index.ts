@@ -71,6 +71,26 @@ async function issueOrder(inv: Inv, p: { name: string; email: string; phone: str
   if (own) await db.from("tickets").update({ holder_name: inv.name }).eq("order_id", o.id);
   return { id: o.id, sent: await sendTickets(o.id) };
 }
+// A second (third...) person under the same artist name: their own Artist Pass and their own private link
+// to the same act page. Same pass as the main artist's (comp, "Artist" list, ticket carries the act's name).
+async function addMember(inv: Inv, p: { name: string; email: string; phone: string }, t: { id: string; name: string }, by: string | null) {
+  const { data: m, error } = await db.from("artist_members").insert({ invite_id: inv.id, full_name: p.name, email: p.email, phone: p.phone, created_by: by }).select("id,token").single();
+  if (error || !m) return null;
+  const { data: o } = await db.from("ticket_orders").insert({
+    event_id: inv.event_id, status: "pending", email: p.email, name: p.name, phone: p.phone, comp_list: "Artist", artist_invite_id: inv.id,
+    items: [{ type_id: t.id, name: t.name, tier: "Artist", unit_cents: 0, qty: 1 }],
+  }).select("id").single();
+  if (!o) return null;
+  await db.from("artist_members").update({ order_id: o.id }).eq("id", m.id);
+  await db.rpc("ticket_issue", { p_order: o.id, p_status: "comp" });
+  await db.from("tickets").update({ holder_name: inv.name }).eq("order_id", o.id);
+  return { id: m.id, token: m.token, sent: await sendTickets(o.id) };
+}
+async function memberRows(inviteIds: string[]) {
+  if (!inviteIds.length) return [] as { id: string; invite_id: string; full_name: string; email: string; phone: string; token: string; order_id: string | null; created_by: string | null }[];
+  const { data } = await db.from("artist_members").select("id,invite_id,full_name,email,phone,token,order_id,created_by").in("invite_id", inviteIds).is("revoked_at", null).order("created_at");
+  return data || [];
+}
 // Real name (first and last), email and phone, as checkout asks for them.
 function contact(b: Record<string, unknown>, key = "name") {
   const name = (clean(b[key], 80) || "").replace(/\s+/g, " ");
@@ -116,7 +136,7 @@ Deno.serve(async (req) => {
   // ================= the show's crew owner, from their account page =================
   // Same steps as the staff "create" below (name, contact, pass issued and emailed), but signed in as the
   // show's own crew owner. Contact is required here, so the pass always goes out right away.
-  if (a === "crew_create" || a === "crew_revoke") {
+  if (a === "crew_create" || a === "crew_revoke" || a === "crew_member_add" || a === "crew_member_remove") {
     const tok = (req.headers.get("x-admin-token") || "").trim();
     if (!/^[0-9a-f]{64}$/.test(tok)) return no("Sign in again.", 401);
     const { data: sess } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tok)).maybeSingle();
@@ -138,6 +158,28 @@ Deno.serve(async (req) => {
     if ((rl ?? 0) > 20) return no("Too many changes at once. Wait a minute.", 429);
     const clog = (type: string, meta: Record<string, unknown>) => db.from("engagement_events").insert({ subscriber_id: mem.id, type: "crew:" + type, meta });
 
+    if (a === "crew_member_add" || a === "crew_member_remove") {
+      const id = clean(b.id, 40) || "";
+      const { data: inv } = await db.from("artist_invites").select("id,event_id,name,created_by,revoked_at").eq("id", id).eq("event_id", ev.id).maybeSingle();
+      if (!inv || inv.revoked_at) return no("Not found", 404);
+      if (!isStaff && inv.created_by !== mem.id) return no("Only artists you added can be changed here.");
+      if (a === "crew_member_remove") {
+        const { data: m } = await db.from("artist_members").select("id,order_id,full_name").eq("id", clean(b.member_id, 40) || "").eq("invite_id", inv.id).is("revoked_at", null).maybeSingle();
+        if (!m) return no("Not found", 404);
+        await db.from("artist_members").update({ revoked_at: new Date().toISOString() }).eq("id", m.id);
+        if (m.order_id) await db.from("tickets").update({ status: "void" }).eq("order_id", m.order_id);
+        await clog("artist_member_remove", { event: slug, act: inv.name, member: m.full_name });
+        return ok({ removed: true });
+      }
+      const p = contact(b, "full_name"); if ("err" in p) return no(p.err!);
+      const t = (await db.from("ticket_types").select("id,name").eq("event_id", ev.id).eq("slug", "artist").maybeSingle()).data;
+      if (!t) return no("Artist passes aren't set up for this show yet.");
+      const r = await addMember(inv, p as { name: string; email: string; phone: string }, t, mem.id);
+      if (!r) return no("Couldn't add them. Try again.", 500);
+      await clog("artist_member_add", { event: slug, act: inv.name, pass_sent: r.sent });
+      return ok({ added: true, pass_sent: !!r.sent });
+    }
+
     if (a === "crew_revoke") {
       const id = clean(b.id, 40) || "";
       const { data: inv } = await db.from("artist_invites").select("id,name,created_by,revoked_at").eq("id", id).eq("event_id", ev.id).maybeSingle();
@@ -145,6 +187,7 @@ Deno.serve(async (req) => {
       if (!isStaff && inv.created_by !== mem.id) return no("Only artists you added can be taken off here.");
       if (inv.revoked_at) return ok({ revoked: true });
       await db.from("artist_invites").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+      await db.from("artist_members").update({ revoked_at: new Date().toISOString() }).eq("invite_id", id).is("revoked_at", null);
       const { data: os } = await db.from("ticket_orders").select("id").eq("artist_invite_id", id);
       if (os?.length) await db.from("tickets").update({ status: "void" }).in("order_id", os.map((o) => o.id));
       await clog("artist_revoke", { event: slug, id, name: inv.name, tickets_cancelled: os?.length || 0 });
@@ -163,8 +206,16 @@ Deno.serve(async (req) => {
       full_name: p.name, email: p.email, phone: p.phone, claimed_at: new Date().toISOString() }).select("id,event_id,name,token").single();
     if (error || !inv) return no("Couldn't save that artist.", 500);
     const r = await issueOrder(inv, p as { name: string; email: string; phone: string }, t, "Artist", "Artist", true);
-    await clog("artist_invite", { event: slug, name, spots, pass_sent: r ? r.sent : false });
-    return ok({ added: true, pass_sent: r ? !!r.sent : false });
+    // Optional second person (a duo): their own pass and link to the same act.
+    let second: boolean | null = null;
+    const b2 = (b.member && typeof b.member === "object" ? b.member : null) as Record<string, unknown> | null;
+    if (b2 && [b2.full_name, b2.email, b2.phone].some((v) => typeof v === "string" && v.trim())) {
+      const p2 = contact(b2, "full_name");
+      if ("err" in p2) return ok({ added: true, pass_sent: r ? !!r.sent : false, member_error: "Second person: " + p2.err });
+      const r2 = await addMember(inv, p2 as { name: string; email: string; phone: string }, t, mem.id); second = r2 ? !!r2.sent : false;
+    }
+    await clog("artist_invite", { event: slug, name, spots, pass_sent: r ? r.sent : false, member_pass_sent: second });
+    return ok({ added: true, pass_sent: r ? !!r.sent : false, member_pass_sent: second });
   }
 
   // ================= staff =================
@@ -200,16 +251,36 @@ Deno.serve(async (req) => {
       const { data: orders } = ids.length ? await db.from("ticket_orders").select("id,artist_invite_id,name,email,status").in("artist_invite_id", ids).eq("status", "comp") : { data: [] };
       const { data: tix } = orders?.length ? await db.from("tickets").select("order_id,status,type_id").in("order_id", orders.map((o) => o.id)).eq("status", "valid") : { data: [] };
       const live = new Set((tix || []).map((t) => t.order_id));
+      const mems = await memberRows(ids);
+      const memberOrders = new Set(mems.map((m) => m.order_id).filter(Boolean));
       return ok({ artists: (invs || []).map((i) => {
-        const guests = (orders || []).filter((o) => o.artist_invite_id === i.id && o.id !== i.order_id && live.has(o.id));
+        const guests = (orders || []).filter((o) => o.artist_invite_id === i.id && o.id !== i.order_id && !memberOrders.has(o.id) && live.has(o.id));
         return { id: i.id, name: i.name, full_name: i.full_name, phone: i.phone, spots: i.guest_spots, email: i.email, claimed: !!i.claimed_at, revoked: !!i.revoked_at,
           link: `${SITE_URL}/artist.html?k=${i.token}`, guests: guests.map((g) => ({ name: g.name, email: g.email })),
+          members: mems.filter((m) => m.invite_id === i.id).map((m) => ({ id: m.id, full_name: m.full_name, email: m.email, phone: m.phone, link: `${SITE_URL}/artist.html?k=${m.token}` })),
           profile: { photo_url: photoUrl(i.photo_path), bio: i.bio, hometown: i.hometown, genre: i.genre, links: cleanLinks(i.links), rider: i.rider, hidden: i.profile_hidden } };
       }) });
     }
     const id = clean(b.id, 40) || "";
     const { data: inv } = await db.from("artist_invites").select("id,event_id,name,order_id").eq("id", id).maybeSingle();
     if (!inv) return no("Not found", 404);
+    if (a === "member_add") {
+      const p = contact(b, "full_name"); if ("err" in p) return no(p.err!);
+      const t = (await db.from("ticket_types").select("id,name").eq("event_id", inv.event_id).eq("slug", "artist").maybeSingle()).data;
+      if (!t) return no("Artist passes aren't set up for this show yet.");
+      const r = await addMember(inv, p as { name: string; email: string; phone: string }, t, admin.id);
+      if (!r) return no("Couldn't add them. Try again.", 500);
+      await log("artist_member_add", { id, act: inv.name, pass_sent: r.sent });
+      return ok({ added: true, pass_sent: !!r.sent, link: `${SITE_URL}/artist.html?k=${r.token}` });
+    }
+    if (a === "member_remove") {
+      const { data: m } = await db.from("artist_members").select("id,order_id,full_name").eq("id", clean(b.member_id, 40) || "").eq("invite_id", inv.id).is("revoked_at", null).maybeSingle();
+      if (!m) return no("Not found", 404);
+      await db.from("artist_members").update({ revoked_at: new Date().toISOString() }).eq("id", m.id);
+      if (m.order_id) await db.from("tickets").update({ status: "void" }).eq("order_id", m.order_id);
+      await log("artist_member_remove", { id, act: inv.name, member: m.full_name });
+      return ok({ removed: true });
+    }
     if (a === "update") {
       const patch: Record<string, unknown> = {};
       if (b.spots !== undefined) patch.guest_spots = Math.max(0, Math.min(50, Math.floor(Number(b.spots))));
@@ -220,8 +291,9 @@ Deno.serve(async (req) => {
       await log("artist_update", { id, ...patch });
       return ok({ saved: true });
     }
-    // revoke: the link dies, and the pass plus every guest ticket from this artist is cancelled
+    // revoke: the link dies, and the pass plus every guest ticket from this artist is cancelled (members too)
     await db.from("artist_invites").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+    await db.from("artist_members").update({ revoked_at: new Date().toISOString() }).eq("invite_id", id).is("revoked_at", null);
     const { data: os } = await db.from("ticket_orders").select("id").eq("artist_invite_id", id);
     if (os?.length) await db.from("tickets").update({ status: "void" }).in("order_id", os.map((o) => o.id));
     await log("artist_revoke", { id, name: inv.name, tickets_cancelled: os?.length || 0 });
@@ -231,7 +303,14 @@ Deno.serve(async (req) => {
   // ================= artist (private link) =================
   const k = String(b.k || u.searchParams.get("k") || "").toLowerCase();
   if (!TOKEN.test(k)) return no("This link isn't valid.", 404);
-  const { data: inv } = await db.from("artist_invites").select("id,event_id,name,guest_spots,email,phone,order_id,claimed_at,revoked_at,photo_path,bio,hometown,genre,links,rider").eq("token", k).maybeSingle();
+  const INV_COLS = "id,event_id,name,guest_spots,email,phone,order_id,claimed_at,revoked_at,photo_path,bio,hometown,genre,links,rider";
+  let { data: inv } = await db.from("artist_invites").select(INV_COLS).eq("token", k).maybeSingle();
+  // A member's link (duo/group): the same act page, with their own pass.
+  let member: { id: string; full_name: string; email: string; order_id: string | null } | null = null;
+  if (!inv) {
+    const { data: m } = await db.from("artist_members").select("id,invite_id,full_name,email,order_id,revoked_at").eq("token", k).maybeSingle();
+    if (m && !m.revoked_at) { member = m; inv = (await db.from("artist_invites").select(INV_COLS).eq("id", m.invite_id).maybeSingle()).data; }
+  }
   if (!inv || inv.revoked_at) return no("This link isn't active anymore. Reach out to the promoter.", 404);
   const [{ data: ev }, { data: nights }, { data: types }] = await Promise.all([
     db.from("events").select("id,slug,name,city,age,location_secret,address_reveal_at").eq("id", inv.event_id).single(),
@@ -250,20 +329,28 @@ Deno.serve(async (req) => {
     .map((t) => ({ slug: t.slug, name: t.name, id: t.id, nights: t.night_ids, open: firstDoors(t.night_ids) > Date.now() }));
 
   async function state() {
-    const { data: orders } = await db.from("ticket_orders").select("id,name,email,phone,status,created_at").eq("artist_invite_id", inv!.id).eq("status", "comp").order("created_at");
+    const [{ data: orders }, mems] = await Promise.all([
+      db.from("ticket_orders").select("id,name,email,phone,status,created_at").eq("artist_invite_id", inv!.id).eq("status", "comp").order("created_at"),
+      memberRows([inv!.id]),
+    ]);
+    // Every artist pass on this act (the main artist's and each member's) is a pass, not a guest.
+    const passOrders = new Set([inv!.order_id, ...mems.map((m) => m.order_id)].filter(Boolean));
+    const myOrder = member ? member.order_id : inv!.order_id;
     const ids = (orders || []).map((o) => o.id);
     const { data: tix } = ids.length ? await db.from("tickets").select("id,order_id,type_id,code,token,status").in("order_id", ids).eq("status", "valid") : { data: [] };
     const { data: scans } = tix?.length ? await db.from("ticket_scans").select("ticket_id").in("ticket_id", tix.map((t) => t.id)) : { data: [] };
     const scanned = new Set((scans || []).map((s) => s.ticket_id));
-    const mine = (tix || []).find((t) => t.order_id === inv!.order_id);
-    const guests = (tix || []).filter((t) => t.order_id !== inv!.order_id).map((t) => {
+    const mine = (tix || []).find((t) => t.order_id === myOrder);
+    const guests = (tix || []).filter((t) => !passOrders.has(t.order_id)).map((t) => {
       const o = orders!.find((x) => x.id === t.order_id)!, ty = ts.find((x) => x.id === t.type_id);
       return { ticket_id: t.id, name: o.name, email: o.email, type: ty?.name || "Ticket", in: scanned.has(t.id),
         can_remove: !scanned.has(t.id) && firstDoors(ty?.night_ids || []) > Date.now() };
     });
     return {
       event: { name: ev!.name, city: ev!.city, age: ev!.age, nights: ns.map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at })) },
-      artist: { name: inv!.name, claimed: !!inv!.claimed_at, email: inv!.email, spots: inv!.guest_spots, used: guests.length },
+      artist: { name: inv!.name, claimed: !!inv!.claimed_at, email: member ? member.email : inv!.email, spots: inv!.guest_spots, used: guests.length,
+        members: [inv!.claimed_at ? { name: (await db.from("artist_invites").select("full_name").eq("id", inv!.id).maybeSingle()).data?.full_name || "" } : null,
+          ...mems.map((m) => ({ name: m.full_name }))].filter((x) => x && x.name).map((x) => x!.name) },
       profile: { photo_url: photoUrl(inv!.photo_path), bio: inv!.bio, hometown: inv!.hometown, genre: inv!.genre, links: cleanLinks(inv!.links), rider: inv!.rider },
       pass: mine ? { code: mine.code, url: `${SITE_URL}/ticket.html?t=${mine.token}` } : null,
       guests, types: guestTypes.map(({ slug, name, open, nights }) => ({ slug, name, open, both: nights.length > 1 })),
@@ -282,7 +369,7 @@ Deno.serve(async (req) => {
     issueOrder(inv!, { name, email, phone }, { id: typeId, name: typeName }, tier, list, own);
 
   if (a === "claim") {
-    if (inv.claimed_at && inv.order_id) return ok(await state());
+    if (member || (inv.claimed_at && inv.order_id)) return ok(await state());
     const p = person(); if ("err" in p) return no(p.err!);
     const t = ts.find((x) => x.slug === "artist"); if (!t) return no("Artist passes aren't set up for this show yet.");
     await db.from("artist_invites").update({ full_name: p.name, email: p.email, phone: p.phone, claimed_at: new Date().toISOString() }).eq("id", inv.id).is("claimed_at", null);
@@ -349,9 +436,10 @@ Deno.serve(async (req) => {
   }
 
   if (a === "resend") {
-    if (!inv.order_id) return no("No pass yet.");
-    await db.from("ticket_orders").update({ emailed_at: null }).eq("id", inv.order_id);
-    return ok({ sent: await sendTickets(inv.order_id) });
+    const mine = member ? member.order_id : inv.order_id;
+    if (!mine) return no("No pass yet.");
+    await db.from("ticket_orders").update({ emailed_at: null }).eq("id", mine);
+    return ok({ sent: await sendTickets(mine) });
   }
 
   return no("Unknown action", 404);

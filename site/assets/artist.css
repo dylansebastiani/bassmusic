@@ -109,3 +109,4 @@ label .opt{text-transform:none;letter-spacing:0;color:var(--lav);font-weight:400
 .fr-btns{display:grid;gap:10px;width:min(100%,440px);margin-top:auto;padding-top:14px}
 .fr-btns .btn{width:100%}
 .fr-cancel{background:none;border:0;color:#a99fb8;font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:12px;cursor:pointer}
+.amembers{margin:4px 0 0;font-size:14px;opacity:.75}

@@ -71,6 +71,12 @@
     document.title = "Artist pass · " + d.event.name;
     $("msg").hidden = true; $("view").hidden = false;
     $("aname").textContent = d.artist.name;
+    // Duo/group: one shared page for everyone on the pass.
+    var mem = (d.artist.members || []), mx = $("amembers");
+    if (mem.length > 1) {
+      if (!mx) { mx = document.createElement("p"); mx.id = "amembers"; mx.className = "amembers"; $("aname").insertAdjacentElement("afterend", mx); }
+      mx.textContent = mem.join(" & ") + " share this page: one profile, one guest list, one set of tracks.";
+    } else if (mx) mx.remove();
     if ($("tasname")) { $("tasname").textContent = d.artist.name; preview(); }
     $("adates").textContent = d.event.nights.map(function (n) { return day(n.starts_at); }).join(" + ") + (d.event.city ? " · " + d.event.city : "") + (d.event.age ? " · " + d.event.age : "");
     $("claim").hidden = d.artist.claimed; $("dash").hidden = !d.artist.claimed;
