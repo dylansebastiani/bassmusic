@@ -8,6 +8,8 @@
 //   GET  ?a=alerts-off&k=<token>        turn off "you sold one" emails (link in every alert)
 //   GET  ?a=refs                        every live short-link tag, so the site build can give each a real page
 //   GET  ?a=staff&e=<show slug>         every artist on the show with numbers (x-admin-token)
+//                                       plus the show's tracked links (flyers, posters) with scans + sales
+//   POST ?a=link {e, label}             staff: make a tracked link (subduction.art/go/<tag>) for a flyer etc.
 //   POST ?a=milestone {e, n}            staff-only milestone for a show (x-admin-token, owner of the show)
 //   POST ?a=notify                      cron (x-runner-secret): email artists about newly credited sales
 // Milestones are staff-only. Nothing about them is ever shown or sent to an artist.
@@ -58,7 +60,8 @@ async function ensure(inv: Inv): Promise<Inv> {
     for (let n = 0; n < 30 && !ref; n++) {
       const tryRef = n ? `${b}${n + 1}` : b;
       const { data: taken } = await db.from("artist_invites").select("id").ilike("sell_ref", tryRef).neq("id", inv.id).limit(1);
-      if (!taken?.length) ref = tryRef;
+      const { data: tl } = await db.from("track_links").select("id").ilike("tag", tryRef).limit(1);
+      if (!taken?.length && !tl?.length) ref = tryRef;
     }
     ref = ref || `${b}${inv.id.replace(/-/g, "").slice(0, 4)}`;
   }
@@ -116,6 +119,31 @@ async function clicks(inviteIds: string[]) {
   }
   for (const id in seen) out[id].people = seen[id].size;
   return out;
+}
+
+// Tracked links (flyers, posters...): scans, distinct phones, and paid orders that arrived through them.
+type TL = { id: string; tag: string; label: string; created_at: string };
+async function linkStats(eventId: string, links: TL[]) {
+  if (!links.length) return [];
+  const { data: cl } = await db.from("track_clicks").select("link_id,ip_hash,created_at").in("link_id", links.map((l) => l.id)).limit(50000);
+  const taps: Record<string, number> = {}, seen: Record<string, Set<string>> = {};
+  for (const r of cl || []) { taps[r.link_id] = (taps[r.link_id] || 0) + 1; (seen[r.link_id] ||= new Set()).add((r.ip_hash || "") + "|" + String(r.created_at).slice(0, 10)); }
+  const tags = links.map((l) => l.tag.toLowerCase());
+  const { data: orders } = await db.from("ticket_orders").select("id,ref,subtotal_cents,discount_cents").eq("event_id", eventId).eq("status", "paid").is("comp_list", null).not("ref", "is", null);
+  const mine = (orders || []).filter((o) => tags.includes(String(o.ref).toLowerCase()));
+  const counts: Record<string, number> = {};
+  const ids = mine.map((o) => o.id);
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: t } = await db.from("tickets").select("order_id").in("order_id", ids.slice(i, i + 200));
+    (t || []).forEach((r) => { counts[r.order_id] = (counts[r.order_id] || 0) + 1; });
+  }
+  return links.map((l) => {
+    const os = mine.filter((o) => String(o.ref).toLowerCase() === l.tag.toLowerCase());
+    return { id: l.id, label: l.label, tag: l.tag, link: short(l.tag), qr: `${FN}?a=lqr&t=${l.tag}`,
+      taps: taps[l.id] || 0, people: seen[l.id]?.size || 0, orders: os.length,
+      tickets: os.reduce((n, o) => n + (counts[o.id] || 0), 0),
+      revenue_cents: os.reduce((n, o) => n + (o.subtotal_cents || 0) - (o.discount_cents || 0), 0) };
+  }).sort((a, b) => b.tickets - a.tickets || b.taps - a.taps);
 }
 
 // Who's asking from the staff app: "admin" (platform staff), "owner"/"staff" of the show's crew, or null.
@@ -227,27 +255,61 @@ Deno.serve(async (req) => {
       await db.from("events").update({ artist_milestone: n > 0 && n < 10000 ? n : null }).eq("id", ev.id);
       return json({ milestone: n > 0 && n < 10000 ? n : null });
     }
+    if (a === "link" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const slug = String(b.e || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+      const { data: ev } = await db.from("events").select("id,company_id").eq("slug", slug).maybeSingle();
+      if (!ev) return no("Show not found", 404);
+      if (!(await staffRole(req, ev.company_id))) return no("Sign in again.", 401);
+      const label = String(b.label || "").trim().slice(0, 60);
+      if (!label) return no("Name the link, e.g. Handbills or Poster at Kuma's.");
+      const root = base(label).slice(0, 18);
+      for (let n = 0; n < 30; n++) {
+        const tag = n ? `${root}${n + 1}` : root;
+        const { data: t1 } = await db.from("track_links").select("id").ilike("tag", tag).limit(1);
+        const { data: t2 } = await db.from("artist_invites").select("id").ilike("sell_ref", tag).limit(1);
+        if (t1?.length || t2?.length) continue;
+        const { error } = await db.from("track_links").insert({ event_id: ev.id, tag, label });
+        if (!error) return json({ tag, link: short(tag) });
+      }
+      return no("Couldn't make that link. Try another name.");
+    }
     if (req.method !== "GET") return no("Not allowed", 405);
+
+    // ---- QR code for a tracked link (public: it only encodes the public short link) ----
+    if (a === "lqr") {
+      const t = (u.searchParams.get("t") || "").toLowerCase();
+      if (!TAG.test(t)) return no("Not found", 404);
+      const png = await QRCode.toBuffer(short(t), { type: "png", width: 1200, margin: 2, errorCorrectionLevel: "Q" });
+      return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Content-Disposition": `inline; filename="qr-${t}.png"`, "Cache-Control": "public, max-age=3600", ...CORS } });
+    }
 
     // ---- short link: count the tap, then forward ----
     const go = (u.searchParams.get("go") || "").toLowerCase();
     if (go) {
       if (!TAG.test(go)) return Response.redirect(SITE, 302);
-      const { data: inv } = await db.from("artist_invites").select(INV_COLS).ilike("sell_ref", go).is("revoked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (!inv) return Response.redirect(SITE, 302);
-      const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("id", inv.event_id).single();
       const ipRaw = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
       const ua = req.headers.get("user-agent") || "";
       // Link-preview robots (iMessage, Instagram, Facebook...) open links too; they don't count as taps.
-      if (!/bot|crawl|spider|preview|facebookexternalhit|slackbot|whatsapp|telegram|discord|twitterbot|linkedin|embedly|curl|wget/i.test(ua)) {
-        await db.from("artist_clicks").insert({ invite_id: inv.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
+      const human = !/bot|crawl|spider|preview|facebookexternalhit|slackbot|whatsapp|telegram|discord|twitterbot|linkedin|embedly|curl|wget/i.test(ua);
+      const { data: inv } = await db.from("artist_invites").select(INV_COLS).ilike("sell_ref", go).is("revoked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (inv) {
+        const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("id", inv.event_id).single();
+        if (human) await db.from("artist_clicks").insert({ invite_id: inv.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
+        return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), inv.sell_ref!), "Cache-Control": "no-store" } });
       }
-      return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), inv.sell_ref!), "Cache-Control": "no-store" } });
+      // Not an artist: a tracked link (flyer, poster, handbill...).
+      const { data: tl } = await db.from("track_links").select("id,event_id,tag").ilike("tag", go).is("revoked_at", null).limit(1).maybeSingle();
+      if (!tl) return Response.redirect(SITE, 302);
+      const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("id", tl.event_id).single();
+      if (human) await db.from("track_clicks").insert({ link_id: tl.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
+      return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), tl.tag), "Cache-Control": "no-store" } });
     }
 
     if (a === "refs") {
       const { data } = await db.from("artist_invites").select("sell_ref").is("revoked_at", null).not("sell_ref", "is", null);
-      return json({ refs: (data || []).map((r) => r.sell_ref).filter((r) => TAG.test(r)) });
+      const { data: tls } = await db.from("track_links").select("tag").is("revoked_at", null);
+      return json({ refs: [...(data || []).map((r) => r.sell_ref), ...(tls || []).map((r) => r.tag)].filter((r) => TAG.test(r)) });
     }
 
     if (a === "staff") {
@@ -270,7 +332,9 @@ Deno.serve(async (req) => {
           orders: s.orders, tickets: s.tickets, revenue_cents: s.revenue_cents, by_link: s.by_link, by_code: s.by_code,
           clicks: c[v.id]?.clicks || 0, people: c[v.id]?.people || 0, milestone_hit: !!m && s.tickets >= m };
       }).sort((x, y) => y.tickets - x.tickets || y.clicks - x.clicks || x.name.localeCompare(y.name));
-      return json({ artists, credited_tickets: t.credited_tickets, all_tickets: t.all_tickets, milestone: m, can_set_milestone: role === "admin" || role === "owner" });
+      const { data: tlr } = await db.from("track_links").select("id,tag,label,created_at").eq("event_id", ev.id).is("revoked_at", null).order("created_at");
+      const links = await linkStats(ev.id, (tlr || []) as TL[]);
+      return json({ artists, links, credited_tickets: t.credited_tickets, all_tickets: t.all_tickets, milestone: m, can_set_milestone: role === "admin" || role === "owner" });
     }
 
     // ---- the artist's own view ----

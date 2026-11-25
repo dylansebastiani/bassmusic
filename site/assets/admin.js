@@ -308,6 +308,27 @@
     b.disabled = true;
     req(BASE + "artist-sales?a=milestone", { e: cur.event.slug, n: n }).then(function () { artists(); }).catch(function (err) { b.disabled = false; alert(err.message); });
   });
+  // Tracked links for flyers, posters, handbills: scans and ticket sales for each one.
+  function trackBox(d) {
+    if (!d) return "";
+    var L = d.links || [];
+    return '<div class="acard2 tlinks2"><div class="ah"><b>Flyer &amp; QR links</b></div>' +
+      '<div class="mono asub">Each one counts every scan, then sends people to the show. Sales through it are credited to it.</div>' +
+      L.map(function (l) {
+        return '<div class="asell"><b>' + esc(l.label) + "</b> · " + num(l.taps) + (l.taps === 1 ? " scan" : " scans") + " (" + num(l.people) + " people) · <b>" +
+          num(l.tickets) + (l.tickets === 1 ? " ticket" : " tickets") + "</b>" + (l.tickets ? " · " + usd(l.revenue_cents) : "") +
+          (l.people ? " · " + Math.round(100 * l.orders / l.people) + "% bought" : "") +
+          '<div class="mono asub">' + esc(l.link.replace(/^https?:\/\//, "")) + ' · <button type="button" class="mini" data-copy="' + esc(l.link) + '">Copy link</button> <a class="mini" href="' + esc(l.qr) + '" target="_blank" rel="noopener">QR code ↗</a></div></div>';
+      }).join("") +
+      '<form class="msform" data-tlnew><label for="tlname">New link</label><input id="tlname" type="text" maxlength="60" placeholder="e.g. Handbills, Poster at the record store"><button type="submit" class="mini">Make link</button></form></div>';
+  }
+  document.addEventListener("submit", function (e) {
+    var f = e.target.closest && e.target.closest("[data-tlnew]"); if (!f) return;
+    e.preventDefault();
+    var v = f.querySelector("input").value.trim(), b = f.querySelector("button"); if (!v) return;
+    b.disabled = true;
+    req(BASE + "artist-sales?a=link", { e: cur.event.slug, label: v }).then(function () { artists(); }).catch(function (err) { b.disabled = false; alert(err.message); });
+  });
   function artists() {
     $("artists").innerHTML = '<div class="empty">Loading...</div>';
     var dl = req(BASE + "playlist?a=downloads&e=" + encodeURIComponent(cur.event.slug)).then(function (d) {
@@ -320,7 +341,7 @@
     }).catch(function () {});
     Promise.all([artGet(), dl, sold]).then(function (x) { return x[0]; }).then(function (d) {
       if (SOLDSUM && d.artists.length) d.artists.sort(function (p, q) { return ((SOLD[q.id] || {}).tickets || 0) - ((SOLD[p.id] || {}).tickets || 0); });
-      $("artists").innerHTML = (SOLDSUM && d.artists.length ? '<div class="mono asub sellsum">Artists sold <b>' + num(SOLDSUM.credited_tickets) + "</b> of " + num(SOLDSUM.all_tickets) + " paid tickets so far</div>" +
+      $("artists").innerHTML = trackBox(SOLDSUM) + (SOLDSUM && d.artists.length ? '<div class="mono asub sellsum">Artists sold <b>' + num(SOLDSUM.credited_tickets) + "</b> of " + num(SOLDSUM.all_tickets) + " paid tickets so far</div>" +
         (SOLDSUM.can_set_milestone ? '<form class="msform" data-ms><label for="msn">Star artists at</label><input id="msn" type="number" min="1" max="9999" inputmode="numeric" value="' + (SOLDSUM.milestone || "") + '" placeholder="e.g. 10"><span>tickets</span><button type="submit" class="mini">Save</button><small>Only you see this. Artists never do.</small></form>' : "") : "") +
         (d.artists.length ? d.artists.map(function (a) {
         var status = a.revoked ? '<span class="chip alt">cancelled</span>' : a.claimed ? '<span class="chip gold">pass sent</span>' : '<span class="chip alt">link not used yet</span>';
