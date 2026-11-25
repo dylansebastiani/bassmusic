@@ -463,11 +463,21 @@
     e.preventDefault(); say("amsg", "Saving...");
     var body = { a: "create", e: cur.event.slug, name: $("aname").value.trim(), spots: Number($("aspots").value) || 0,
       full_name: $("artfull").value.trim(), email: $("artemail").value.trim().toLowerCase(), phone: $("artphone").value.trim() };
+    var m2 = { full_name: $("art2full").value.trim(), email: $("art2email").value.trim().toLowerCase(), phone: $("art2phone").value.trim() };
+    var duo = !!(m2.full_name || m2.email || m2.phone);
+    if (duo && !(body.full_name && body.email && body.phone)) { say("amsg", "For a duo, fill in the first person's name, email and phone too."); return; }
     (pre = {}, req)(ART, body).then(function (r) {
-      ["aname", "artfull", "artemail", "artphone"].forEach(function (id) { $(id).value = ""; }); $("aspots").value = "2";
+      // Duo: add the second person to the act right after it's created.
+      if (!duo) return r;
+      return (pre = {}, req)(ART, { a: "member_add", id: r.id, full_name: m2.full_name, email: m2.email, phone: m2.phone })
+        .then(function (j) { r.member = j.pass_sent ? "Second person's pass sent to " + m2.email + "." : "Second person added, but their pass email didn't go out."; return r; })
+        .catch(function (x) { r.member = "Second person wasn't added: " + x.message + " Use Add a member on the artist."; return r; });
+    }).then(function (r) {
+      ["aname", "artfull", "artemail", "artphone", "art2full", "art2email", "art2phone"].forEach(function (id) { $(id).value = ""; }); $("aspots").value = "2";
       var lead = r.pass_sent === true ? "Pass sent to " + body.email + ". Link copied too, in case you want to text it."
         : r.pass_sent === false ? "Invite made, but the pass email didn't go out. Use Resend on the Door List. Link copied."
         : "Invite made and link copied. Text it to the artist.";
+      if (r.member) lead += " " + r.member;
       (navigator.clipboard ? navigator.clipboard.writeText(r.link) : Promise.reject()).then(function () { say("amsg", lead); }).catch(function () { say("amsg", lead.replace(/ ?Link copied[^.]*\./, "") + " Link: " + r.link); });
       artists();
     }).catch(function (err) { say("amsg", err.message); });
