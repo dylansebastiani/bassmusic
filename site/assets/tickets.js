@@ -85,10 +85,11 @@
     var pl = document.querySelector("img.partners");
     if (pl && data.nights.some(function (n) { return (n.lineup || []).length; })) pl.src = "assets/toftu/partners-live.webp";
     // A secret act (shown as one "Headliner TBA" line) keeps them hidden too: the flyers name everyone.
-    $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; }) ||
-      data.nights.some(function (n) { return (n.lineup || []).some(function (a) { return a.tba; }); });
-    // Flyers uploaded on the staff page replace the built-in ones, night by night.
+    // Flyers uploaded on the staff page replace the built-in ones, night by night. Staff upload the
+    // blurred versions while an act is secret, so uploaded flyers show then too; the built-in ones don't.
     var up = data.nights.filter(function (n) { return n.flyer_url; });
+    $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; }) ||
+      (!up.length && data.nights.some(function (n) { return (n.lineup || []).some(function (a) { return a.tba; }); }));
     if (up.length) $("flyers").innerHTML = up.map(function (n) {
       return '<a href="' + esc(n.flyer_url) + '" target="_blank" rel="noopener"><img src="' + esc(n.flyer_url) + '" alt="' + esc(n.label) + ' flyer" loading="lazy"></a>';
     }).join("");
