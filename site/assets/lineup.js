@@ -23,13 +23,13 @@
   // The page's own accent (show pages set --hot), else T.O.F.T.U. purple.
   var css = document.createElement("style");
   css.textContent =
-    ".lu-a{all:unset;cursor:pointer;border-bottom:1px dotted currentColor}.lu-a:hover,.lu-a:focus-visible{opacity:.8;outline:none}" +
+    ".lu-a{all:unset;cursor:pointer}.lu-a:after{content:'\\203A';display:inline-block;margin-left:.3em;color:var(--luc,currentColor);opacity:.85;font-weight:700;transform:translateY(-.02em)}.lu-a:hover,.lu-a:focus-visible{opacity:.8;outline:none}" +
     ".lu-bg{--lu:var(--hot,#ff5a1f);position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;align-items:flex-end;justify-content:center}" +
     "@media(min-width:640px){.lu-bg{align-items:center;padding:20px}}" +
     ".lu-card{position:relative;width:100%;max-width:420px;max-height:92vh;overflow:auto;overscroll-behavior:contain;background:#000;color:#f2efe9;border-top:3px solid var(--lu);font:15px/1.5 var(--text,system-ui,sans-serif)}" +
     "@media(min-width:640px){.lu-card{border:1px solid #fff;border-top:3px solid var(--lu);box-shadow:8px 8px 0 var(--lu)}}" +
     ".lu-hero{position:relative;aspect-ratio:4/5;background:#111;overflow:hidden}" +
-    ".lu-hero img{width:100%;height:100%;object-fit:cover;display:block;filter:contrast(1.08) saturate(.9)}" +
+    ".lu-hero img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}" +
     ".lu-hero:after{content:'';position:absolute;inset:auto 0 0;height:40%;background:linear-gradient(transparent,#000)}" +
     ".lu-hero.np{aspect-ratio:auto;height:28px;background:none}.lu-hero.np:after{display:none}" +
     ".lu-name{position:relative;z-index:1;margin-top:-58px;padding:0 18px}" +
@@ -49,7 +49,7 @@
     ".lu-bar{height:2px;background:#222;margin-top:6px}.lu-bar i{display:block;height:100%;width:0;background:var(--lu)}" +
     ".lu-dl{display:flex;align-items:center;gap:3px;color:#aaa;text-decoration:none;font:11px var(--mono,ui-monospace,monospace);text-transform:uppercase;letter-spacing:.06em}.lu-dl:hover{color:#fff}.lu-dl svg{width:14px;height:14px}" +
     ".lu-links{display:flex;flex-wrap:wrap;gap:6px 18px;font:13px var(--mono,ui-monospace,monospace);text-transform:uppercase;letter-spacing:.04em}" +
-    ".lu-links a{color:#f2efe9;text-decoration:underline;text-decoration-color:var(--lu);text-underline-offset:4px;text-decoration-thickness:2px}" +
+    ".lu-links{gap:6px 0}.lu-links a{color:#f2efe9;text-decoration:none}.lu-links a:not(:last-child):after{content:'/';color:var(--lu);margin:0 12px;display:inline-block}" +
     ".lu-links a:hover,.lu-links a:focus-visible{color:var(--lu);outline:none}" +
     ".lu-x{position:absolute;top:0;right:0;z-index:2;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#000;border:0;color:#fff;cursor:pointer;padding:0}.lu-x svg{width:20px;height:20px}";
   document.head.appendChild(css);
@@ -85,6 +85,44 @@
     paint(card);
   }
 
+  // Make each artist's photo look right: trim flat black or white bars (phone screenshots, letterboxing),
+  // then size the frame to the photo's own shape, from 4:5 (tall) to 3:2 (wide), so wide shots and logos
+  // aren't chopped and tall ones keep the face (cropped from the upper part).
+  var fitted = {};
+  function fitPhoto(url, hero) {
+    var img = hero.querySelector("img");
+    var apply = function (f) { hero.style.aspectRatio = f.r; if (f.src) img.src = f.src; };
+    if (fitted[url]) return apply(fitted[url]);
+    var im = new Image(); im.crossOrigin = "anonymous";
+    im.onload = function () {
+      var w = im.naturalWidth, h = im.naturalHeight, box = { x: 0, y: 0, w: w, h: h }, src = "";
+      try {
+        var S = 200, sc = Math.min(1, S / Math.max(w, h)), cw = Math.max(1, Math.round(w * sc)), ch = Math.max(1, Math.round(h * sc));
+        var c = document.createElement("canvas"); c.width = cw; c.height = ch; var x = c.getContext("2d"); x.drawImage(im, 0, 0, cw, ch);
+        var d = x.getImageData(0, 0, cw, ch).data;
+        var flat = function (y0, y1, x0, x1) { // a row/column strip that's all near-black or all near-white
+          var lo = 255, hi = 0;
+          for (var yy = y0; yy < y1; yy++) for (var xx = x0; xx < x1; xx++) { var k = (yy * cw + xx) * 4, v = (d[k] + d[k + 1] + d[k + 2]) / 3; if (v < lo) lo = v; if (v > hi) hi = v; }
+          return (hi < 28) || (lo > 235);
+        };
+        var t = 0, b = ch, l = 0, r = cw;
+        while (t < ch * 0.4 && flat(t, t + 1, 0, cw)) t++;
+        while (b > ch * 0.6 && flat(b - 1, b, 0, cw)) b--;
+        while (l < cw * 0.4 && flat(t, b, l, l + 1)) l++;
+        while (r > cw * 0.6 && flat(t, b, r - 1, r)) r--;
+        if (t > 2 || ch - b > 2 || l > 2 || cw - r > 2) {
+          box = { x: Math.round(l / sc), y: Math.round(t / sc), w: Math.round((r - l) / sc), h: Math.round((b - t) / sc) };
+          var o = document.createElement("canvas"), m = Math.min(1, 1400 / Math.max(box.w, box.h));
+          o.width = Math.round(box.w * m); o.height = Math.round(box.h * m);
+          o.getContext("2d").drawImage(im, box.x, box.y, box.w, box.h, 0, 0, o.width, o.height);
+          src = o.toDataURL("image/jpeg", 0.9);
+        }
+      } catch (e) { box = { x: 0, y: 0, w: w, h: h }; src = ""; }
+      var ratio = Math.min(1.5, Math.max(0.8, box.w / box.h));
+      fitted[url] = { r: String(ratio), src: src }; apply(fitted[url]);
+    };
+    im.src = url;
+  }
   function open(a, color) {
     var list = tracksFor(a.name);
     var bg = document.createElement("div"); bg.className = "lu-bg"; if (color) bg.style.setProperty("--lu", color); bg.setAttribute("role", "dialog"); bg.setAttribute("aria-modal", "true"); bg.setAttribute("aria-label", a.name);
@@ -104,6 +142,7 @@
       (rows ? '<div class="lu-tracks">' + rows + "</div>" : "") +
       (links ? '<div class="lu-links">' + links + "</div>" : "") + "</div></div>";
     var card = bg.querySelector(".lu-card");
+    if (a.photo_url) fitPhoto(a.photo_url, bg.querySelector(".lu-hero"));
     var close = function () { stop(); bg.remove(); document.removeEventListener("keydown", key); document.documentElement.style.overflow = ""; };
     var key = function (e) { if (e.key === "Escape") close(); };
     bg.addEventListener("click", function (e) {
@@ -137,7 +176,7 @@
           var before = i === 0 || !/[a-z0-9]/i.test(text[i - 1]), after = !/[a-z0-9]/i.test(text[i + n.length] || "");
           if (seg.toLowerCase() === n.toLowerCase() && before && after) m = names[j];
         }
-        if (m) { html += '<button type="button" class="lu-a" data-lu-i="' + artists.indexOf(m) + '" data-lu-c="' + esc(dayColor(li)) + '">' + esc(text.substr(i, m.name.length)) + "</button>"; i += m.name.length; hit = true; }
+        if (m) { html += '<button type="button" class="lu-a" data-lu-i="' + artists.indexOf(m) + '" data-lu-c="' + esc(dayColor(li)) + '" style="--luc:' + esc(dayColor(li)) + '">' + esc(text.substr(i, m.name.length)) + "</button>"; i += m.name.length; hit = true; }
         else { html += esc(text[i]); i++; }
       }
       li.setAttribute("data-lu", "1");
