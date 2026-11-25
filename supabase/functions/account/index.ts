@@ -503,8 +503,8 @@ Deno.serve(async (req) => {
         for (const item of list) {
           const n = (ns || []).find((x) => x.id === item.id); if (!n) continue;
           const acts = (Array.isArray(item.acts) ? item.acts as Record<string, unknown>[] : []).slice(0, 30)
-            .map((x) => ({ name: (clean(x.name, 80) || "").trim(), note: (clean(x.note, 40) || "").trim() })).filter((x) => x.name)
-            .map((x) => (x.note ? { name: x.name, note: x.note } : { name: x.name }));
+            .map((x) => ({ name: (clean(x.name, 80) || "").trim(), note: (clean(x.note, 40) || "").trim(), secret: x.secret === true })).filter((x) => x.name)
+            .map((x) => ({ name: x.name, ...(x.note ? { note: x.note } : {}), ...(x.secret ? { secret: true } : {}) }));
           await db.from("ticket_nights").update({ lineup_full: acts }).eq("id", n.id);
           // Same draft blurb the staff editor writes ("Treegaud b2b Waylo, Badguy Moolah + more"); public blurb untouched.
           const named = acts.filter((x) => !/special guest/i.test(x.name)), top = named.slice(0, 2).map((x) => x.name);

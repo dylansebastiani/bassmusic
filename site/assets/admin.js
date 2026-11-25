@@ -117,6 +117,7 @@
   function actRow(a) {
     return '<div class="act"><input type="text" class="an" value="' + esc(a.name || "") + '" placeholder="Artist" maxlength="80" aria-label="Artist">' +
       '<input type="text" class="at" value="' + esc(a.note || "") + '" placeholder="Set time" maxlength="40" aria-label="Set time">' +
+      '<label class="asec" title="Secret: kept off the public page; one \'Headliner TBA\' line shows instead"><input type="checkbox" class="as"' + (a.secret ? " checked" : "") + '> Secret</label>' +
       '<span class="ab"><button type="button" data-mv="-1" aria-label="Move up">▲</button><button type="button" data-mv="1" aria-label="Move down">▼</button><button type="button" data-rm aria-label="Remove">✕</button></span></div>';
   }
   function drawLineup() {
@@ -125,6 +126,9 @@
     $("luState").innerHTML = pub
       ? "<div><b>Lineup is public.</b> The ticket page and flyers show it. Saving changes here updates the page right away.</div><button type=\"button\" class=\"btn ghost\" id=\"luToggle\">Hide lineup</button>"
       : "<div><b>Lineup is hidden.</b> The ticket page says \"Lineup coming soon\". Edit it here, then reveal it when you're ready.</div><button type=\"button\" class=\"btn\" id=\"luToggle\">Reveal lineup</button>";
+    var secretAny = cur.nights.some(function (n) { return n.acts.some(function (a) { return a.secret; }); });
+    $("luOpts").innerHTML = '<label class="luopt"><input type="checkbox" id="luHideTimes"' + (cur.hide_set_times ? " checked" : "") + '> Hide set times on the public page</label>' +
+      '<p class="mono luhint">Tick <b>Secret</b> on an act to keep it off the public page. One "Headliner TBA" line shows in its place, and the flyers stay hidden until nothing is secret.' + (secretAny ? " " + "Secret now: " + cur.nights.map(function (n) { return n.acts.filter(function (a) { return a.secret; }).map(function (a) { return esc(a.name); }).join(", "); }).filter(Boolean).join(" · ") + "." : "") + "</p>";
     $("luNights").innerHTML = cur.nights.map(function (n, i) {
       return '<div class="night ' + NIGHTC[i % 2] + '" data-night="' + esc(n.id) + '"><div class="nh"><span class="disp">' + esc(n.label) + '</span><span class="mono">Top of the bill first</span></div>' +
         '<div class="acts">' + (n.acts.length ? n.acts.map(actRow).join("") : "") + "</div>" +
@@ -142,14 +146,16 @@
     say("luMsg", "Unsaved changes");
   });
   $("luNights").addEventListener("input", function () { say("luMsg", "Unsaved changes"); });
+  $("luOpts").addEventListener("change", function () { say("luMsg", "Unsaved changes"); });
   function collectLineup() {
     return [].map.call($("luNights").querySelectorAll(".night"), function (n) {
-      return { id: n.getAttribute("data-night"), acts: [].map.call(n.querySelectorAll(".act"), function (r) { return { name: r.querySelector(".an").value.trim(), note: r.querySelector(".at").value.trim() }; }).filter(function (a) { return a.name; }) };
+      return { id: n.getAttribute("data-night"), acts: [].map.call(n.querySelectorAll(".act"), function (r) { return { name: r.querySelector(".an").value.trim(), note: r.querySelector(".at").value.trim(), secret: r.querySelector(".as").checked }; }).filter(function (a) { return a.name; }) };
     });
   }
   function saveLineup() {
     say("luMsg", "Saving..."); $("luSave").disabled = true;
-    return call("lineup-save", { e: cur.event.slug, nights: collectLineup() }).then(function () {
+    return call("lineup-save", { e: cur.event.slug, nights: collectLineup(), hide_set_times: $("luHideTimes").checked }).then(function () {
+      cur.hide_set_times = $("luHideTimes").checked;
       $("luSave").disabled = false; say("luMsg", cur.lineup_public ? "Saved. The ticket page is updated." : "Saved. Still hidden from the public.");
       cur.nights.forEach(function (n) { var c = collectLineup().filter(function (x) { return x.id === n.id; })[0]; if (c) n.acts = c.acts; });
     }).catch(function (err) { $("luSave").disabled = false; say("luMsg", err.message); throw err; });
@@ -158,7 +164,8 @@
   $("luState").addEventListener("click", function (e) {
     if (!e.target.closest("#luToggle")) return;
     var pub = !cur.lineup_public;
-    if (!confirm(pub ? "Reveal the lineup? The ticket page and flyers show it right away." : "Hide the lineup? The ticket page goes back to \"Lineup coming soon\".")) return;
+    var sec = collectLineup().some(function (n) { return n.acts.some(function (a) { return a.secret; }); }), hide = $("luHideTimes").checked;
+    if (!confirm(pub ? "Reveal the lineup? The ticket page shows it right away." + (sec ? " Secret acts stay hidden (one \"Headliner TBA\" line instead) and the flyers stay off." : " The flyers show too.") + (hide ? " Set times stay hidden." : "") : "Hide the lineup? The ticket page goes back to \"Lineup coming soon\".")) return;
     saveLineup().then(function () { return call("lineup-publish", { e: cur.event.slug, public: pub }); })
       .then(function () { return refreshShow(); }).then(function () { say("luMsg", pub ? "Lineup is live." : "Lineup hidden."); }).catch(function (err) { say("luMsg", err.message); });
   });

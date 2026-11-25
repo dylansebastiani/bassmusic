@@ -82,7 +82,7 @@
       return '<div class="s-dates v-' + s.variant + '"><div class="dates">' + dates + '</div><div class="infoline">' + place + (ev.age ? " · " + esc(ev.age) : "") + "</div>" + (addr ? '<div class="addr">' + addr + "</div>" : "") + "</div>";
     },
     flyers: function (s) {
-      if (s.show === "after_lineup" && !hasLineup()) return "";
+      if (s.show === "after_lineup" && (!hasLineup() || data.nights.some(function (n) { return (n.lineup || []).some(function (a) { return a.tba; }); }))) return "";
       var fl = data.page.art.flyers || [];
       var list = data.nights.map(function (n, i) { return { src: n.flyer_url || fl[i], label: n.label, i: i }; }).filter(function (x) { return x.src; });
       if (!list.length) return "";

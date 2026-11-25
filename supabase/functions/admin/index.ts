@@ -176,14 +176,21 @@ Deno.serve(async (req) => {
   const chiTime = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).replace(":00", "");
   const soonBlurb = (n: { starts_at: string | null; ends_at: string | null }) =>
     (n.starts_at ? "Doors " + chiTime(n.starts_at) + (n.ends_at ? " – " + chiTime(n.ends_at) : "") + " · " : "") + "lineup coming soon";
-  const fullBlurb = (acts: { name: string }[]) => {
-    const named = acts.filter((x) => !/special guest/i.test(x.name));
+  const fullBlurb = (acts: { name: string; tba?: boolean }[]) => {
+    const named = acts.filter((x) => !x.tba && !/special guest/i.test(x.name));
     const top = named.slice(0, 2).map((x) => x.name);
     return top.length ? top.join(", ") + (acts.length > top.length ? " + more" : "") : null;
   };
-  type Act = { name: string; note?: string };
+  type Act = { name: string; note?: string; secret?: boolean; tba?: boolean };
+  // What the public page gets from the draft: acts marked secret never leave the draft (one
+  // "Headliner TBA" line stands in for them, at the top), and set times are dropped while the show
+  // hides them. Every write to the public lineup goes through here, so a save can't leak either.
+  const publicActs = (acts: Act[], hideTimes: boolean): Act[] => {
+    const shown = acts.filter((x) => !x.secret).map((x) => (x.note && !hideTimes ? { name: x.name, note: x.note } : { name: x.name }));
+    return acts.some((x) => x.secret) ? [{ name: "Headliner TBA", tba: true }, ...shown] : shown;
+  };
   async function loadShow(slug: string) {
-    const { data: ev } = await db.from("events").select("id,slug,name,venue,city,starts_at,sales_open,location_secret,address_reveal_at,address,share_url,door_pin_hash,poster_url").eq("slug", slug).maybeSingle();
+    const { data: ev } = await db.from("events").select("id,slug,name,venue,city,starts_at,sales_open,location_secret,address_reveal_at,address,share_url,door_pin_hash,poster_url,hide_set_times").eq("slug", slug).maybeSingle();
     if (!ev) return null;
     const [{ data: nights }, { data: types }] = await Promise.all([
       db.from("ticket_nights").select("id,slug,label,starts_at,ends_at,lineup,lineup_full,flyer_url,sort").eq("event_id", ev.id).order("sort"),
@@ -206,23 +213,26 @@ Deno.serve(async (req) => {
         page_url: `${SITE_URL}/${ev.slug === "underground" ? "underground/" : "tickets.html?e=" + ev.slug}` },
       nights: ns, ticketed: types.length > 0,
       types: types.map((t) => ({ slug: t.slug, name: t.name, on_sale: t.on_sale, night_ids: t.night_ids })),
-      lineup_public: ns.some((n) => n.public), share_default: `${SITE_URL}/assets/toftu/share-toftu-v3.jpg`,
+      lineup_public: ns.some((n) => n.public), hide_set_times: !!ev.hide_set_times, share_default: `${SITE_URL}/assets/toftu/share-toftu-v3.jpg`,
     });
   }
 
   if (a === "lineup-save") {
     const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
+    const hideTimes = typeof b.hide_set_times === "boolean" ? b.hide_set_times : !!s.ev.hide_set_times;
+    if (typeof b.hide_set_times === "boolean") await db.from("events").update({ hide_set_times: hideTimes }).eq("id", s.ev.id);
     const list = Array.isArray(b.nights) ? b.nights as Record<string, unknown>[] : [];
     for (const item of list) {
       const n = s.nights.find((x) => x.id === item.id); if (!n) continue;
       const acts: Act[] = (Array.isArray(item.acts) ? item.acts as Record<string, unknown>[] : []).slice(0, 30)
-        .map((x) => ({ name: clean(x.name, 80) || "", note: clean(x.note, 40) || "" })).filter((x) => x.name)
-        .map((x) => (x.note ? { name: x.name, note: x.note } : { name: x.name }));
+        .map((x) => ({ name: clean(x.name, 80) || "", note: clean(x.note, 40) || "", secret: x.secret === true })).filter((x) => x.name)
+        .map((x) => ({ name: x.name, ...(x.note ? { note: x.note } : {}), ...(x.secret ? { secret: true } : {}) }));
       const isPublic = ((n.lineup || []) as Act[]).length > 0;
-      await db.from("ticket_nights").update(isPublic ? { lineup_full: acts, lineup: acts } : { lineup_full: acts }).eq("id", n.id);
-      const blurb = fullBlurb(acts);
+      const pubActs = publicActs(acts, hideTimes);
+      await db.from("ticket_nights").update(isPublic ? { lineup_full: acts, lineup: pubActs } : { lineup_full: acts }).eq("id", n.id);
+      const blurb = fullBlurb(acts), pubBlurb = fullBlurb(pubActs);
       for (const t of nightTypes(s.types, n.id)) {
-        await db.from("ticket_types").update(isPublic ? { blurb_full: blurb, blurb: blurb || soonBlurb(n) } : { blurb_full: blurb }).eq("id", t.id);
+        await db.from("ticket_types").update(isPublic ? { blurb_full: blurb, blurb: pubBlurb || soonBlurb(n) } : { blurb_full: blurb }).eq("id", t.id);
       }
     }
     await log("lineup_save", { event: s.ev.slug });
@@ -233,10 +243,10 @@ Deno.serve(async (req) => {
     const s = await loadShow(showSlug()); if (!s) return no("Not found", 404);
     const pub = b.public === true;
     for (const n of s.nights) {
-      const acts = (n.lineup_full ?? []) as Act[];
+      const acts = publicActs((n.lineup_full ?? []) as Act[], !!s.ev.hide_set_times);
       await db.from("ticket_nights").update({ lineup: pub ? acts : [] }).eq("id", n.id);
       for (const t of nightTypes(s.types, n.id)) {
-        await db.from("ticket_types").update({ blurb: pub ? (t.blurb_full || fullBlurb(acts) || soonBlurb(n)) : soonBlurb(n) }).eq("id", t.id);
+        await db.from("ticket_types").update({ blurb: pub ? (fullBlurb(acts) || soonBlurb(n)) : soonBlurb(n) }).eq("id", t.id);
       }
     }
     await log(pub ? "lineup_reveal" : "lineup_hide", { event: s.ev.slug });

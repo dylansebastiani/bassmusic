@@ -68,7 +68,11 @@ a.pill:hover{border-color:#fff;color:#fff}
 .night.sat .nh .disp{color:#b98cff}
 .nh .mono{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 .acts{display:flex;flex-direction:column;gap:6px}
-.act{display:grid;grid-template-columns:1fr 104px auto;gap:6px;align-items:stretch}
+.act{display:grid;grid-template-columns:1fr 104px auto auto;gap:6px;align-items:stretch}
+.asec{display:flex;align-items:center;gap:5px;padding:0 8px;border:1px solid #3a3536;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);cursor:pointer;white-space:nowrap}
+.asec:has(input:checked){color:#fff;border-color:#fff}
+.asec input{margin:0;accent-color:#fff}
+.luopts{margin:12px 0 4px}.luopt{display:flex;align-items:center;gap:8px;font-size:15px;cursor:pointer}.luopt input{width:18px;height:18px;accent-color:#fff}.luhint{font-size:12px;color:var(--mute);margin:6px 0 0;line-height:1.5}
 .act input{min-width:0;background:#000;border:1px solid #3a3536;color:var(--fg);font-family:var(--text);font-size:16px;padding:10px;border-radius:0;outline:none}
 .act input:focus{border-color:#fff}
 .act .at{font-family:var(--mono);font-size:13px;padding:10px 8px}
@@ -154,7 +158,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   .seg button{font-size:10px;letter-spacing:.04em;padding:13px 6px 12px}
   .act{grid-template-columns:1fr 100px}
   .savebar .btn{font-size:18px;padding:11px 18px 9px}
-  .act .ab{grid-column:1/-1;justify-content:flex-end}
+  .act .asec{grid-column:1;justify-self:start;padding:6px 8px}
+  .act .ab{grid-column:2;justify-content:flex-end}
   .imgs{grid-template-columns:1fr}
   .stats.four{grid-template-columns:1fr 1fr}
 }
