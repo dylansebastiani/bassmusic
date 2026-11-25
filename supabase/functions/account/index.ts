@@ -311,6 +311,9 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     (signed || []).forEach((x: any) => { if (x.path && x.signedUrl) photos[x.path] = x.signedUrl; });
   }
   const { data: clicks } = (invs || []).length ? await db.from("artist_clicks").select("invite_id").in("invite_id", (invs || []).map((v) => v.id)).limit(20000) : { data: [] };
+  const { data: memRows } = (invs || []).length
+    ? await db.from("artist_members").select("id,invite_id,full_name").in("invite_id", (invs || []).map((v) => v.id)).is("revoked_at", null).order("created_at")
+    : { data: [] as { id: string; invite_id: string; full_name: string }[] };
   const artists = (invs || []).map((v) => {
     let t = 0;
     for (const o of orders || []) {
@@ -318,7 +321,8 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
       const mine = (v.sell_promo_id && o.promo_id === v.sell_promo_id) || (v.sell_ref && o.ref && o.ref.toLowerCase() === v.sell_ref.toLowerCase());
       if (mine) t += tix.filter((x) => x.order_id === o.id).length;
     }
-    return { id: canAdd && (isStaff || v.created_by === m.id) ? v.id : "", name: v.name, tickets: t, taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null,
+    return { id: canAdd && (isStaff || v.created_by === m.id) ? v.id : "", name: v.name, tickets: t,
+      members: (memRows || []).filter((x) => x.invite_id === v.id).map((x) => ({ id: x.id, name: x.full_name })), taps: (clicks || []).filter((c) => c.invite_id === v.id).length, link: v.sell_ref ? `${SITE}/go/${v.sell_ref}` : null,
       claimed: !!v.claimed_at, has_email: !!v.email, has_phone: !!v.phone, photo: (v.photo_path && photos[v.photo_path]) || null };
   }).sort((a, b) => b.tickets - a.tickets || b.taps - a.taps || a.name.localeCompare(b.name));
   const { data: co } = await db.from("companies").select("legacy_stripe,brand,stripe_charges_enabled").eq("id", ev.company_id).maybeSingle();

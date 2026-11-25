@@ -354,6 +354,11 @@
       '<label for="aphone">Phone</label><input id="aphone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="(309) 555-0123">' +
       '<label for="aemail">Email</label><input id="aemail" type="email" inputmode="email" autocomplete="off" maxlength="254" placeholder="Where their pass goes">' +
       '<label for="aspots">Guest spots</label><input id="aspots" type="number" inputmode="numeric" min="0" max="10" value="2">' +
+      '<details class="aduo"><summary>Duo or group? Add the second person</summary>' +
+      '<p class="mnow">They get their own pass and link to the same artist page: one profile, one guest list (the spots above are shared), one set of tracks.</p>' +
+      '<label for="a2full">Their full name</label><input id="a2full" autocomplete="off" maxlength="80" placeholder="First and last">' +
+      '<label for="a2phone">Phone</label><input id="a2phone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="(309) 555-0123">' +
+      '<label for="a2email">Email</label><input id="a2email" type="email" inputmode="email" autocomplete="off" maxlength="254" placeholder="Where their pass goes"></details>' +
       '<button class="mbtn" type="submit" id="ago">Add and send pass</button><p class="msg" id="amsg" role="status"></p></form></details>';
   }
   var aOpen = false;
@@ -372,10 +377,18 @@
     if (phone.replace(/\D/g, "").length < 10) { m.textContent = "Enter a phone number we can reach them at."; return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { m.textContent = "Enter the email their pass should go to."; return; }
     $("ago").disabled = true; m.textContent = "Adding...";
-    artistFn("crew_create", { name: name, full_name: full, phone: phone, email: email, spots: spots }).then(function (j) {
+    var f2 = $("a2full").value.trim(), p2 = $("a2phone").value.trim(), e2 = $("a2email").value.trim(), member = null;
+    if (f2 || p2 || e2) {
+      if (f2.split(/\s+/).length < 2) { m.textContent = "Second person: enter their full name (first and last)."; return; }
+      if (p2.replace(/\D/g, "").length < 10) { m.textContent = "Second person: enter a phone number."; return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(e2)) { m.textContent = "Second person: enter the email their pass should go to."; return; }
+      member = { full_name: f2, phone: p2, email: e2 };
+    }
+    artistFn("crew_create", { name: name, full_name: full, phone: phone, email: email, spots: spots, member: member }).then(function (j) {
       aOpen = true;
       return api("?a=crew&e=" + encodeURIComponent(hub)).then(function (r) { hubData = r; drawHub();
-        $("amsg").textContent = name + " is on the show." + (j.pass_sent ? " Their pass is on its way to " + email + "." : " The pass email didn't send; I can resend it."); });
+        $("amsg").textContent = name + " is on the show." + (j.pass_sent ? " Their pass is on its way to " + email + "." : " The pass email didn't send; I can resend it.") +
+          (j.member_error ? " " + j.member_error + " Add them with Add a member." : j.member_pass_sent ? " " + f2 + "'s pass is on its way to " + e2 + "." : member ? " " + f2 + "'s pass email didn't send." : ""); });
     }).catch(function (err) { m.textContent = err.message; $("ago").disabled = false; });
   });
   document.addEventListener("click", function (e) {
@@ -385,6 +398,38 @@
     b.disabled = true; b.textContent = "Taking off...";
     artistFn("crew_revoke", { id: b.getAttribute("data-off") }).then(function () { return reloadHub(); })
       .catch(function (err) { b.disabled = false; b.textContent = "Take off show"; window.alert(err.message); });
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-madd],[data-mrm]"); if (!t) return;
+    if (t.hasAttribute("data-mrm")) {
+      if (!window.confirm("Take " + t.getAttribute("data-mname") + " off this act? Their artist pass will stop working.")) return;
+      t.disabled = true;
+      return artistFn("crew_member_remove", { id: t.getAttribute("data-act"), member_id: t.getAttribute("data-mrm") }).then(function () { return reloadHub(); })
+        .catch(function (err) { t.disabled = false; window.alert(err.message); });
+    }
+    var row = t.closest(".arow"), open = row.nextElementSibling && row.nextElementSibling.classList.contains("mform");
+    document.querySelectorAll(".mform").forEach(function (x) { x.remove(); });
+    if (open) return;
+    var id = t.getAttribute("data-madd"), act = t.getAttribute("data-act-name");
+    row.insertAdjacentHTML("afterend", '<form class="cform mform" data-act="' + esc(id) + '" novalidate><p class="mnow">Add someone else who performs as ' + esc(act) +
+      '. They get their own pass and link to the same artist page: one profile, one shared guest list, one set of tracks.</p>' +
+      '<label>Their full name<input name="full" autocomplete="off" maxlength="80" placeholder="First and last"></label>' +
+      '<label>Phone<input name="phone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="(309) 555-0123"></label>' +
+      '<label>Email<input name="email" type="email" inputmode="email" autocomplete="off" maxlength="254" placeholder="Where their pass goes"></label>' +
+      '<button class="mbtn" type="submit">Add and send pass</button><p class="msg" role="status"></p></form>');
+    row.nextElementSibling.querySelector("input").focus();
+  });
+  document.addEventListener("submit", function (e) {
+    var f = e.target; if (!f.classList || !f.classList.contains("mform")) return;
+    e.preventDefault();
+    var full = f.full.value.trim(), phone = f.phone.value.trim(), email = f.email.value.trim(), m = f.querySelector(".msg");
+    if (full.split(/\s+/).length < 2) { m.textContent = "Enter their full name (first and last)."; return; }
+    if (phone.replace(/\D/g, "").length < 10) { m.textContent = "Enter a phone number we can reach them at."; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { m.textContent = "Enter the email their pass should go to."; return; }
+    f.querySelector("button").disabled = true; m.textContent = "Adding...";
+    artistFn("crew_member_add", { id: f.getAttribute("data-act"), full_name: full, phone: phone, email: email }).then(function (j) {
+      return reloadHub().then(function () { window.alert(full + " is on the pass." + (j.pass_sent ? " Their pass is on its way to " + email + "." : " The pass email didn't send.")); });
+    }).catch(function (err) { m.textContent = err.message; f.querySelector("button").disabled = false; });
   });
   function guestForm() {
     return '<details class="gadd"' + (gOpen ? " open" : "") + '><summary class="mbtn">Add a guest</summary><form id="gform" class="cform" novalidate>' +
@@ -484,7 +529,11 @@
       (todo.length ? "" : checksHtml) +
       '<section class="hs" id="hart"><h3>Artists</h3>' + (r.artists.length ? r.artists.map(function (a) {
           return '<div class="arow">' + (a.photo ? '<img class="av" src="' + esc(a.photo) + '" alt="" loading="lazy">' : '<span class="av">' + esc(initials(a.name)) + "</span>") + '<span class="ainfo"><b>' + esc(a.name) + "</b><span>" + (a.claimed ? "Has their pass" : "Hasn't claimed their pass") + (a.taps ? ", " + a.taps + " link taps" : "") + "</span>" +
-            (a.id ? '<button type="button" class="aoff" data-off="' + esc(a.id) + '" data-offname="' + esc(a.name) + '">Take off show</button>' : "") + "</span>" +
+            ((a.members || []).length ? '<span class="amem">Also on this pass: ' + a.members.map(function (m) {
+              return esc(m.name) + (a.id ? ' <button type="button" class="amx" data-mrm="' + esc(m.id) + '" data-act="' + esc(a.id) + '" data-mname="' + esc(m.name) + '" aria-label="Remove ' + esc(m.name) + '">Remove</button>' : "");
+            }).join(", ") + "</span>" : "") +
+            (a.id ? '<span class="alinks"><button type="button" class="aoff" data-madd="' + esc(a.id) + '" data-act-name="' + esc(a.name) + '">Add a member</button>' +
+              '<button type="button" class="aoff" data-off="' + esc(a.id) + '" data-offname="' + esc(a.name) + '">Take off show</button></span>' : "") + "</span>" +
             '<span class="asold"><b>' + a.tickets + "</b>sold</span>" + (a.link ? '<button type="button" class="acopy" data-copy="' + esc(a.link) + '" aria-label="Copy ' + esc(a.name) + '\'s sell link">Copy link</button>' : "") + "</div>";
         }).join("") : '<p class="mempty">No artists yet.</p>') +
         (r.can_add_guests ? artistForm() : "") + "</section>" +

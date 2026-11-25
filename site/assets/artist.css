@@ -90,3 +90,4 @@ label .opt{text-transform:none;letter-spacing:0;color:var(--lav);font-weight:400
 .slabel{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9b8fb0;margin-top:2px}
 .sellv{color:#fff;font-size:14px;line-height:1.4;overflow-wrap:anywhere;margin-bottom:8px}
 .sellv.code{font-family:var(--mono);font-size:20px;letter-spacing:.12em;color:var(--gold)}
+.amembers{margin:4px 0 0;font-size:14px;opacity:.75}
