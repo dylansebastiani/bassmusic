@@ -294,7 +294,8 @@ html:not(.js) .rv{opacity:1;transform:none}
   .hero{justify-content:center}
   .hero::after{height:100%;background:linear-gradient(to right,rgba(0,0,0,.9) 0,rgba(0,0,0,.5) 40%,rgba(0,0,0,0) 60%)}
   .hero>*{max-width:min(640px,52vw)}
-  .hero h1{font-size:clamp(84px,8vw,140px)}
+  /* The base rule caps the headline at 9ch, which splits "Your show." and "Your money." at desktop sizes. */
+  .hero h1{font-size:clamp(84px,8vw,120px);max-width:min(640px,52vw)}
   .lead{font-size:19px}
   .sec h2{font-size:clamp(60px,5.6vw,100px);max-width:none}
   .price-big{font-size:clamp(110px,10vw,180px)}
@@ -366,7 +367,7 @@ html:not(.js) .rv{opacity:1;transform:none}
       <li>Your buyer list, yours to export</li>
     </ul>
   </div>
-  <div class="ctas rv"><a class="btn" href="demo.html">Try a test ticket</a><a class="ghost" href="me.html">Already set up? Sign in</a></div>
+  <div class="ctas rv"><a class="btn" href="demo.html">Try a test ticket</a><a class="ghost" href="promoter.html">Already set up? Sign in</a></div>
 </section>
 
 <!-- 4. Pricing -->
