@@ -543,9 +543,10 @@ window.Stack = (function () {
   // ---------- Bits from config ----------
   var name = C.labelName || "Subduction";
   $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + " " + esc(name);
-  (function () { var so = C.social || {}, out = [], map = { instagram: ["Instagram", "https://instagram.com/"], tiktok: ["TikTok", "https://tiktok.com/@"], facebook: ["Facebook", "https://facebook.com/"] };
+  // Site footer socials. Instagram is left out on purpose. An empty row stays hidden (.fsocial:empty).
+  (function () { var so = C.social || {}, out = [], map = { tiktok: ["TikTok", "https://tiktok.com/@"], facebook: ["Facebook", "https://facebook.com/"] };
     Object.keys(map).forEach(function (k) { var h = (so[k] || "").replace(/^@/, ""); if (h) out.push('<a href="' + esc(map[k][1] + h) + '" target="_blank" rel="noopener">' + map[k][0] + "</a>"); });
-    $("fsocial").innerHTML = out.join(""); })();
+    var row = $("fsocial"); if (row) row.innerHTML = out.join(""); })();
   all(".contact").forEach(function (a) { var s = a.getAttribute("data-subject"); a.href = "mailto:" + (C.contactEmail || "") + (s ? "?subject=" + encodeURIComponent(s) : ""); });
   $("fine").textContent = "Your first free track unlocks right away. " + (C.microcopy || "") + " Already a member? Same box, we'll email you a code.";
 
