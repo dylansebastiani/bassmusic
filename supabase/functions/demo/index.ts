@@ -182,6 +182,9 @@ Deno.serve(async (req) => {
       await ping(`New promoter account: ${l.crew || l.full_name || l.email}`, l);
     }
     await db.from("company_staff").upsert({ company_id: companyId, subscriber_id: m.id, role: "owner" }, { onConflict: "company_id,subscriber_id", ignoreDuplicates: true });
+    // Referral credit is a ledger row. A missing migration must not block the new account.
+    const linked = await db.rpc("attach_promoter_referral", { p_company: companyId, p_email: String(l.email || ""), p_code: l.referral_code || null });
+    if (linked.error) console.error("demo: referral", linked.error.message);
     // Signed straight in only with the key from their own inbox, and never for a staff email.
     const proven = !!k && !!l.claim_hash && (await sha256(k)) === l.claim_hash && !(await admins()).includes(String(l.email).toLowerCase());
     if (!proven) { await sendSigninLink(String(l.email).toLowerCase()); return json({ link_sent: true, email: l.email }); }
@@ -208,6 +211,8 @@ Deno.serve(async (req) => {
   if ((n ?? 0) > 8) return no("Too many tries. Wait a minute and try again.", 429);
 
   const email = clean(b.email, 254).toLowerCase(), name = clean(b.name, 80), crew = clean(b.crew, 80);
+  const pref = clean(String(b.referral_code || ""), 16).toLowerCase();
+  const referral_code = /^[a-z0-9]{8}$/.test(pref) ? pref : null;
   if (!name || name.split(/\s+/).length < 2) return no("Enter your full name (first and last).");
   if (!crew) return no("Enter your crew or promoter name.");
   if (!EMAIL_RE.test(email)) return no("Enter the email your test ticket should go to.");
@@ -217,10 +222,20 @@ Deno.serve(async (req) => {
 
   let { data: l } = await db.from("demo_leads").select("*").eq("email", email).maybeSingle();
   if (l) {
-    await db.from("demo_leads").update({ full_name: name, crew, phone }).eq("id", l.id);
-    l = { ...l, full_name: name, crew, phone };
+    const patch: Record<string, unknown> = { full_name: name, crew, phone };
+    if (referral_code && !l.referral_code) patch.referral_code = referral_code;
+    let upd = await db.from("demo_leads").update(patch).eq("id", l.id);
+    if (upd.error && patch.referral_code && /referral_code/.test(upd.error.message || "")) {
+      delete patch.referral_code;
+      upd = await db.from("demo_leads").update(patch).eq("id", l.id);
+    }
+    if (upd.error) console.error("demo: update failed", upd.error.message);
+    l = { ...l, full_name: name, crew, phone, referral_code: patch.referral_code || l.referral_code };
   } else {
-    const ins = await db.from("demo_leads").insert({ email, full_name: name, crew, phone, token: hex(16), code: newCode(), ip_hash: ip }).select("*").single();
+    let ins = await db.from("demo_leads").insert({ email, full_name: name, crew, phone, token: hex(16), code: newCode(), ip_hash: ip, referral_code }).select("*").single();
+    if (ins.error && /referral_code/.test(ins.error.message || "")) {
+      ins = await db.from("demo_leads").insert({ email, full_name: name, crew, phone, token: hex(16), code: newCode(), ip_hash: ip }).select("*").single();
+    }
     if (ins.error || !ins.data) { console.error("demo: insert failed", ins.error?.message); return no("Couldn't set that up. Try again.", 500); }
     l = ins.data;
   }

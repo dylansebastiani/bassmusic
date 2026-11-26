@@ -50,7 +50,8 @@
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { $("msg").textContent = "Check your email address."; $("email").focus(); return; }
     if (phone.replace(/\D/g, "").length < 10) { $("msg").textContent = "Add a phone number we can reach you at."; $("phone").focus(); return; }
     $("go").disabled = true; $("msg").textContent = "Making your ticket...";
-    post({ a: "start", name: name, crew: crew, email: email, phone: phone, website: $("website").value })
+    var pref = String((window.Stack && Stack.attr && Stack.attr.pref) || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+    post({ a: "start", name: name, crew: crew, email: email, phone: phone, website: $("website").value, referral_code: /^[a-z0-9]{8}$/.test(pref) ? pref : null })
       .then(function (l) {
         if (!l.token) { $("msg").textContent = "Thanks. Check your inbox."; return; }
         fill(l); $("msg").textContent = "";

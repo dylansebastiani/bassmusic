@@ -25,6 +25,7 @@
 .progress{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--hot);margin-top:6px}
 .card{border:1px solid var(--line);padding:14px;margin-top:10px}
 .card b{font-size:17px}
+.pro .refcode{display:block;font-family:var(--mono,ui-monospace,monospace);font-size:13px;line-height:1.4;word-break:break-all}
 .card small{display:block;color:var(--mute)}
 /* drop boxes */
 .drop{position:relative;display:flex;gap:12px;align-items:center;border:1px dashed var(--mute);padding:14px;margin-top:10px;cursor:pointer;min-height:84px}

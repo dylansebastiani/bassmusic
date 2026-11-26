@@ -32,6 +32,10 @@
       head: ["Artist", "Full name", "Came from", "Signed up"],
       row: function (r) { return who(r) + td(r.full_name) + td(r.from, "dim") + td(day(r.when), "dim num"); },
       csv: ["name", "full_name", "email", "phone", "from", "when"] },
+    referrals: { label: "Referral credit", what: "Credit owed when a referred promoter runs a show. Pending is still owed. Paid means it was marked settled in the promoter dashboard. This list does not send money.",
+      head: ["Referrer", "Referred crew", "Show", "Paid tickets", "Buyer fee", "Credit", "Status", "Updated"],
+      row: function (r) { return who(r) + td(r.referred) + td(r.show) + td(r.tickets, "num") + td(usd(r.fee), "num") + td(usd(r.credit), "num") + "<td>" + tag(r.status, r.status === "Pending") + "</td>" + td(day(r.when), "dim num"); },
+      csv: ["name", "email", "referred", "show", "tickets", "fee", "credit", "status", "note", "when"] },
     leads: { label: "Demo leads", what: "Promoters who took the test ticket demo. Call or email the ones who finished it first.",
       head: ["Crew", "Full name", "How far they got", "Signed up"],
       row: function (r) { return who(r) + td(r.full_name) + "<td>" + tag(r.status, r.status === "Finished the demo") + "</td>" + td(day(r.when), "dim num"); },
@@ -55,7 +59,8 @@
   function draw() {
     var T = TABS[tab], list = rows(), all = (data[tab] || []).length;
     $("what").textContent = T.what;
-    $("count").textContent = list.length === all ? all + (all === 1 ? " person" : " people") : list.length + " of " + all;
+    var noun = tab === "referrals" ? (all === 1 ? " credit" : " credits") : (all === 1 ? " person" : " people");
+    $("count").textContent = list.length === all ? all + noun : list.length + " of " + all;
     $("t").innerHTML = "<thead><tr>" + T.head.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr></thead><tbody>" +
       (list.length ? list.map(function (r) { return "<tr>" + T.row(r) + "</tr>"; }).join("") : '<tr><td class="empty" colspan="' + T.head.length + '">Nobody here yet.</td></tr>') + "</tbody>";
   }

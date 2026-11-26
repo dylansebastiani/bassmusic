@@ -2,6 +2,7 @@
 // Self-contained on purpose (no shared imports) so deploying it can never disturb the ticketing functions.
 // Same staff sign-in as the Staff page: the x-admin-token header, re-checked against the staff list on every call.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { referralAdminRows } from "../_shared/referrals.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const CORS = {
@@ -99,5 +100,7 @@ Deno.serve(async (req) => {
     status: d.scanned_at ? "Finished the demo" : d.opened_at ? "Opened the ticket" : d.emailed_at ? "Got the ticket" : "Signed up", when: d.created_at }));
 
   await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:people_view", meta: {} });
-  return json({ fans, buyers, promoters, artists, waitlist, leads });
+  // Read-only here. Marking a row paid happens in the promoter dashboard and sends no money.
+  const referrals = (await referralAdminRows()) || [];
+  return json({ fans, buyers, promoters, artists, waitlist, leads, referrals });
 });
