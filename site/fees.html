@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Fee calculator · Subduction">
+<meta name="description" content="See what buyers pay on Subduction and on typical percentage-fee platforms. Subduction uses the live checkout math. The other numbers are estimates.">
+<meta property="og:description" content="See what buyers pay on Subduction and on typical percentage-fee platforms. Subduction uses the live checkout math. The other numbers are estimates.">
+<meta property="og:image" content="https://subduction.art/assets/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Fee calculator · Subduction">
+<meta name="twitter:description" content="See what buyers pay on Subduction and on typical percentage-fee platforms. Subduction uses the live checkout math. The other numbers are estimates.">
+<meta name="twitter:image" content="https://subduction.art/assets/og.jpg">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+.wrap{max-width:640px}
+h1{font-size:clamp(48px,13vw,76px);margin:8px 0 12px}
+.lead{margin-bottom:22px}
+.fields{display:grid;grid-template-columns:1fr;gap:12px;margin:8px 0 22px}
+@media (min-width:560px){.fields{grid-template-columns:1fr 1fr}}
+label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+input{width:100%;background:#000;color:var(--fg);border:1px solid #6c6567;border-radius:0;font-family:var(--text);font-size:22px;padding:14px 14px 12px;outline:none;margin-top:6px}
+input:focus{border-color:#fff}
+.note{font-size:16px;line-height:1.5;color:#e6e1dd;min-height:3.2em;margin:0 0 18px}
+.bars{display:flex;flex-direction:column;gap:12px;margin:0 0 8px}
+.bars-h{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.head,.fee{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 12px;align-items:center}
+.head{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.head span:nth-child(n+2),.amt,.buyer{text-align:right;font-variant-numeric:tabular-nums}
+.amt,.buyer{font-weight:600}
+.fee .track{grid-column:1 / -1;height:10px;background:#151515}
+.fee .track b{display:block;height:100%;width:0;background:#4a4644}
+.fee small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);font-weight:400}
+.fee.us{color:var(--hot);font-weight:700}
+.fee.us .track b{background:var(--hot)}
+.show{border-top:1px solid var(--line);margin-top:18px;padding-top:16px;display:flex;flex-direction:column;gap:8px}
+.show p{color:#e6e1dd}
+.sources{margin-top:28px;color:var(--mute);font-size:13px;line-height:1.6}
+.sources p+p{margin-top:10px}
+.sources a{color:var(--hot)}
+footer a:hover{color:var(--hot)}
+</style>
+<!--CONFIG-->
+<title>Fee calculator · Subduction</title>
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><a href="./"><img src="assets/logo.png" alt="Home"></a></div>
+  <p class="mono">Fee calculator</p>
+  <h1 class="disp">What buyers <em>pay.</em></h1>
+  <p class="lead">Enter a ticket price and how many tickets you expect to sell. The Subduction number is what checkout charges today. The others are estimates from published rates.</p>
+
+  <div class="fields">
+    <div>
+      <label for="price">Ticket price</label>
+      <input id="price" name="price" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="25" required>
+    </div>
+    <div>
+      <label for="count">Expected tickets</label>
+      <input id="count" name="count" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" value="100" required>
+    </div>
+  </div>
+
+  <p class="note" id="note" role="status"></p>
+  <div class="bars" id="bars" role="table" aria-label="Fees a buyer pays on one ticket">
+    <p class="bars-h" id="barsH" role="caption">Fees on one ticket</p>
+    <div class="head" role="row"><span role="columnheader">Platform</span><span role="columnheader">Fee</span><span role="columnheader">Buyer pays</span></div>
+    <div class="fee" role="row" data-row="eb"><span role="cell">Eventbrite<small>estimate</small></span><span class="amt" role="cell"></span><span class="buyer" role="cell"></span><span class="track" aria-hidden="true"><b></b></span></div>
+    <div class="fee" role="row" data-row="posh"><span role="cell">Posh<small>estimate</small></span><span class="amt" role="cell"></span><span class="buyer" role="cell"></span><span class="track" aria-hidden="true"><b></b></span></div>
+    <div class="fee" role="row" data-row="dice"><span role="cell">DICE<small>estimate</small></span><span class="amt" role="cell"></span><span class="buyer" role="cell"></span><span class="track" aria-hidden="true"><b></b></span></div>
+    <div class="fee us" role="row" data-row="us"><span role="cell">Subduction</span><span class="amt" role="cell"></span><span class="buyer" role="cell"></span><span class="track" aria-hidden="true"><b></b></span></div>
+  </div>
+  <div class="show" id="show">
+    <p id="keep"></p>
+    <p id="bulk"></p>
+  </div>
+
+  <div class="sources">
+    <p>Estimates, not quotes. Read in November 2026 from each platform's public page. A negotiated rate can be different, and fees change. Every number here is for one ticket per order, with the buyer paying the fee and no tax added.</p>
+    <p>Subduction matches checkout. Buyers pay a flat $1.50 per paid ticket plus Stripe card processing of 2.9% and 30¢ per order. The total is rounded up so you keep the full ticket price. Free tickets stay free.</p>
+    <p>Eventbrite's published US rate is 3.7% + $1.79 per paid ticket, plus 2.9% payment processing on the order, including that service fee. <a href="https://www.eventbrite.com/organizer/pricing/" target="_blank" rel="noopener">Eventbrite pricing</a>.</p>
+    <p>Posh's published rate is 10% + $0.99 per paid ticket, and card processing is included. <a href="https://posh.vip/university/post/posh-payouts-payments-refunds-security-explained" target="_blank" rel="noopener">Posh fees</a>.</p>
+    <p>DICE's US self sign-up terms charge 13% of the face value, and card processing is included. Partnership rates are negotiated separately and are not on that page. <a href="https://support.dice.fm/article/764-mio-ticketing-terms-and-conditions-us" target="_blank" rel="noopener">DICE self sign-up terms</a>.</p>
+  </div>
+  <footer>
+    <a href="./">Home</a>
+    <a href="demo.html">Sell tickets</a>
+    <a href="promoter.html">Promoter sign in</a>
+  </footer>
+</main>
+<script src="assets/fees.js"></script>
+</body>
+</html>
