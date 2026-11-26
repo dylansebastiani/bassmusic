@@ -300,7 +300,12 @@
     return '<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display:block;width:100%;height:auto;background:radial-gradient(ellipse at 50% 50%,color-mix(in srgb,var(--n2) 22%,var(--bg)),var(--bg) 75%);-webkit-mask-image:linear-gradient(transparent,#000 14%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 14%,#000 80%,transparent)"><g stroke-width="1" opacity=".75">' + L + "</g></svg>";
   }
 
-  if (!slug) { $("page").innerHTML = '<p class="msg">No show picked.</p>'; return; }
+  function miss(text) {
+    document.title = text + " · Subduction";
+    $("page").innerHTML = '<div class="miss"><a class="brand" href="/" aria-label="Subduction home"><img src="/assets/logo.png" alt=""></a><h1 class="disp">' + text + '</h1><a class="btn" href="/">Back home</a></div>';
+  }
+
+  if (!slug) { miss("No show picked."); return; }
   (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
     data = d; if (d.lane === 2) FN = BASE + "/checkout";
     // The first show keeps its own original tickets page, exactly as before.
@@ -312,5 +317,5 @@
     // Every other show: its published design if it has one, otherwise a plain page with no one else's look on it.
     return fetch((C.supabaseUrl || "") + "/functions/v1/shows?e=" + slug).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
       .then(function (x) { d.page = (x && x.page && x.page.theme && x.page.sections) ? x.page : plainPage(d); go(); });
-  }).catch(function (e) { $("page").innerHTML = '<p class="msg">' + (e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again.") + "</p>"; });
+  }).catch(function (e) { miss(e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again."); });
 })();

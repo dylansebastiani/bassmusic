@@ -26,9 +26,9 @@ const rawT = readFileSync(join(out, "t.html"), "utf8");
 for (const f of readdirSync(out)) {
   if (!f.endsWith(".html")) continue;
   const p = join(out, f);
-  // The music bar rides along on every public page; staff pages (door, admin) stay quiet.
+  // The music bar rides along on every public page. Staff pages (door, admin, people) stay quiet.
   // The homepage is promoter-first, so it stays quiet too, except for fans arriving from a show QR or friend link.
-  const bar = /^(door|admin|studio|promoter|demo|pass)\.html$/.test(f) ? ""
+  const bar = /^(door|admin|studio|promoter|demo|pass|people)\.html$/.test(f) ? ""
     : f === "index.html" ? '<script>if(/[?&](e|r|src)=/.test(location.search)){var s=document.createElement("script");s.src="/assets/player.js";s.defer=true;document.head.appendChild(s);}</script>'
     : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together

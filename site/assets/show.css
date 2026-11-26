@@ -2,6 +2,11 @@
    Every colour and font comes from the show's theme as a CSS variable, set by show.js:
    --bg --fg --mute --line --hot (accent) --disp --text, and per night --nc. */
 .show{background:var(--bg);padding-bottom:60px}
+.miss{min-height:calc(100svh - 36px);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;padding:8px 0 48px}
+.miss .brand{line-height:0}
+.miss .brand img{width:36px;height:auto}
+.miss h1{font-size:clamp(40px,11vw,68px);max-width:11ch;margin:0;color:var(--fg)}
+.miss .btn{width:auto;min-width:200px;border-top:0}
 html:has(.show){background:var(--bg)}
 .show .wrap{max-width:560px}
 .show .btn{background:var(--hot);color:var(--bg);font-family:var(--disp);letter-spacing:.06em}

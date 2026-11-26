@@ -18,7 +18,10 @@
   function company() { return me.companies.find(function (c) { return c.id === coId; }) || me.companies[0]; }
   function showById(id) { return me.shows.find(function (s) { return s.id === id; }); }
   function homeHref() { return me && me.owner ? "#co/" + coId : "#"; }
-  function top(back) { return '<div class="top"><span>' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : "Subduction") + "</span>" + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>"; }
+  function top(back) {
+    var home = '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>';
+    return '<div class="top">' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : home) + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>";
+  }
   // Setup is one straight line: 1 Your show, 2 Your flyer, 3 Get paid, then send. Every screen says where you are.
   function stepHead(n, label, extra) {
     return '<div class=wiz>' + [1, 2, 3].map(function (i) { return '<i class="' + (i <= n ? "on" : "") + '"></i>'; }).join("") + '</div><div class=qnum>Step ' + n + " of 3 · " + label + (extra ? " · " + extra : "") + "</div>";

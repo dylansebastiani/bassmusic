@@ -45,7 +45,12 @@
 .choice button{background:none;border:1px solid var(--line);color:var(--fg);font-family:var(--disp);font-size:22px;text-transform:uppercase;padding:16px;cursor:pointer}
 .choice button[aria-pressed=true]{border-color:var(--hot);background:color-mix(in srgb,var(--hot) 14%,transparent)}
 .night-row,.tier-row{border:1px solid var(--line);padding:12px;margin-top:10px}
-html,body{background:#050505}
+html,body{background:#000}
+body.pro{min-height:100vh;background:#000}
+.pro .top .brand{display:flex;line-height:0}
+.pro .top .brand img{width:28px;height:auto;display:block}
+.pro .note a{color:var(--hot);text-underline-offset:3px}
+.pro .note a:hover{color:#fff}
 .row3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
 .row3>div{min-width:0}
 .row3 input{width:100%;min-width:0}

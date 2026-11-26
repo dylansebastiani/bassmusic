@@ -19,8 +19,16 @@ export const unsubUrl = (m: Member) => `${FN}/unsubscribe?u=${m.unsubscribe_toke
 // Apple Mail and Outlook all draw it the same; bgcolor keeps it black in light mode.
 // preheader = the grey line inbox apps show next to the subject.
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+// Same rule as the privacy page, the terms page and ticket emails: a placeholder
+// address is not a real one, so it stays out of the footer until Dylan has one.
+function postalAddress(): string {
+  const addr = (CONFIG.mailingAddress || "").trim();
+  if (!addr || /TBD/i.test(addr)) return "";
+  return addr;
+}
 function wrap(m: Member, bodyHtml: string, bodyText: string, preheader = "", why = `You're getting this because you joined ${M}.`): Omit<Rendered, "subject"> {
-  const foot = `${L} · ${CONFIG.mailingAddress}`;
+  const addr = postalAddress();
+  const foot = addr ? `${L} · ${addr}` : L;
   return {
     html: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
 <body style="margin:0;padding:0;background:#000" bgcolor="#000000">
