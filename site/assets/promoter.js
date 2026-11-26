@@ -128,6 +128,7 @@
       (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
+      (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
       '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and your page starts in our neon look.</small></div>' +
       referralHtml(co) +
       (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "") +
@@ -473,6 +474,48 @@
     if (b) b.onclick = function () { say("Sending…"); call("submit", { show: s.id }).then(function () { return load(); }).then(function () { send(id); }).catch(function (x) { say(x.message, true); }); };
   }
 
+  function links(id) {
+    var s = showById(id); if (!s) return go(homeHref());
+    function money(cents) { return "$" + ((Number(cents) || 0) / 100).toFixed(2); }
+    function paint(d) {
+      if (!d || d.ready === false) {
+        app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=note>" + esc((d && d.error) || "Street team links are not ready yet.") + "</p>";
+        wireTop(); return;
+      }
+      var rows = (d.rows || []).map(function (r) {
+        var owed = r.owed_cents == null ? "No payout set" : "You owe " + money(r.owed_cents);
+        return '<div class=card><b>' + esc(r.label) + (r.saved ? "" : " (not saved yet)") + '</b><span class=streetcode>' + esc(r.link) + "</span><small>" +
+          r.tickets + " paid " + (r.tickets === 1 ? "ticket" : "tickets") + " · " + money(r.revenue_cents) + " in tickets · " + owed +
+          '</small><button type=button class=ghost data-copy="' + esc(r.link) + '">Copy link</button></div>';
+      }).join("");
+      app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=note>" + esc(d.line || "") + "</p>" + rows +
+        "<h2>Add a link</h2>" +
+        '<label for=sl-name>Name</label><input id=sl-name maxlength=60 placeholder="DJ Name">' +
+        '<label for=sl-code>Code</label><input id=sl-code maxlength=32 placeholder="djname" autocapitalize=off spellcheck=false>' +
+        '<label for=sl-pay>Payout per ticket, optional</label><input id=sl-pay inputmode=decimal placeholder="2.50">' +
+        '<button class=btn type=button id=sl-save>Save link</button><p class=msg role=status></p>';
+      wireTop();
+      app.querySelectorAll("[data-copy]").forEach(function (b) {
+        b.onclick = function () {
+          var t = b.getAttribute("data-copy");
+          (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { say("Copied."); }, function () { say(t); });
+        };
+      });
+      document.getElementById("sl-save").onclick = function () {
+        say("Saving…");
+        call("street-save", { show: id, label: document.getElementById("sl-name").value, code: document.getElementById("sl-code").value, payout: document.getElementById("sl-pay").value.trim() })
+          .then(function (r) { paint(r); say("Saved."); })
+          .catch(function (x) { say(x.message, true); });
+      };
+    }
+    app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=msg role=status>Loading…</p>";
+    wireTop();
+    api(FN + "?a=street&show=" + encodeURIComponent(id)).then(paint).catch(function (x) {
+      app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + '</p><p class="msg bad">' + esc(x.message) + "</p>";
+      wireTop();
+    });
+  }
+
   function load() { return api(FN + "?a=me").then(function (r) { me = r; if (!coId || !me.companies.some(function (c) { return c.id === coId; })) coId = (me.companies[0] || {}).id || ""; }); }
   function route() {
     app.onclick = null; warns = {};
@@ -488,6 +531,7 @@
     if (h[0] === "music") return music(h[1]);
     if (h[0] === "paid") return paid();
     if (h[0] === "send") return send(h[1]);
+    if (h[0] === "links") return links(h[1]);
     home();
   }
   window.addEventListener("hashchange", route);

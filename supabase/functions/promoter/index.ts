@@ -8,6 +8,7 @@ import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
 import { SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
+import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
@@ -24,6 +25,8 @@ import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 //   POST {a:"submit", show}                               ready for Dylan: builds the first page draft if none exists,
 //                                                         then one email to Dylan and one to the promoter
 //   POST {a:"referral-settle", credit}                    Dylan only: mark a referral credit paid. Sends no money.
+//   GET  ?a=street&show=                                  named links for one show, with tickets and revenue
+//   POST {a:"street-save", show, label, code?, payout?}   add or update a link. A payout is what the promoter owes.
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
 const CONTACT = "hello@subduction.art";
 const HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
@@ -301,6 +304,21 @@ Deno.serve(async (req) => {
     const res = await settleReferralCredit(String(b.credit || ""), st.id);
     if ("error" in res) return no(res.error);
     return ok({ settled: true });
+  }
+
+  if (a === "street" || a === "street-save") {
+    const id = a === "street" ? (u.searchParams.get("show") || "") : String(b.show || "");
+    if (!UUID_RE.test(id)) return no("Not found", 404);
+    const { data: show } = await db.from("events").select("id,slug,name,company_id").eq("id", id).maybeSingle();
+    const co = show ? await loadCompany(show.company_id) : null;
+    if (!show || !co || !canSee(st, show.company_id)) return no("Not found", 404);
+    if (handsOff(show, co)) return no("This show can't be changed here.", 409);
+    if (a === "street-save") {
+      const saved = await saveStreetLink(show, { label: b.label, code: b.code, payout: b.payout }, SITE_URL);
+      if ("error" in saved && saved.error) return no(String(saved.error));
+      return ok(saved);
+    }
+    return ok(await streetView(show, SITE_URL));
   }
 
   if (a === "me") {
