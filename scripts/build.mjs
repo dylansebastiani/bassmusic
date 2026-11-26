@@ -93,6 +93,16 @@ function jpegSize(buf) {
   }
   return null;
 }
+// Event markup in the built page. T.O.F.T.U. stays out through Jan 9, 2027 Chicago time, and its
+// /underground/ file is still the original tickets page written above.
+const TOFTU_SCHEMA_AFTER = Date.parse("2027-01-10T00:00:00-06:00");
+function eventSchemaTag(s) {
+  if (!s || !s.schema) return "";
+  const held = Date.now() < TOFTU_SCHEMA_AFTER && (s.slug === "underground" || s.id === "63b511f3-d838-404f-9c2e-5d4b98fbf013");
+  if (held) return "";
+  const json = JSON.stringify(s.schema).replace(/</g, "\\u003c");
+  return `\n<script type="application/ld+json" id="event-schema">${json}</script>`;
+}
 // Every approved, published promoter show gets its own page at /<slug>/ (a real page, so link previews
 // in iMessage, Instagram and Facebook show the show's own name and image). The list already leaves out
 // anything that isn't approved; the check below is a second lock on the title and share image.
@@ -110,7 +120,8 @@ async function showPages() {
     // Never let a show's name shadow a real page or folder of the site.
     if (existsSync(join(out, s.slug)) || existsSync(join(out, s.slug + ".html"))) { console.warn(`build: show "${s.slug}" clashes with a site page, skipped`); continue; }
     const tags = `<title>${esc(s.name)}</title>\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">` +
-      (s.share_url ? `\n<meta property="og:image" content="${esc(s.share_url)}">\n<meta name="twitter:card" content="summary_large_image">` : "");
+      (s.share_url ? `\n<meta property="og:image" content="${esc(s.share_url)}">\n<meta name="twitter:card" content="summary_large_image">` : "") +
+      eventSchemaTag(s);
     mkdirSync(join(out, s.slug), { recursive: true });
     writeFileSync(join(out, s.slug, "index.html"), base.replace('<meta property="og:type" content="website">', '<meta property="og:type" content="website">\n' + tags));
     n++;
