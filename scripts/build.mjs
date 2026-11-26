@@ -128,7 +128,7 @@ async function showPages() {
   }
   console.log(`built ${n} show page(s)`);
 }
-// Artist short links (subduction.art/go/<tag>) get a tiny real page that hands off to the tap counter, which
+// Artist and flyer/poster short links (subduction.art/go/<tag>) get a tiny real page that hands off to the tap counter, which
 // then forwards to the show with ?ref=<tag>. Links made between builds still work through the 404 page.
 async function goPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
@@ -139,9 +139,21 @@ async function goPages() {
   for (const r of refs) {
     if (!/^[a-z0-9]{1,24}$/.test(r)) continue;
     const to = `${fn}/artist-sales?go=${r}`;
+    // Crawlers stop at this page and never reach the function, so copy the function's own preview tags
+    // (real show title, description, image, og:url = the go link) into it. Asking with a robot name
+    // gets the preview and counts no tap. If it can't be reached the page keeps the generic tags.
+    let tags = `<title>Get tickets</title><meta property="og:title" content="Get tickets"><meta property="og:image" content="${pub.siteUrl}/assets/og.jpg">`;
+    try {
+      const html = await (await fetch(to, { headers: { "user-agent": "Applebot/0.1 (build preview)" }, redirect: "manual", signal: AbortSignal.timeout(15000) })).text();
+      const metas = [...html.matchAll(/<meta property="(?:og|twitter):[a-z:_]+" content="[^"<>]*">/g)].map((m) => m[0]);
+      const title = /<title>([^<]*)<\/title>/.exec(html);
+      if (title && metas.some((m) => m.includes('property="og:title"')) && metas.some((m) => m.includes(`property="og:url" content="${pub.siteUrl}/go/${r}"`)))
+        tags = `<title>${title[1]}</title>\n${metas.join("\n")}`;
+      else console.warn(`build: no preview from the function for /go/${r}, using generic tags`);
+    } catch (e) { console.warn(`build: preview for /go/${r} unavailable, using generic tags:`, e.message); }
     mkdirSync(join(out, "go", r), { recursive: true });
     writeFileSync(join(out, "go", r, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>Get tickets</title><meta property="og:title" content="Get tickets"><meta property="og:image" content="${pub.siteUrl}/assets/og.jpg">
+<meta name="robots" content="noindex">${tags}
 <meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${JSON.stringify(to)});</script></head>
 <body style="background:#050505;color:#fff;font:16px Arial,sans-serif;text-align:center;padding:40px"><a href="${to}" style="color:#F2C14E">Get tickets</a></body></html>`);
     n++;
