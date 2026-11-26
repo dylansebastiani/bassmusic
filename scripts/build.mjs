@@ -92,8 +92,9 @@ function jpegSize(buf) {
   }
   return null;
 }
-// Every published promoter show gets its own page at /<slug>/ (a real page, so link previews in iMessage,
-// Instagram and Facebook show the show's own name and image).
+// Every approved, published promoter show gets its own page at /<slug>/ (a real page, so link previews
+// in iMessage, Instagram and Facebook show the show's own name and image). The list already leaves out
+// anything that isn't approved; the check below is a second lock on the title and share image.
 async function showPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
   let shows = [];
@@ -104,6 +105,7 @@ async function showPages() {
   let n = 0;
   for (const s of shows) {
     if (!/^[a-z0-9-]{1,80}$/.test(s.slug || "")) continue;
+    if (s.review_status && s.review_status !== "approved") { console.warn(`build: show "${s.slug}" is not approved, skipped`); continue; }
     // Never let a show's name shadow a real page or folder of the site.
     if (existsSync(join(out, s.slug)) || existsSync(join(out, s.slug + ".html"))) { console.warn(`build: show "${s.slug}" clashes with a site page, skipped`); continue; }
     const tags = `<title>${esc(s.name)}</title>\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">` +

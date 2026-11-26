@@ -23,7 +23,8 @@
 <script>/* Ask for the show while the rest of the page loads (not for draft previews, which need the staff sign-in). */
 /* The show is named by ?e=<slug>, or by the address itself: subduction.art/<slug>. */
 try{var _q=new URLSearchParams(location.search),_p=location.pathname.replace(/^\/+|\/+$/g,""),_e=(_q.get("e")||(/^[a-z0-9-]+$/i.test(_p)&&!/^(show|404)$/i.test(_p)?_p:"")).replace(/[^a-z0-9-]/gi,"").toLowerCase();window.__SHOW_SLUG=_e;
-if(_e&&_q.get("preview")!=="1"){var _g=function(f){return fetch((window.STACK||{}).supabaseUrl+"/functions/v1/"+f+"?e="+_e).then(function(r){return r.json().then(function(j){if(!r.ok){var x=new Error(j.error||"Not found");x.status=r.status;throw x}return j})})};window.__tix=_g("checkout").catch(function(x){if(x.status!==404)throw x;return _g("tickets")});window.__tix.catch(function(){})}}catch(e){}</script>
+var _tok="";try{_tok=localStorage.getItem("stack_admin")||"";}catch(e){}
+if(_e&&_q.get("preview")!=="1"&&!_tok){var _g=function(f){return fetch((window.STACK||{}).supabaseUrl+"/functions/v1/"+f+"?e="+_e).then(function(r){return r.json().then(function(j){if(!r.ok){var x=new Error(j.error||"Not found");x.status=r.status;throw x}return j})})};window.__tix=_g("checkout").catch(function(x){if(x.status!==404)throw x;return _g("tickets")});window.__tix.catch(function(){})}}catch(e){}</script>
 <title>Tickets · Subduction</title>
 </head>
 <body class="show">
