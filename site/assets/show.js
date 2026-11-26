@@ -239,9 +239,12 @@
       if (!checkEmail(true)) { $("bmsg").textContent = "Check your email address."; $("bemail").focus(); return; }
       if (!checkPhone(true)) { $("bmsg").textContent = "Add a phone number we can reach you at."; $("bphone").focus(); return; }
       $("go").disabled = true; $("bmsg").textContent = "Holding your tickets...";
+      // Promoter shows can pick up a street-team code saved with the visit. The original lane keeps the ref it already had.
+      var linkRef = ref || null;
+      if (data.lane === 2 && !linkRef && window.Stack && Stack.attr && Stack.attr.ref) linkRef = String(Stack.attr.ref).toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || null;
       Promise.all([
         fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, phone: phone, promo: $("bpromo").value.trim() || null, ref: ref || null, page: "show" }) })
+          body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, phone: phone, promo: $("bpromo").value.trim() || null, ref: data.lane === 2 ? linkRef : (ref || null), page: "show" }) })
           .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); if (!j.free) $("bmsg").textContent = "Tickets held. Opening secure checkout..."; return j; }); }),
         loadStripe(),
       ]).then(function (res) {

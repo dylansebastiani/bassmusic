@@ -91,3 +91,4 @@ body.pro{min-height:100vh;background:#000}
 .pro .card.ptrack .drop.tcover{display:flex;width:100%}
 .pro .card.ptrack label{display:block;margin-top:12px}
 .pro .card.ptrack input[type=text]{display:block;width:100%;box-sizing:border-box}
+.pro .streetcode{display:block;font-family:var(--mono,ui-monospace,monospace);font-size:13px;line-height:1.4;word-break:break-all}

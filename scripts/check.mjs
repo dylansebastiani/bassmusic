@@ -37,5 +37,6 @@ for (const dir of readdirSync(join(root, "supabase/functions"))) {
 }
 execSync("node scripts/artist-waitlist.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/referrals.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/street-links.test.mjs", { cwd: root, stdio: "inherit" });
 if (bad) { console.error(`${bad} problem(s)`); process.exit(1); }
 console.log("check passed");
