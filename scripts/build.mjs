@@ -28,7 +28,7 @@ for (const f of readdirSync(out)) {
   const p = join(out, f);
   // The music bar rides along on every public page. Staff pages (door, admin, people) stay quiet.
   // The homepage is promoter-first, so it stays quiet too, except for fans arriving from a show QR or friend link.
-  const bar = /^(door|admin|studio|promoter|demo|pass|people)\.html$/.test(f) ? ""
+  const bar = /^(door|admin|studio|promoter|demo|pass|people|shows-review)\.html$/.test(f) ? ""
     : f === "index.html" ? '<script>if(/[?&](e|r|src)=/.test(location.search)){var s=document.createElement("script");s.src="/assets/player.js";s.defer=true;document.head.appendChild(s);}</script>'
     : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
@@ -63,6 +63,10 @@ writeFileSync(join(out, "_redirects"), [
   "/promoter /promoter.html 200",
   "/ticket /ticket.html 200",
   "/door /door.html 200",
+  "/shows/review /shows-review.html 200",
+  "/shows /shows.html 200",
+  "/shows/ /shows.html 200",
+  "/shows/:city /shows.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,
   `/u/:token ${fn}/unsubscribe?u=:token 302`,
   "",
@@ -179,7 +183,49 @@ async function trackPages() {
   }
   console.log("built", n, "track preview pages");
 }
+// One page per city that already has an upcoming show, so a link like /shows/peoria-il
+// has its own title. If the directory function is not up yet, the main /shows page still works.
+const DIR_STATE = { IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", MI: "Michigan", MN: "Minnesota", MO: "Missouri", NE: "Nebraska", ND: "North Dakota", OH: "Ohio", SD: "South Dakota", WI: "Wisconsin" };
+async function directoryPages() {
+  if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
+  let shows = [];
+  try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
+  catch (e) { console.warn("build: could not fetch the show directory, city pages wait for the next build:", e.message); return; }
+  const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
+  const by = {};
+  for (const s of shows) {
+    if (!/^[a-z0-9-]{1,48}$/.test(s.path || "") || s.path === "review") continue;
+    (by[s.path] ||= []).push(s);
+  }
+  let n = 0;
+  for (const path of Object.keys(by)) {
+    const list = by[path];
+    const sample = list[0];
+    const where = [sample.city, DIR_STATE[sample.state] || sample.state].filter(Boolean).join(", ");
+    const title = where ? `Bass shows in ${where}` : "Midwest bass shows";
+    const desc = where ? `Upcoming bass shows in ${where}.` : "Upcoming bass shows across the Midwest, by city and date.";
+    const pageUrl = `${pub.siteUrl}/shows/${path}`;
+    const cards = list.map((s) => {
+      const href = esc(s.url);
+      const ext = /^https:\/\//.test(s.url || "");
+      const whereLine = [s.when, s.secret ? "Secret location" : s.venue, s.city, s.state].filter(Boolean).join(", ");
+      return `<a class="card" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div><h3>${esc(s.name)}</h3><p class="where">${esc(whereLine)}</p><span class="go">Tickets</span></div></a>`;
+    }).join("");
+    let html = baseHtml
+      .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
+      .replaceAll("Upcoming bass shows across the Midwest, by city and date.", desc)
+      .replaceAll("https://subduction.art/shows", pageUrl)
+      .replace(/<div id="list" class="days">[\s\S]*?<\/div>/, `<div id="list" class="days">${cards}</div>`)
+      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
+    if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
+    mkdirSync(join(out, "shows", path), { recursive: true });
+    writeFileSync(join(out, "shows", path, "index.html"), html);
+    n++;
+  }
+  console.log(`built ${n} city page(s)`);
+}
 await trackPages();
 await showPages();
 await goPages();
+await directoryPages();
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");
