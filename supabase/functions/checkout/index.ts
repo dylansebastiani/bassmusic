@@ -17,7 +17,9 @@ const FN = (Deno.env.get("SUPABASE_URL") || "") + "/functions/v1/checkout";
 const CONTACT = Deno.env.get("CONTACT_EMAIL") || "hello@subduction.art";
 const CARD_PCT = 0.029, CARD_FIXED = 30;
 const SLUG = /^[a-z0-9-]{1,80}$/, TOKEN = /^[0-9a-f]{48}$/, EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
-const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type, x-admin-token", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
+// The only review status a stranger can see. draft, submitted and rejected stay off the public page.
+const PUBLIC_REVIEW = "approved";
 const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS, ...extra } });
 const no = (m: string, s = 400) => json({ error: m }, s);
@@ -74,7 +76,7 @@ interface Tier { name: string; price_cents: number; qty: number }
 interface Co { id: string; slug: string; name: string; status: string; contact_email: string | null; stripe_account_id: string | null; stripe_charges_enabled: boolean; legacy_stripe: boolean; platform_fee_cents: number | null }
 async function loadShow(slug: string) {
   const { data: ev } = await db.from("events")
-    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,location_secret,address_reveal_at,company_id,page,page_published_at")
+    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,location_secret,address_reveal_at,company_id,page,page_published_at,review_status")
     .eq("slug", slug).maybeSingle();
   if (!ev || !ev.company_id) return null;
   const { data: co } = await db.from("companies").select("id,slug,name,status,contact_email,stripe_account_id,stripe_charges_enabled,legacy_stripe,platform_fee_cents").eq("id", ev.company_id).maybeSingle();
@@ -87,6 +89,20 @@ async function loadShow(slug: string) {
   const fee = typeof co.platform_fee_cents === "number" ? co.platform_fee_cents : await setting<number | null>("platform_fee_cents", null);
   const ready = co.status === "active" && !!co.stripe_account_id && co.stripe_charges_enabled && typeof fee === "number" && fee >= 0;
   return { ev, co: co as Co, nights: nights || [], types: types || [], fee: typeof fee === "number" ? fee : 0, ready };
+}
+// Dylan (anyone on the platform staff list) and the crew that owns this show can open it before it is public.
+// Everyone else gets nothing: no name, no art, no prices.
+async function mayPreview(req: Request, companyId: string): Promise<boolean> {
+  const token = (req.headers.get("x-admin-token") || "").trim();
+  if (!/^[0-9a-f]{64}$/.test(token)) return false;
+  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(token)).maybeSingle();
+  if (!s || new Date(s.expires_at).getTime() < Date.now()) return false;
+  const { data: m } = await db.from("subscribers").select("id,email,status").eq("id", s.subscriber_id).maybeSingle();
+  if (!m || m.status === "deleted") return false;
+  const admins = await setting<string[]>("admin_emails", []);
+  if (admins.map((e) => String(e).toLowerCase()).includes(String(m.email).toLowerCase())) return true;
+  const { data: row } = await db.from("company_staff").select("company_id").eq("subscriber_id", m.id).eq("company_id", companyId).maybeSingle();
+  return !!row;
 }
 async function availability(types: { id: string; slug: string; name: string; blurb: string | null; night_ids: string[]; tiers: Tier[]; on_sale: boolean }[]) {
   return await Promise.all(types.map(async (t) => {
@@ -234,8 +250,11 @@ Deno.serve(async (req) => {
     const x = await loadShow(slug);
     if (!x) return no("Not found", 404);
     const { ev, co, nights, types, fee, ready } = x;
+    // Shows on the original account never reach here (loadShow returns null), so /underground/ is untouched.
+    const staffView = ev.review_status !== PUBLIC_REVIEW;
+    if (staffView && !(await mayPreview(req, ev.company_id))) return no("Not live yet.", 403);
     return json({
-      lane: 2, by: co.name,
+      lane: 2, by: co.name, preview: staffView || undefined,
       event: { slug: ev.slug, name: ev.name, venue: ev.location_secret ? "Secret location" : ev.venue, city: ev.city, address: ev.location_secret ? null : ev.address,
         location_secret: ev.location_secret, description: ev.description, age: ev.age, poster_url: ev.poster_url, sales_open: !!ev.sales_open && ready, max_per_order: ev.max_per_order },
       nights: nights.map((n) => ({ id: n.id, slug: n.slug, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, lineup: n.lineup, flyer_url: n.lineup?.length ? n.flyer_url || null : null })),
@@ -293,6 +312,7 @@ Deno.serve(async (req) => {
   const x = await loadShow(slug);
   if (!x) return no("Not found", 404);
   const { ev, co, types, fee, ready } = x;
+  if (ev.review_status !== PUBLIC_REVIEW) return no("Not live yet.", 403);
   if (!ev.sales_open || !ready) return no("Ticket sales aren't open yet.");
 
   const want = (Array.isArray(b.items) ? b.items : []).slice(0, 10).map((i: Record<string, unknown>) => {

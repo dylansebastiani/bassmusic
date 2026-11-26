@@ -19,12 +19,15 @@
   function vis(d) { if (d && d.types && !TEST) d.types = d.types.filter(function (t) { return t.slug !== "test"; }); return d; }
 
   function load() {
-    var h = PREVIEW && staffToken() ? { "x-admin-token": staffToken() } : {};
-    // The show itself is fetched like any visitor would (no staff header), so this works with any ticket backend.
-    var get = function (fn) { return fetch(BASE + "/" + fn + "?e=" + slug).then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || "Not found"); e.status = r.status; throw e; } return vis(j); }); }); };
+    var token = staffToken();
+    var h = token ? { "x-admin-token": token } : {};
+    // The staff header goes only to the promoter lane, and only when this browser is signed in
+    // (Dylan's studio, or the crew that owns the show). The original tickets lane is asked with
+    // no header, the same way a visitor asks, so /underground/ is never sent down another path.
+    var get = function (fn, headers) { return fetch(BASE + "/" + fn + "?e=" + slug, headers ? { headers: headers } : undefined).then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error || "Not found"); e.status = r.status; throw e; } return vis(j); }); }); };
     // Promoters on their own Stripe are served by the second lane; everything else by the original one.
-    // Only a clear "not on this lane" answer falls through, so a hiccup can never send a sale down the wrong lane.
-    var show = get("checkout").catch(function (e) { if (e.status !== 404) throw e; return get("tickets"); });
+    // Only a clear "not on this lane" (404) falls through. "Not live yet" (403) stops here.
+    var show = get("checkout", token ? h : null).catch(function (e) { if (e.status !== 404) throw e; return get("tickets"); });
     if (!PREVIEW || !staffToken()) return show;
     // Preview: the working draft (and the fee) come from the studio's own backend, so previews work
     // whichever version of the ticket backend is running.
@@ -308,7 +311,8 @@
   // Count the visit. The first show's own page is left alone.
   if (window.Stack && slug !== "underground") window.Stack.pageview(slug ? "/" + slug : "/show");
   if (!slug) { miss("No show picked."); return; }
-  (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
+  // A signed-in promoter or Dylan skips the anonymous prefetch: that one would hide their own show.
+  (window.__tix && !staffToken() ? window.__tix.then(vis) : load()).then(function (d) {
     data = d; if (d.lane === 2) FN = BASE + "/checkout";
     // The first show keeps its own original tickets page, exactly as before.
     if (!d.page && !PREVIEW && slug === "underground") { location.replace("tickets.html?e=" + encodeURIComponent(slug)); return; }
@@ -319,5 +323,14 @@
     // Every other show: its published design if it has one, otherwise a plain page with no one else's look on it.
     return fetch((C.supabaseUrl || "") + "/functions/v1/shows?e=" + slug).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
       .then(function (x) { d.page = (x && x.page && x.page.theme && x.page.sections) ? x.page : plainPage(d); go(); });
-  }).catch(function (e) { miss(e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again."); });
+  }).catch(function (e) {
+    if (e && (e.status === 403 || e.message === "Not live yet.")) {
+      var rob = document.querySelector('meta[name="robots"]');
+      if (!rob) { rob = document.createElement("meta"); rob.setAttribute("name", "robots"); document.head.appendChild(rob); }
+      rob.setAttribute("content", "noindex");
+      miss("Not live yet.");
+      return;
+    }
+    miss(e && e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again.");
+  });
 })();
