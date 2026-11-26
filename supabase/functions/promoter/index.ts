@@ -22,6 +22,8 @@ import { SITE_URL } from "../_shared/config.ts";
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
 const HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
 const TZ = "America/Chicago";   // show times are entered as local Central time for now
+// Live show. show-save returns before any write when the show is this one.
+const UNDERGROUND_EVENT_ID = "63b511f3-d838-404f-9c2e-5d4b98fbf013";
 const KINDS = ["logo", "partners", "figure", "hero", "hero_small", "flyer", "icon", "subtitle", "video", "share"];
 const EXT: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4" };
 const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
@@ -191,6 +193,8 @@ Deno.serve(async (req) => {
   }
 
   if (a === "show-save") {
+    // No writes to the live show. Checked again before the artist-pass insert below.
+    if (show && (show.slug === "underground" || show.id === UNDERGROUND_EVENT_ID)) return no("This show can't be changed here.", 409);
     if (show && !["draft", "rejected"].includes(show.review_status) && !st.owner) return no("This show is already with Subduction. Message us to change details.", 409);
     const s = (b.details || {}) as Record<string, any>;
     const name = clean(s.name, 100) || "";
@@ -212,10 +216,12 @@ Deno.serve(async (req) => {
     }));
     if (!tickets.length || tickets.some((t: any) => !t.name || !t.nights.length || !t.tiers.length)) return no("Each ticket needs a name, which night(s) it's for, and at least one price and quantity.");
     if (new Set(tickets.map((t: any) => t.slug)).size !== tickets.length) return no("Two tickets have the same name.");
+    if (tickets.some((t: any) => t.slug === "artist")) return no("Artist is reserved for artist passes. Name that ticket something else.");
 
     const fields = { name, city: clean(s.city, 80), venue: secret ? null : clean(s.venue, 120), age, location_secret: secret, address_reveal_at: reveal?.toISOString() || null,
       starts_at: nights[0]!.starts_at, ends_at: nights[nights.length - 1]!.ends_at, company_id: companyId };
     let id = show?.id as string | undefined;
+    let eventSlug = show?.slug || "";
     if (id) {
       const { count: sold } = await db.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", id);
       if ((sold ?? 0) > 0) return no("Tickets have already been issued for this show, so its nights and prices can't change here.", 409);
@@ -224,6 +230,8 @@ Deno.serve(async (req) => {
     else {
       let slug = slugify(name) || "show";
       if ((await db.from("events").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
+      if (slug === "underground") return no("This show can't be changed here.", 409);
+      eventSlug = slug;
       const { data: ev, error } = await db.from("events").insert({ ...fields, slug, sales_open: false, review_status: "draft" }).select("id").single();
       if (error || !ev) return no("Couldn't save the show.", 500);
       id = ev.id;
@@ -236,6 +244,14 @@ Deno.serve(async (req) => {
     const byIdx = (ns || []).sort((x, y) => x.sort - y.sort).map((n) => n.id);
     await db.from("ticket_types").insert(tickets.map((t: any) => ({ event_id: id, slug: t.slug, name: t.name, night_ids: t.nights.map((i: number) => byIdx[i]), tiers: t.tiers, on_sale: true, sort: t.sort,
       blurb: t.nights.length > 1 ? "All nights, one ticket" : null })));
+    // Artist Pass, same shape as migration 0020. Not for sale, no prices, every night of this show.
+    // Insert only. The live show is excluded above, before any write, and again here.
+    if (eventSlug !== "underground" && id !== UNDERGROUND_EVENT_ID) {
+      const { error: artistErr } = await db.from("ticket_types").insert({
+        event_id: id, slug: "artist", name: "Artist Pass", blurb: "Artists only", night_ids: byIdx, tiers: [], on_sale: false, sort: 99,
+      });
+      if (artistErr) return no("Couldn't set up artist passes for this show.", 500);
+    }
     return ok({ show: { id } });
   }
 
