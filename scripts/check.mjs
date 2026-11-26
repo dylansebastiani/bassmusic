@@ -34,5 +34,6 @@ for (const dir of readdirSync(join(root, "supabase/functions"))) {
     if (/eyJ[A-Za-z0-9_-]{30,}\./.test(src)) fail(`${dir}/${f}: looks like a JWT is hard-coded`);
   }
 }
+execSync("node scripts/artist-waitlist.test.mjs", { cwd: root, stdio: "inherit" });
 if (bad) { console.error(`${bad} problem(s)`); process.exit(1); }
 console.log("check passed");
