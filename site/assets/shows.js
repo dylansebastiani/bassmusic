@@ -21,29 +21,25 @@
     try { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
     catch (e) { return ""; }
   }
-  function place(s) {
-    var where = s.secret ? "Secret location" : s.venue;
-    return [where, s.city, s.state].filter(Boolean).join(", ");
-  }
   function card(s) {
     var ext = /^https:\/\//i.test(s.url || "");
     var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="">' : "";
-    return '<a class="card' + (img ? "" : " noart") + '" href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" +
-      img + "<div><h3>" + esc(s.name) + '</h3><p class="where">' + esc(place(s)) + '</p><span class="go">Tickets</span></div></a>';
+    var frame = img
+      ? '<span class="frame">' + img + '<span class="tickets">Tickets</span></span>'
+      : '<span class="frame blank"><span class="tickets">Tickets</span></span>';
+    var venue = s.secret ? "Secret location" : (s.venue || "");
+    var city = [s.city, s.state].filter(Boolean).join(", ");
+    return '<a class="poster' + (img ? "" : " noart") + '" href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" +
+      frame + '<span class="meta"><span class="when">' + esc(s.when || "") + "</span><h3>" + esc(s.name) + "</h3>" +
+      (venue ? '<span class="venue">' + esc(venue) + "</span>" : "") +
+      '<span class="city">' + esc(city) + "</span></span></a>";
+  }
+  function quiet(title, line) {
+    return '<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">' + title + "</p><p>" + line + "</p></div>";
   }
   function paint(list) {
-    if (!list.length) { $("list").innerHTML = '<p class="empty">No shows on that search yet.</p>'; return; }
-    var days = {};
-    list.forEach(function (s) {
-      var d = (s.dates && s.dates[0]) || "";
-      var label = s.when || d;
-      if (!days[d]) days[d] = { label: label, shows: [] };
-      days[d].shows.push(s);
-    });
-    $("list").innerHTML = Object.keys(days).sort().map(function (d) {
-      var day = days[d];
-      return '<section class="day"><h2>' + esc(day.label) + "</h2>" + day.shows.map(card).join("") + "</section>";
-    }).join("");
+    if (!list.length) { $("list").innerHTML = quiet("Nothing <em>up.</em>", "No shows match this search."); return; }
+    $("list").innerHTML = list.map(card).join("");
   }
   function chosen() {
     return { q: $("q").value.trim().toLowerCase(), state: $("state").value, city: $("city").value, date: $("on").value };
@@ -85,6 +81,12 @@
     }
     cityOptions($("state").value);
     if (locked) $("city").value = locked;
+    var hit = null;
+    all.forEach(function (s) { if (s.path === locked) hit = s; });
+    if (hit && $("title")) {
+      $("kick").textContent = [hit.city, STATES[hit.state] || hit.state].filter(Boolean).join(", ");
+      $("title").innerHTML = esc(hit.city) + " <em>shows.</em>";
+    }
   }
 
   $("filters").addEventListener("submit", function (e) { e.preventDefault(); });
@@ -99,6 +101,14 @@
     });
   });
   $("clear").addEventListener("click", function () { $("on").value = ""; apply(); });
+  $("flyer").addEventListener("change", function () {
+    var file = $("flyer").files && $("flyer").files[0];
+    var img = $("preview");
+    if (!file || !img) return;
+    var reader = new FileReader();
+    reader.onload = function () { img.src = reader.result; img.hidden = false; $("dropcopy").hidden = true; };
+    reader.readAsDataURL(file);
+  });
 
   function say(t) { $("msg").textContent = t; }
   function showDone() { $("form").hidden = true; $("done").hidden = false; }
@@ -140,6 +150,6 @@
     fillFilters();
     apply();
   }).catch(function () {
-    if (!$("list").querySelector(".card")) $("list").innerHTML = '<p class="empty">The list isn\'t loading. Try again in a minute.</p>';
+    if (!$("list").querySelector(".poster")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
   });
 })();

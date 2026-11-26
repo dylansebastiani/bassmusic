@@ -208,14 +208,21 @@ async function directoryPages() {
     const cards = list.map((s) => {
       const href = esc(s.url);
       const ext = /^https:\/\//.test(s.url || "");
-      const whereLine = [s.when, s.secret ? "Secret location" : s.venue, s.city, s.state].filter(Boolean).join(", ");
-      return `<a class="card" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div><h3>${esc(s.name)}</h3><p class="where">${esc(whereLine)}</p><span class="go">Tickets</span></div></a>`;
+      const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
+      const frame = img
+        ? `<span class="frame">${img}<span class="tickets">Tickets</span></span>`
+        : `<span class="frame blank"><span class="tickets">Tickets</span></span>`;
+      const venue = s.secret ? "Secret location" : (s.venue || "");
+      const city = [s.city, s.state].filter(Boolean).join(", ");
+      return `<a class="poster${img ? "" : " noart"}" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}>${frame}<span class="meta"><span class="when">${esc(s.when || "")}</span><h3>${esc(s.name)}</h3>${venue ? `<span class="venue">${esc(venue)}</span>` : ""}<span class="city">${esc(city)}</span></span></a>`;
     }).join("");
     let html = baseHtml
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
+      .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where || "Midwest")}</p>`)
+      .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(sample.city || "Bass")} <em>shows.</em></h1>`)
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", desc)
       .replaceAll("https://subduction.art/shows", pageUrl)
-      .replace(/<div id="list" class="days">[\s\S]*?<\/div>/, `<div id="list" class="days">${cards}</div>`)
+      .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, `<div id="list" class="wall">${cards}</div>`)
       .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
     mkdirSync(join(out, "shows", path), { recursive: true });
