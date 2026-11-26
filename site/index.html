@@ -18,7 +18,14 @@
 <meta name="twitter:description" content="Your show, your page, your money. Custom event pages, tickets and a door app for promoters, free pages for artists, free tracks for fans. Buyers pay a flat $1.50.">
 <meta name="twitter:image" content="https://subduction.art/assets/og.jpg">
 <script>document.documentElement.className="js"</script>
-<link rel="stylesheet" href="assets/fonts.css">
+<link rel="preload" href="assets/fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>@font-face{font-family:"Anton";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/anton-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Bungee";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/bungee-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/archivo-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/archivo-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/archivo-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Space Mono";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/space-mono-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Space Mono";font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/space-mono-latin-700-normal.woff2) format("woff2")}</style>
 <style>
 /* Promoters first, artists second, fans third. Black, white, acid green. Mobile first. */
 :root{--bg:#000;--fg:#f4f1ee;--mute:#9a9490;--line:#2a2627;--hot:#b6ff00;
@@ -320,7 +327,7 @@ html:not(.js) .rv{opacity:1;transform:none}
 
 <!-- 1. The pitch, for everyone -->
 <section class="sec hero" id="top" aria-label="Subduction">
-  <figure class="hero-art" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/flyer.webp"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></picture></figure>
+  <figure class="hero-art" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/flyer-m.webp" width="720" height="1280"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></picture></figure>
   <p class="kick rv">Ticketing for the underground</p>
   <h1 class="disp rv">Your show.<br>Your page.<br>Your <em>money.</em></h1>
   <p class="lead rv"><span class="long">Tickets for underground shows. Promoters get a custom page in their own brand and keep their money. Artists get a free page. Fans get free music.</span><span class="short">Custom ticket pages for underground shows.</span></p>
@@ -553,7 +560,7 @@ window.Stack = (function () {
 
   // ---------- Logo: one mark, everywhere ----------
   var MARK = '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg>';
-  function markHTML() { return C.logoUrl ? '<img class="mark" src="' + esc(C.logoUrl) + '" alt="">' : MARK; }
+  function markHTML() { return C.logoUrl ? '<img class="mark" src="assets/logo-64.webp" width="64" height="64" alt="">' : MARK; }
   all(".logo").forEach(function (el) { el.innerHTML = markHTML(); });
 
   // ---------- Bits from config ----------
@@ -601,7 +608,7 @@ window.Stack = (function () {
     if (!fixed && /\.(con|cmo|ocm|vom|cm)$/.test(dom)) fixed = dom.replace(/\.(con|cmo|ocm|vom|cm)$/, ".com");
     return fixed && fixed !== dom ? email.slice(0, at + 1) + fixed : null;
   }
-  // Bot check. Starts as soon as the page loads so the pass is usually ready
+  // Bot check. Loads when the email field is focused (not on page load, it is ~2 MB), so the pass is usually ready
   // before they finish typing; submit waits for the pass itself, not just the script.
   // No size is forced: an Invisible widget shows nothing, and a Managed one shows a
   // checkbox only if Cloudflare actually needs a tap (interaction-only).
@@ -620,7 +627,6 @@ window.Stack = (function () {
     loadTurnstile();
     return new Promise(function (res) { tsWaiters.push(res); setTimeout(res, ms); });
   }
-  if (document.readyState === "complete") loadTurnstile(); else addEventListener("load", loadTurnstile);
   function go(res) {
     if (res.check_email) return askCode(res);
     remember(res.access_token);
