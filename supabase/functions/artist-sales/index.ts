@@ -50,6 +50,42 @@ async function showUrl(ev: Ev) {
 }
 const linkFor = (url: string, ref: string) => url + (url.includes("?") ? "&" : "?") + "ref=" + encodeURIComponent(ref);
 
+// Link-preview robots (iMessage, Instagram, Facebook...) get a tiny page instead of the redirect. Its og:url is
+// the short link itself, so tapping the preview bubble comes back through /go/<tag> and keeps the credit.
+// Title, text and image are copied from the show's own page (falling back to the show's saved details).
+const ogTag = (html: string, p: string) => {
+  const m = html.match(new RegExp(`<meta[^>]+property="og:${p}"[^>]*content="([^"]*)"`, "i"));
+  return m ? m[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") : "";
+};
+async function previewPage(ev: Ev, tag: string) {
+  const url = await showUrl(ev);
+  const { data: d } = await db.from("events").select("description,share_url,poster_url").eq("id", ev.id).maybeSingle();
+  let title = ev.name || "Get tickets", desc = String(d?.description || "").slice(0, 300), image = d?.share_url || d?.poster_url || `${SITE}/assets/og.jpg`, alt = "";
+  // tickets.html?e=<slug> fills its tags in the browser, so only real per-show pages are read here.
+  if (!url.includes("tickets.html")) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        const h = await r.text();
+        title = ogTag(h, "title") || title; desc = ogTag(h, "description") || desc;
+        image = ogTag(h, "image") || image; alt = ogTag(h, "image:alt");
+      }
+    } catch { /* keep the saved details */ }
+  }
+  const go = short(tag);
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>${esc(title)}</title>
+<meta property="og:type" content="website">
+<meta property="og:url" content="${esc(go)}">
+<meta property="og:title" content="${esc(title)}">
+${desc ? `<meta property="og:description" content="${esc(desc)}">\n` : ""}<meta property="og:image" content="${esc(image)}">
+<meta property="og:image:secure_url" content="${esc(image)}">${alt ? `\n<meta property="og:image:alt" content="${esc(alt)}">` : ""}
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="${esc(go)}">
+</head><body><a href="${esc(go)}">${esc(title)}</a></body></html>`;
+  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+}
+
 // Give an artist their tag and code the first time anyone looks. Tags are unique across every show, so a short
 // link always means exactly one artist on one show. Codes are $0 off and never run out.
 async function ensure(inv: Inv): Promise<Inv> {
@@ -295,7 +331,8 @@ Deno.serve(async (req) => {
       const { data: inv } = await db.from("artist_invites").select(INV_COLS).ilike("sell_ref", go).is("revoked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (inv) {
         const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("id", inv.event_id).single();
-        if (human) await db.from("artist_clicks").insert({ invite_id: inv.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
+        if (!human) return previewPage(ev as Ev, inv.sell_ref!);
+        await db.from("artist_clicks").insert({ invite_id: inv.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
         return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), inv.sell_ref!), "Cache-Control": "no-store" } });
       }
       // Not an artist: a tracked link (flyer, poster, handbill...).
