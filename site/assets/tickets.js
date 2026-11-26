@@ -91,7 +91,9 @@
     $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; }) ||
       (!up.length && data.nights.some(function (n) { return (n.lineup || []).some(function (a) { return a.tba; }); }));
     if (up.length) $("flyers").innerHTML = up.map(function (n) {
-      return '<a href="' + esc(n.flyer_url) + '" target="_blank" rel="noopener"><img src="' + esc(n.flyer_url) + '" alt="' + esc(n.label) + ' flyer" loading="lazy"></a>';
+      // Show the small local thumb; the full upload is only the click-through link.
+      var thumb = "assets/toftu/poster-" + (data.nights.indexOf(n) % 2 ? "sat" : "fri") + "-sm.webp";
+      return '<a href="' + esc(n.flyer_url) + '" target="_blank" rel="noopener"><img src="' + thumb + '" alt="' + esc(n.label) + ' flyer" width="480" height="600" loading="lazy"></a>';
     }).join("");
     renderTypes();
     $("loading").hidden = true; $("ev").hidden = false;
