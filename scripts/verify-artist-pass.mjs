@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname;
-const migrationPath = join(root, "supabase/migrations/0048_artist_pass_backfill.sql");
+const migrationPath = join(root, "supabase/migrations/0049_artist_pass_backfill.sql");
 const promoterPath = join(root, "supabase/functions/promoter/index.ts");
 const migration = readFileSync(migrationPath, "utf8");
 const promoter = readFileSync(promoterPath, "utf8");
