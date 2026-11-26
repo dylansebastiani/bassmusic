@@ -164,15 +164,36 @@ async function staffRole(req: Request, companyId: string | null): Promise<"admin
 // Preview robots get a tiny page instead of the redirect: the event page's own preview tags (read live from the
 // event page), but with og:url = the short link, so tapping the bubble comes back through /go/<tag> and keeps credit.
 const unesc = (s: string) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-async function previewPage(eventPage: string, canonical: string, fallbackTitle: string) {
-  const tags: [string, string][] = [];
+// Legacy shows live on tickets.html?e=<slug>, whose raw HTML carries T.O.F.T.U.'s hardcoded tags (the browser
+// rewrites them later). Never scrape those; build the preview from the show's own row instead.
+async function dbPreview(evId: string, fallbackTitle: string): Promise<[string, string][]> {
+  const { data: d } = await db.from("events").select("name,venue,city,starts_at,location_secret,share_url,poster_url").eq("id", evId).maybeSingle();
+  const name = d?.name || fallbackTitle;
+  let when = "";
+  if (d?.starts_at) { try { when = new Date(d.starts_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" }); } catch { /* skip the date */ } }
+  const where = d?.location_secret ? d?.city : [d?.venue, d?.city].filter(Boolean).join(", ");
+  const desc = [when, where].filter(Boolean).join(" · ");
+  const image = d?.share_url || d?.poster_url;
+  const tags: [string, string][] = [["og:title", name]];
+  if (desc) tags.push(["og:description", desc]);
+  if (image) tags.push(["og:image", image], ["twitter:card", "summary_large_image"]);
+  return tags;
+}
+async function previewPage(eventPage: string, canonical: string, fallbackTitle: string, evId: string) {
+  let tags: [string, string][] = [];
+  const legacy = /\/tickets\.html\?(?:[^#]*&)?e=/i.test(eventPage);
   try {
-    const r = await fetch(eventPage, { headers: { "user-agent": "stack-preview/1" }, signal: AbortSignal.timeout(4000) });
-    const html = r.ok ? (await r.text()).slice(0, 200000) : "";
-    for (const m of html.matchAll(/<meta\s[^>]*>/gi)) {
-      const prop = /(?:property|name)\s*=\s*"((?:og|twitter):[^"]*)"/i.exec(m[0])?.[1];
-      const content = /content\s*=\s*"([^"]*)"/i.exec(m[0])?.[1];
-      if (prop && content !== undefined && prop.toLowerCase() !== "og:url") tags.push([prop.toLowerCase(), unesc(content)]);
+    if (legacy) tags = await dbPreview(evId, fallbackTitle);
+    else {
+      const r = await fetch(eventPage, { headers: { "user-agent": "stack-preview/1" }, signal: AbortSignal.timeout(4000) });
+      const html = r.ok ? (await r.text()).slice(0, 200000) : "";
+      // Attribute values may be double- or single-quoted.
+      const attr = (tag: string, n: string) => { const m = new RegExp(`(?:^|[\\s"'])${n}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i").exec(tag); return m ? (m[1] ?? m[2]) : undefined; };
+      for (const m of html.matchAll(/<meta\s[^>]*>/gi)) {
+        const prop = attr(m[0], "property") ?? attr(m[0], "name");
+        const content = attr(m[0], "content");
+        if (prop && /^(og|twitter):/i.test(prop) && content !== undefined && prop.toLowerCase() !== "og:url") tags.push([prop.toLowerCase(), unesc(content)]);
+      }
     }
   } catch { /* fall back to the show name below */ }
   if (!tags.some(([p]) => p === "og:title")) tags.push(["og:title", fallbackTitle]);
@@ -316,7 +337,7 @@ Deno.serve(async (req) => {
       const { data: inv } = await db.from("artist_invites").select(INV_COLS).ilike("sell_ref", go).is("revoked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (inv) {
         const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("id", inv.event_id).single();
-        if (!human) return previewPage(await showUrl(ev as Ev), short(inv.sell_ref!), (ev as Ev).name);
+        if (!human) return previewPage(await showUrl(ev as Ev), short(inv.sell_ref!), (ev as Ev).name, (ev as Ev).id);
         await db.from("artist_clicks").insert({ invite_id: inv.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
         return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), inv.sell_ref!), "Cache-Control": "no-store" } });
       }
@@ -324,7 +345,7 @@ Deno.serve(async (req) => {
       const { data: tl } = await db.from("track_links").select("id,event_id,tag").ilike("tag", go).is("revoked_at", null).limit(1).maybeSingle();
       if (!tl) return Response.redirect(SITE, 302);
       const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("id", tl.event_id).single();
-      if (!human) return previewPage(await showUrl(ev as Ev), short(tl.tag), (ev as Ev).name);
+      if (!human) return previewPage(await showUrl(ev as Ev), short(tl.tag), (ev as Ev).name, (ev as Ev).id);
       await db.from("track_clicks").insert({ link_id: tl.id, ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|go") });
       return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), tl.tag), "Cache-Control": "no-store" } });
     }
