@@ -109,7 +109,7 @@ async function sendSignin(email: string) {
 <body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
 <tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">Tap to sign in</td></tr>
-<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Your tickets, your shows and your crews, all in one place. No code, no password.</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Use the button or the code below to sign in.</td></tr>
 <tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:16px;font-weight:bold;text-align:center;text-decoration:none;padding:16px 12px;text-transform:uppercase;letter-spacing:1px">Sign me in</a></td></tr>
 <tr><td style="padding:20px 24px 0;${F};font-size:13px;line-height:1.5;color:#9a958f;text-align:center">Or type this code on the sign-in page:</td></tr>
 <tr><td style="padding:6px 24px 0;font-family:Courier,monospace;font-size:34px;font-weight:bold;letter-spacing:8px;color:#f4f1ee;text-align:center">${code}</td></tr>

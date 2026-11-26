@@ -72,9 +72,9 @@ async function sendSigninLink(email: string): Promise<boolean> {
 <tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">Tap to sign in</td></tr>
 <tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">This button signs you in to your promoter account on this device. No code, no password.</td></tr>
 <tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:16px;font-weight:bold;text-align:center;text-decoration:none;padding:16px 12px;text-transform:uppercase;letter-spacing:1px">Sign me in</a></td></tr>
-<tr><td style="padding:18px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.<br>Subduction · ${esc(await setting("mailing_address", "PO Box TBD, Bloomington, IL 61701"))}</td></tr>
+<tr><td style="padding:18px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = ["Tap to sign in to your Subduction promoter account:", url, "", "Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.", "Subduction"].join("\n");
+  const text = ["Tap to sign in to your Subduction promoter account:", url, "", "Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes."].join("\n");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ sender: { name: "Subduction", email: Deno.env.get("FROM_EMAIL") || CONTACT }, to: [{ email }], subject: "Your Subduction sign-in button", htmlContent: html, textContent: text, tags: ["signin"] }) });
   if (!r.ok) { console.error("demo: sign-in email failed", r.status, (await r.text().catch(() => "")).slice(0, 200)); return false; }

@@ -1,6 +1,6 @@
 import { db, setting } from "../_shared/db.ts";
 import { json, err } from "../_shared/util.ts";
-import { render, unsubUrl, type Member } from "../_shared/templates.ts";
+import { render, unsubUrl, isLoginCode, type Member } from "../_shared/templates.ts";
 import { brevo as provider } from "../_shared/email/brevo.ts";   // <- swap provider here
 import { SITE_URL } from "../_shared/config.ts";
 import { welcomeExtra } from "../_shared/sendnow.ts";
@@ -44,9 +44,11 @@ Deno.serve(async (req) => {
     const r = render(key, s, extra);
     if (!r) { await db.from("email_queue").update({ status: "failed", last_error: "unknown template " + row.template_key }).eq("id", row.id); failed++; continue; }
 
+    // Same rule as sendNow: a retried sign-in code stays free of bulk headers.
+    // Welcome, nudges and the rest still carry List-Unsubscribe.
     const res = await provider.send({
       to: { email: s.email, name: s.first_name }, subject: r.subject, html: r.html, text: r.text, tags: [key],
-      headers: {
+      headers: isLoginCode(key) ? undefined : {
         "List-Unsubscribe": `<${unsubUrl(s)}>, <mailto:${Deno.env.get("FROM_EMAIL") || "unsubscribe@" + new URL(SITE_URL).hostname}?subject=unsubscribe>`,
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       },

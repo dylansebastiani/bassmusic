@@ -1,5 +1,5 @@
 import { db } from "./db.ts";
-import { render, unsubUrl, type Member } from "./templates.ts";
+import { render, unsubUrl, isLoginCode, type Member } from "./templates.ts";
 import { brevo as provider } from "./email/brevo.ts";   // <- swap provider here
 import { SITE_URL } from "./config.ts";
 
@@ -9,9 +9,11 @@ import { SITE_URL } from "./config.ts";
 export async function sendNow(m: Member, rowId: string, key: string, extra?: Record<string, unknown>) {
   const r = render(key, m, extra);
   if (!r) return false;
+  // Login codes are mail the person just asked for. List-Unsubscribe marks a
+  // message as bulk, and Gmail files those under Promotions. Other keys keep it.
   const res = await provider.send({
     to: { email: m.email, name: m.first_name }, subject: r.subject, html: r.html, text: r.text, tags: [key],
-    headers: {
+    headers: isLoginCode(key) ? undefined : {
       "List-Unsubscribe": `<${unsubUrl(m)}>, <mailto:${Deno.env.get("FROM_EMAIL") || "unsubscribe@" + new URL(SITE_URL).hostname}?subject=unsubscribe>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
