@@ -2,6 +2,7 @@
 // promoter and staff apps ("stack_admin"), so the promoter app opens already signed in.
 (function () {
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/account";
+  if (window.Stack) Stack.pageview("/me");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };

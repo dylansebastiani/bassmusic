@@ -5,10 +5,12 @@ import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
+import { brevo } from "../_shared/email/brevo.ts";
 import { SITE_URL } from "../_shared/config.ts";
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
+//   POST {a:"lead", email}                                public: save a new promoter email, sync it to Brevo, tell Dylan
 //   POST {a:"login", email} / {a:"verify", email, code}   email + 6-digit code; company staff (or Dylan) only
 //   GET  ?a=me                                            my companies (brand kit), their shows and checklists
 //   POST {a:"company-create", name, owner_email}          Dylan only: add a promoter company and its owner
@@ -25,6 +27,58 @@ const TZ = "America/Chicago";   // show times are entered as local Central time 
 const KINDS = ["logo", "partners", "figure", "hero", "hero_small", "flyer", "icon", "subtitle", "video", "share"];
 const EXT: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4" };
 const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+// Keep the site name and the path. Drop the query, so a referrer can't carry an email or a token into the row.
+function safeRef(v: unknown): string | null {
+  const s = clean(v, 300);
+  if (!s || !/^https?:\/\//i.test(s)) return null;
+  try { const u = new URL(s); return (u.origin + u.pathname).slice(0, 200); } catch { return null; }
+}
+// true = this address is on an artist pass or a duo/group slot. null = we could not check, so send nothing.
+async function artistContact(email: string): Promise<boolean | null> {
+  const same = (e: string | null) => String(e || "").trim().toLowerCase() === email;
+  const [a, m] = await Promise.all([
+    db.from("artist_invites").select("email").ilike("email", email).limit(8),
+    db.from("artist_members").select("email").ilike("email", email).limit(8),
+  ]);
+  if (a.error || m.error) return null;
+  return (a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email));
+}
+// Same contact write crm-sync does, for a promoter who is not an artist. A buyer keeps that label.
+// If the list isn't ready yet, crm-sync retries. Never call this with an artist address.
+async function syncLead(email: string, source: string): Promise<boolean> {
+  const key = Deno.env.get("BREVO_API_KEY");
+  const listId = await setting<number | null>("brevo_all_list_id", null);
+  if (!key || !listId) return false;
+  const { data: orders } = await db.from("ticket_orders").select("email").ilike("email", email).in("status", ["paid", "comp"]).limit(5);
+  const buyer = (orders || []).some((r) => String(r.email || "").trim().toLowerCase() === email);
+  const body: Record<string, unknown> = { email, updateEnabled: true, listIds: [listId] };
+  if (!buyer) body.attributes = { ROLE: "Promoter", SOURCE: source };
+  const r = await fetch("https://api.brevo.com/v3/contacts", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+  return !!r && (r.ok || r.status === 204);
+}
+// The same Brevo send the promoter invite uses. Straight to Dylan, not through the email runner.
+// The person who typed the address is never a recipient, and neither is any artist contact.
+async function tellDylan(email: string, info: { source: string; utm_medium: string | null; utm_campaign: string | null; referrer: string | null }) {
+  try {
+    const list = ((await setting<string[]>("admin_emails", [])) || []).map((e) => String(e).toLowerCase()).filter((e) => EMAIL_RE.test(e) && e !== email);
+    const to: string[] = [];
+    for (const addr of list) { const artist = await artistContact(addr); if (artist === false) to.push(addr); }
+    if (!to.length) return;
+    const lines = ["New promoter signup", "", "Email: " + email, "Source: " + info.source];
+    if (info.utm_medium) lines.push("Medium: " + info.utm_medium);
+    if (info.utm_campaign) lines.push("Campaign: " + info.utm_campaign);
+    if (info.referrer) lines.push("Referrer: " + info.referrer);
+    lines.push("", "They typed it at " + SITE_URL + "/promoter");
+    const addr = String(await setting("mailing_address", ""));
+    if (addr && !/TBD/i.test(addr)) lines.push("", "Subduction", addr);
+    const text = lines.join("\n"), html = "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>";
+    for (const one of to) {
+      const res = await brevo.send({ to: { email: one }, subject: "New promoter signup", html, text, tags: ["promoter-lead"], fromName: "Subduction leads" });
+      if (!res.ok) console.error("promoter: lead email failed", res.status, res.error);
+    }
+  } catch (e) { console.error("promoter: lead email failed", (e as Error).message); }
+}
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(6))).map((b) => b.toString(16).padStart(2, "0")).join("");
 
 // "2027-01-08" + "18:00" in Central time -> an exact moment, daylight saving included.
@@ -78,6 +132,8 @@ Deno.serve(async (req) => {
     const allowed = !!m && m.status !== "deleted" && ((count ?? 0) > 0 || await isAdminEmail(email));
     // Same answer either way, so this can't be used to find out who's a promoter.
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
+    // Artist pass mail is sent on its own. This screen never emails an artist contact.
+    if (a === "login" && await artistContact(email) !== false) return ok({ code_sent: true });
     if (a === "login") { await sendSignin(m as SigninMember); return ok({ code_sent: true }); }
     const code = (clean(b.code, 12) || "").replace(/\D/g, "");
     const { data: c } = await db.from("signin_codes").select("id,code_hash,expires_at,attempts").eq("subscriber_id", m!.id).is("used_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -101,6 +157,35 @@ Deno.serve(async (req) => {
     const { data: m } = await db.from("subscribers").select("email,status").eq("id", c.subscriber_id).maybeSingle();
     if (!m || m.status === "deleted") return bad();
     return ok({ token: await newSession(c.subscriber_id), email: m.email });
+  }
+
+  // A promoter email from the sign-in screen. Same answer either way, so this can't be used to find out who's already on a crew.
+  if (a === "lead") {
+    if (clean(b.hp_field, 200) || clean(b.website, 200) || clean(b.company, 200)) return ok({ ok: true });
+    const email = (clean(b.email, 254) || "").toLowerCase();
+    if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
+    const salt = await setting("ip_salt", "unset");
+    const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, salt + "|promoter-lead") });
+    if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
+    if (await isAdminEmail(email)) return ok({ ok: true });
+    const { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
+    if (m && m.status !== "deleted") {
+      const { count } = await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id);
+      if ((count ?? 0) > 0) return ok({ ok: true });
+    }
+    const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
+    const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
+    const { data: existing } = await db.from("promoter_leads").select("id").eq("email", email).maybeSingle();
+    if (existing) return ok({ ok: true });
+    const { error } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) });
+    if (error && (error.code === "23505" || /duplicate key/i.test(error.message || ""))) return ok({ ok: true });
+    if (error) { console.error("promoter: lead", error.message); return no("Couldn't save that. Try again.", 500); }
+    const artist = await artistContact(email);
+    // Confirmed artist contacts are stored here and nowhere else. No Brevo write, no email to them.
+    if (artist === true) await db.from("promoter_leads").update({ crm_synced_at: new Date().toISOString() }).eq("email", email);
+    else if (artist === false && await syncLead(email, utm_source || source)) await db.from("promoter_leads").update({ crm_synced_at: new Date().toISOString() }).eq("email", email);
+    await tellDylan(email, { source, utm_medium, utm_campaign, referrer });
+    return ok({ ok: true });
   }
 
   const st = await staffAuth(req);

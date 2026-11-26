@@ -305,6 +305,8 @@
     $("page").innerHTML = '<div class="miss"><a class="brand" href="/" aria-label="Subduction home"><img src="/assets/logo.png" alt=""></a><h1 class="disp">' + text + '</h1><a class="btn" href="/">Back home</a></div>';
   }
 
+  // Count the visit. The first show's own page is left alone.
+  if (window.Stack && slug !== "underground") window.Stack.pageview(slug ? "/" + slug : "/show");
   if (!slug) { miss("No show picked."); return; }
   (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
     data = d; if (d.lane === 2) FN = BASE + "/checkout";

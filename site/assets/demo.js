@@ -1,6 +1,7 @@
 /* The demo funnel: a promoter gets a test ticket, sees the email, their own dashboard and the door scan, then signs up. */
 (function () {
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/demo";
+  if (window.Stack) Stack.pageview("/demo");
   var $ = function (id) { return document.getElementById(id); };
   var KEY = "sub_demo", lead = null, claimKey = "";
   var time = function (iso) { return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); };
