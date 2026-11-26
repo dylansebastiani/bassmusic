@@ -111,7 +111,7 @@
       if (!d.profile && !d.artist.length && !editing) {
         h += d.artist_preview
           ? '<div class="mcard"><h3>Play shows?</h3><div class="sub">Make one artist profile. Every promoter who books you gets it already filled in, and your shows, passes and sell links all live here.</div><button type="button" class="mbtn" data-edit>Create artist profile</button></div>'
-          : '<div class="mcard"><h3>Artist profiles are coming soon</h3><div class="sub">One profile for every show you play, with your passes, guest lists and sell links in one place. Join the list and we\'ll tell you the day it opens.</div><a class="mbtn" href="' + esc(d.waitlist) + '">Join the artist list</a></div>';
+          : '<div class="mcard"><h3>Your artist page</h3><div class="sub">One page for the shows you play, with your passes, guest lists and sell links. Join with your email.</div><a class="mbtn" href="' + esc(d.waitlist) + '">Join the artist list</a></div>';
       }
     }
     if (tab === "crew") {

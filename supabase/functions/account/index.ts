@@ -440,7 +440,7 @@ Deno.serve(async (req) => {
         if (!me) return no("Sign in again.", 401);
         const email = String(me.email).toLowerCase();
         const preview = (await admins()).includes(email) || (await setting<boolean>("artist_profiles_open", false)) === true;
-        if (!preview) return no("Artist profiles are coming soon.", 403);
+        if (!preview) return no("Join the artist list from the artists page.", 403);
         const name = clean(b.name, 60);
         if (!name) return no("Add your artist name.");
         const typed = (b.links && typeof b.links === "object" ? b.links : {}) as Record<string, unknown>;
