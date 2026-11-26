@@ -18,8 +18,10 @@ import { SITE_URL } from "../_shared/config.ts";
 //   POST {a:"upload-url", company, kind, ext, show?}      one-time link to upload one kit file
 //   POST {a:"show-save", company, show}                   the five questions (create or edit while not yet approved)
 //   POST {a:"kit-save", show, kit}                        event kit
-//   POST {a:"submit", show}                               ready for Dylan: builds the first page draft if none exists
+//   POST {a:"submit", show}                               ready for Dylan: builds the first page draft if none exists,
+//                                                         then one email to Dylan and one to the promoter
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
+const CONTACT = "hello@subduction.art";
 const HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
 const TZ = "America/Chicago";   // show times are entered as local Central time for now
 const KINDS = ["logo", "partners", "figure", "hero", "hero_small", "flyer", "icon", "subtitle", "video", "share"];
@@ -36,6 +38,86 @@ function local(date: string, time: string): Date | null {
   return new Date(guess.getTime() - off(guess) * 60000);
 }
 const label = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }).format(d).replace(",", "");
+const line = (v: unknown) => String(v ?? "").replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim();
+const escMail = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+const showDate = (iso: unknown) => {
+  if (typeof iso !== "string" || !iso) return "Date not set";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Date not set";
+  return new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(d);
+};
+// T.O.F.T.U. sells on the original account. This mail path never runs for it.
+const handsOffShow = (slug: string, companySlug: string, legacy: boolean) =>
+  slug === "underground" || companySlug === "quantum" || legacy === true;
+
+// Same inboxes as the "New promoter account" lead alert.
+async function leadInboxes(): Promise<string[]> {
+  const raw = await setting<unknown>("admin_emails", []);
+  const out: string[] = [];
+  for (const e of Array.isArray(raw) ? raw : []) {
+    const email = String(e).toLowerCase().trim();
+    if (EMAIL_RE.test(email) && !out.includes(email)) out.push(email);
+  }
+  return out;
+}
+
+// One Brevo call, the same shape as the demo lead alerts. Nothing is written to email_queue,
+// so the daily runner never picks these up and cannot retry them.
+async function sendOnce(p: { to: string[]; subject: string; text: string; html: string; replyTo?: string; fromName: string; tag: string }) {
+  const key = Deno.env.get("BREVO_API_KEY");
+  const to = p.to.filter((e) => EMAIL_RE.test(e));
+  if (!key || !to.length) { console.error("promoter: mail skipped", !key ? "BREVO_API_KEY not set" : "no recipient"); return; }
+  try {
+    const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        sender: { name: p.fromName, email: Deno.env.get("FROM_EMAIL") || CONTACT },
+        replyTo: p.replyTo && EMAIL_RE.test(p.replyTo) ? { email: p.replyTo } : undefined,
+        to: to.map((email) => ({ email })),
+        subject: p.subject.slice(0, 140),
+        textContent: p.text,
+        htmlContent: p.html,
+        tags: [p.tag],
+      }),
+    });
+    if (!r.ok) console.error("promoter: mail failed", r.status, (await r.text().catch(() => "")).slice(0, 200));
+  } catch (e) { console.error("promoter: mail failed", (e as Error).message); }
+}
+
+// Dylan gets the show, the promoter, the date and a studio link. The promoter gets a short note
+// that the show is in. Artists on the lineup are not recipients and are not read here.
+async function tellShowSent(show: { slug: string; name: string; starts_at?: string | null }, co: { slug: string; name: string; legacy_stripe: boolean }, promoterEmail: string) {
+  if (handsOffShow(show.slug, co.slug, co.legacy_stripe)) return;
+  const name = line(show.name).slice(0, 100) || "Untitled show";
+  const promoter = line(co.name).slice(0, 80) || "Promoter";
+  const who = line(promoterEmail).toLowerCase();
+  const when = showDate(show.starts_at);
+  const studio = `${SITE_URL}/studio?e=${encodeURIComponent(show.slug)}`;
+  const dylanText = [`Show sent: ${name}`, "", `Show: ${name}`, `Promoter: ${promoter}`, `Email: ${who}`, `Date: ${when}`, "", `Studio: ${studio}`].join("\n");
+  let dylan: string[] = [];
+  try { dylan = await leadInboxes(); } catch (e) { console.error("promoter: mail skipped", (e as Error).message); }
+  await sendOnce({
+    to: dylan,
+    subject: `Show sent: ${name}`,
+    text: dylanText,
+    html: `<pre style="font:15px/1.6 Arial,sans-serif">${escMail(dylanText)}</pre>`,
+    replyTo: who,
+    fromName: "Subduction leads",
+    tag: "lead",
+  });
+  if (!EMAIL_RE.test(who)) return;
+  const confirmText = [`${name} is in. Dylan is finishing it.`, "", `Date: ${when}`].join("\n");
+  const F = "font-family:Arial,Helvetica,sans-serif";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${escMail(name)} is in</title></head>
+<body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
+<tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">${escMail(name)} is in</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Dylan is finishing it.</td></tr>
+<tr><td style="padding:12px 24px 26px;${F};font-size:14px;line-height:1.6;color:#9a958f">Date: ${escMail(when)}</td></tr>
+</table></td></tr></table></body></html>`;
+  await sendOnce({ to: [who], subject: `${name} is in`, text: confirmText, html, fromName: "Subduction", tag: "show-sent" });
+}
 
 // Invite: a one-time code stored hashed in signin_codes (7 days), emailed as a link. The link holds
 // "<row id>.<secret>" in the #fragment, so it never reaches a server log and holds no email.
@@ -163,7 +245,7 @@ Deno.serve(async (req) => {
   let companyId = typeof b.company === "string" && UUID_RE.test(b.company) ? b.company : "";
   let show: Record<string, any> | null = null;
   if (typeof b.show === "string" && UUID_RE.test(b.show)) {
-    show = (await db.from("events").select("id,slug,name,company_id,review_status,kit,page_draft,page,location_secret").eq("id", b.show).maybeSingle()).data;
+    show = (await db.from("events").select("id,slug,name,company_id,review_status,kit,page_draft,page,location_secret,starts_at").eq("id", b.show).maybeSingle()).data;
     if (!show) return no("Not found", 404);
     companyId = show.company_id;
   }
@@ -254,8 +336,19 @@ Deno.serve(async (req) => {
     // The first page draft, built from the brand kit + event kit, waiting in Dylan's studio.
     if (!show.page_draft && !show.page) upd.page_draft = buildDraft(cleanBrand((await db.from("companies").select("brand").eq("id", companyId).single()).data?.brand, HOSTS),
       cleanKit(show.kit, HOSTS), nNights, { secret: show.location_secret }, HOSTS);
-    await db.from("events").update(upd).eq("id", show.id);
+    // Mail only the request that actually moves a show into "submitted". A second click finds the
+    // row already moved and sends nothing. T.O.F.T.U. keeps the old write and gets no mail.
+    const off = handsOffShow(String(show.slug || ""), co.slug, !!co.legacy_stripe);
+    const fresh = show.review_status === "draft" || show.review_status === "rejected";
+    let mailed = false;
+    if (off || !fresh) await db.from("events").update(upd).eq("id", show.id);
+    else {
+      const { data: flipped, error } = await db.from("events").update(upd).eq("id", show.id).in("review_status", ["draft", "rejected"]).select("id");
+      if (error) console.error("promoter: submit failed", error.message);
+      mailed = !error && Array.isArray(flipped) && flipped.length > 0;
+    }
     await db.from("engagement_events").insert({ subscriber_id: st.id, type: "promoter:submit", meta: { show: show.slug, company: co.slug } });
+    if (mailed) { try { await tellShowSent({ slug: String(show.slug), name: String(show.name || ""), starts_at: show.starts_at }, co, st.email); } catch (e) { console.error("promoter: mail failed", (e as Error).message); } }
     return ok({ submitted: true });
   }
 
