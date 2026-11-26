@@ -45,6 +45,20 @@ for (const f of readdirSync(out)) {
 mkdirSync(join(out, "underground"), { recursive: true });
 writeFileSync(join(out, "underground", "index.html"),
   readFileSync(join(out, "tickets.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
+// Inline the public tickets GET so nights and prices paint instantly; the page refreshes from the live GET.
+// A failure here never fails the build; the page just ships without #evt-data.
+try {
+  if (!pub.supabaseUrl) throw new Error("no SUPABASE_URL");
+  const r = await fetch(`${pub.supabaseUrl}/functions/v1/tickets?e=underground`, { signal: AbortSignal.timeout(15000) });
+  const j = await r.json();
+  if (!r.ok || !j || !j.event || !j.nights || !j.types) throw new Error("bad response");
+  const snap = { event: j.event, nights: j.nights, types: j.types, stripe_key: j.stripe_key };
+  const tag = `<script id="evt-data" type="application/json">${JSON.stringify(snap).replace(/</g, "\\u003c")}</script>`;
+  const ugPath = join(out, "underground", "index.html"), ugHtml = readFileSync(ugPath, "utf8");
+  const at = ugHtml.indexOf('<script src="assets/tickets.js'); // must sit before the script that reads it
+  if (at < 0) throw new Error("tickets.js tag not found");
+  writeFileSync(ugPath, ugHtml.slice(0, at) + tag + "\n" + ugHtml.slice(at));
+} catch (e) { console.warn("build: /underground/ ships without inlined tickets:", e.message); }
 // Any address that isn't a file falls back to the show page, which reads the show from the address:
 // subduction.art/<slug> works the moment a show is published, before the next rebuild gives it its own page below.
 writeFileSync(join(out, "404.html"), readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
