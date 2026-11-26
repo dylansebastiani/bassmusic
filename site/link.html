@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+body{background:#000;color:#f4f1ee}
+.wrap{max-width:480px}
+h1{font-size:clamp(40px,10vw,64px)}
+.stat{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-size:64px;line-height:1;color:#b6ff00;margin:8px 0}
+.note{color:#9a9490}
+</style>
+<!--CONFIG-->
+<title>Street team</title>
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><a href="./"><img src="assets/logo.png" alt="Home"></a></div>
+  <p class="mono" id="label">Street team</p>
+  <h1 class="disp" id="show">Loading</h1>
+  <p class="stat" id="count"></p>
+  <p class="note" id="owed"></p>
+  <p><a class="btn" id="go" href="./">Get tickets</a></p>
+  <p class="msg" id="msg" role="status"></p>
+</main>
+<script src="assets/stack.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var e = (q.get("e") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  var c = (q.get("c") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  var $ = function (id) { return document.getElementById(id); };
+  if (e === "underground" || !e || !c) { $("show").textContent = "That link isn't here."; $("go").hidden = true; return; }
+  var base = ((window.STACK || {}).supabaseUrl || "") + "/functions/v1/promoter?a=link&e=" + encodeURIComponent(e) + "&c=" + encodeURIComponent(c);
+  fetch(base).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return j; }); }).then(function (d) {
+    document.title = d.label + " · " + d.show;
+    $("label").textContent = d.label;
+    $("show").textContent = d.show;
+    $("count").textContent = String(d.tickets || 0);
+    $("owed").textContent = (d.tickets === 1 ? "paid ticket" : "paid tickets") + (d.owed_cents ? ". Owed $" + (d.owed_cents / 100).toFixed(2) : ".");
+    $("go").href = d.link || ("/" + d.slug);
+  }).catch(function () { $("show").textContent = "That link isn't here."; $("go").hidden = true; });
+})();
+</script>
+</body>
+</html>
