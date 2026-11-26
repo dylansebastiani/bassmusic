@@ -111,7 +111,7 @@
         '<label for="bphone">Phone</label><input type="tel" id="bphone" autocomplete="tel" inputmode="tel" maxlength="20" required aria-describedby="hphone" placeholder="(309) 555-0123"><small class="hint" id="hphone" aria-live="polite"></small>' +
         '<details class="promo" id="promoBox"><summary>Have a code?</summary><label for="bpromo">Code</label><input type="text" id="bpromo" autocomplete="off" maxlength="30"></details>' +
         '<button type="submit" class="btn" id="go">Checkout</button><p class="msg" id="bmsg" role="status"></p>' +
-        '<p class="fineprint">' + (s.fineprint ? esc(s.fineprint) : fine) + ' Your ticket also makes you a Subduction member: unreleased tracks and first word on shows by email. Unsubscribe anytime. <a href="privacy.html">Privacy</a>.</p></form>' +
+        '<p class="fineprint">' + (s.fineprint ? esc(s.fineprint) : fine) + ' <a href="privacy.html">Privacy</a>.</p></form>' +
         '<div id="payWrap" hidden><button type="button" class="back" id="back">&larr; Change tickets</button><div id="checkout"></div></div></section>';
     },
     partners: function () { var a = data.page.art; return a.partners ? img(a.partners, "s-partners", "Event partners", ' decoding="async"') : ""; },
@@ -128,6 +128,19 @@
     $("page").innerHTML = p.sections.map(function (s) { return (R[s.type] || function () { return ""; })(s); }).join("");
     wireCheckout();
     renderTypes();
+    trackPixel("PageView");
+  }
+
+  // A promoter's own Meta pixel. Off until they save an id. Never fires for T.O.F.T.U.
+  var TOFTU_ID = "63b511f3-d838-404f-9c2e-5d4b98fbf013", pixelOnce = {};
+  function trackPixel(evName) {
+    if (slug === "underground" || (data && data.event && data.event.id === TOFTU_ID)) return;
+    var id = String((data && data.pixel) || "").replace(/\D/g, "");
+    if (!/^\d{8,20}$/.test(id)) return;
+    if (pixelOnce[evName]) return;
+    pixelOnce[evName] = true;
+    var img = new Image();
+    img.src = "https://www.facebook.com/tr?id=" + id + "&ev=" + encodeURIComponent(evName) + "&noscript=1";
   }
 
   // ---------- tickets + checkout ----------
@@ -248,7 +261,7 @@
           .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); if (!j.free) $("bmsg").textContent = "Tickets held. Opening secure checkout..."; return j; }); }),
         loadStripe(),
       ]).then(function (res) {
-        if (res[0].free) { $("shop").hidden = true; $("done").hidden = false; $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Your tickets are on their way to ' + esc(email) + ".</p></div>"; return null; }
+        if (res[0].free) { trackPixel("Purchase"); $("shop").hidden = true; $("done").hidden = false; $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Your tickets are on their way to ' + esc(email) + ".</p></div>"; return null; }
         var acct = res[0].stripe_account || data.stripe_account;
         var secret = res[0].client_secret, stripe = acct ? window.Stripe(data.stripe_key, { stripeAccount: acct }) : window.Stripe(data.stripe_key);
         return stripe.initEmbeddedCheckout({ fetchClientSecret: function () { return Promise.resolve(secret); } });
@@ -275,6 +288,7 @@
     (function poll() {
       fetch(FN + "?a=order&s=" + encodeURIComponent(sid)).then(function (r) { return r.json(); }).then(function (o) {
         if (o.status === "paid" && o.tickets && o.tickets.length) {
+          trackPixel("Purchase");
           $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Tickets sent to ' + esc(o.email) + '. Save them now, or open them from the email at the door.</p>' +
             '<div class="tlinks">' + o.tickets.map(function (t) { return '<a href="' + (o.lane === 2 ? "pass" : "ticket") + '.html?t=' + esc(t.token) + '"><span>' + esc(t.type) + "</span><b>" + esc(t.code) + "</b></a>"; }).join("") + "</div></div>";
           try { history.replaceState(null, "", location.pathname + "?e=" + slug); } catch (e) {}
@@ -290,13 +304,13 @@
     data.page = e.data.page; data.preview = true; render();
   });
 
-  // The starting look, used until a show publishes its own design: neon on black with a drawn light-burst
-  // where the show's art will go. No one else's art or colours.
+  // The starting look, used until a show publishes its own design: acid green and Anton on black.
+  // T.O.F.T.U. never reaches this. It keeps tickets.html.
   function plainPage(d) {
     var poster = d.event && d.event.poster_url;
     return { v: 1, plain: true, art: poster ? { hero: poster } : {}, custom_css: "", meta: {},
-      theme: { colors: { bg: "#050505", text: "#f3effa", muted: "#a9a3bd", line: "#1f2a44", accent: "#00e5ff", nights: ["#00e5ff", "#ff2bd6"] },
-        fonts: { display: "Bungee", body: "Archivo" }, frame: "angled", titles: "outline", glow: true, dots: false },
+      theme: { colors: { bg: "#000", text: "#f4f1ee", muted: "#9a9490", line: "#2a2627", accent: "#b6ff00", nights: ["#b6ff00", "#f4f1ee"] },
+        fonts: { display: "Anton", body: "Archivo" }, frame: "square", titles: "solid", glow: false, dots: false },
       sections: [{ type: "brand", variant: "text", subtitle_text: "" }, { type: "hero", variant: "fade" }, { type: "dates", variant: "flyer", note: "" },
         { type: "nights", variant: "cards", soon_text: "Lineup coming soon" }, { type: "tickets", variant: "cards", title: "Tickets", fineprint: "" }] };
   }

@@ -1,7 +1,10 @@
 /* Show pages drawn from a page description (show.js). Builds on app.css.
    Every colour and font comes from the show's theme as a CSS variable, set by show.js:
    --bg --fg --mute --line --hot (accent) --disp --text, and per night --nc. */
-.show{background:var(--bg);padding-bottom:60px}
+.show{background:var(--bg);padding-bottom:28px}
+.show .s-tickets{scroll-margin-bottom:24px}
+/* The music bar is fixed on other pages. On a show it stays in the page flow, under the price. */
+body.show .sbx{position:static;left:auto;right:auto;bottom:auto}
 .miss{min-height:calc(100svh - 36px);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;padding:8px 0 48px}
 .miss .brand{line-height:0}
 .miss .brand img{width:36px;height:auto}

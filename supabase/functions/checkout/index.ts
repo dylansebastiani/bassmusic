@@ -76,7 +76,7 @@ interface Tier { name: string; price_cents: number; qty: number }
 interface Co { id: string; slug: string; name: string; status: string; contact_email: string | null; stripe_account_id: string | null; stripe_charges_enabled: boolean; legacy_stripe: boolean; platform_fee_cents: number | null }
 async function loadShow(slug: string) {
   const { data: ev } = await db.from("events")
-    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,location_secret,address_reveal_at,company_id,page,page_published_at,review_status")
+    .select("id,slug,name,venue,city,address,description,age,poster_url,sales_open,max_per_order,location_secret,address_reveal_at,company_id,page,page_published_at,review_status,kit")
     .eq("slug", slug).maybeSingle();
   if (!ev || !ev.company_id) return null;
   const { data: co } = await db.from("companies").select("id,slug,name,status,contact_email,stripe_account_id,stripe_charges_enabled,legacy_stripe,platform_fee_cents").eq("id", ev.company_id).maybeSingle();
@@ -176,11 +176,11 @@ ${rows.map((r) => `<tr><td style="padding:20px 24px 0"><table role="presentation
 <td style="padding:12px 12px 12px 0;${F};color:#f4f1ee"><div style="font-size:17px;font-weight:bold">${esc(r.type)}</div><div style="font-size:13px;line-height:1.5;color:#9a958f">${esc(r.when)}</div><div style="font-size:13px;line-height:1.5;color:#9a958f">${esc(r.holder || "")}</div>
 <div style="font-family:Courier,monospace;font-size:18px;letter-spacing:2px;padding-top:6px">${esc(r.code)}</div><div style="padding-top:8px"><a href="${r.url}" style="${F};font-size:13px;color:#f4f1ee">Open ticket</a></div></td></tr></table></td></tr>`).join("")}
 ${money}
-<tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Questions about the show? Reply to this email. All sales final unless the show is cancelled.<br>Ticketing by Subduction · ${esc(await setting("mailing_address", "PO Box TBD, Bloomington, IL 61701"))}</td></tr>
+<tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Questions about the show? Reply to this email. All sales final unless the show is cancelled.<br>${esc(by)} · ${esc(await setting("mailing_address", "PO Box TBD, Bloomington, IL 61701"))}</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [`${ev.name} (${by})`, "", `Hi ${first}, you're in. Show the code at the door.`, where + (ev.age ? ` · ${ev.age}, bring ID` : ""), "",
     ...rows.map((r) => `${r.type} · ${r.when}\n${r.holder || ""}\nCode ${r.code}\n${r.url}\n`),
-    o.total_cents > 0 ? `Total paid ${usd(o.total_cents)} · ${orderRef(o.id)}` : "", "", "Questions about the show? Reply to this email.", "Ticketing by Subduction"].join("\n");
+    o.total_cents > 0 ? `Total paid ${usd(o.total_cents)} · ${orderRef(o.id)}` : "", "", "Questions about the show? Reply to this email.", by].join("\n");
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("checkout: BREVO_API_KEY not set"); await unclaim(); return false; }
   const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
@@ -262,6 +262,8 @@ Deno.serve(async (req) => {
       stripe_key: ready ? Deno.env.get("STRIPE_PLATFORM_PUBLISHABLE_KEY") || null : null, stripe_account: ready ? co.stripe_account_id : null,
       fee: { platform_cents: fee, card_pct: CARD_PCT, card_fixed_cents: CARD_FIXED },
       page: ev.page_published_at ? ev.page ?? null : null,
+      // Promoter-supplied Meta pixel. Blank until they save one. This lane never serves T.O.F.T.U.
+      pixel: ev.slug === "underground" || ev.id === "63b511f3-d838-404f-9c2e-5d4b98fbf013" ? null : (/^\d{8,20}$/.test(String(ev.kit?.pixel || "")) ? String(ev.kit.pixel) : null),
     });
   }
 
