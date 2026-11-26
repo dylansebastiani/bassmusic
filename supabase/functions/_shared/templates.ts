@@ -15,6 +15,11 @@ const refUrl = (m: Member) => `${SITE_URL}/?r=${m.referral_code}`;
 const meUrl = (m: Member) => `${SITE_URL}/collection.html?t=${m.access_token}`;
 export const unsubUrl = (m: Member) => `${FN}/unsubscribe?u=${m.unsubscribe_token}`;
 
+// One-time sign-in codes. sendNow and the runner skip List-Unsubscribe on these.
+// A queued row is stored as "signin:<time>", so that form counts too.
+// promoter_invite is a setup email and stays on the newsletter path.
+export const isLoginCode = (key: string) => key === "signin" || key.startsWith("signin:");
+
 // Black, one column, logo on top, one button. Tables + inline styles so Gmail,
 // Apple Mail and Outlook all draw it the same; bgcolor keeps it black in light mode.
 // preheader = the grey line inbox apps show next to the subject.
@@ -129,15 +134,33 @@ ${btn(a, "Option A")}${btn(b, "Option B")}<p>One tap counts your vote. Results g
   },
   // Sign-in: someone typed this email on a phone we don't know yet. The code goes in the
   // subject too, so phones offer it above the keyboard. The link is the backup.
+  // Kept off wrap() on purpose. The logo, unsubscribe line, "you joined" line,
+  // mailing address and hidden preheader are what file this under Promotions.
   signin: (m, extra) => {
-    const code = extra?.code ? String(extra.code) : "";
+    const raw = extra?.code == null ? "" : String(extra.code).trim();
+    const code = /^\d{4,8}$/.test(raw) ? raw : "";
     const u = meUrl(m) + (extra?.rejoin ? "&rejoin=1" : "");
-    const big6 = code ? `<div style="margin:6px 0 22px;font:900 44px/1 ${FONT};letter-spacing:.32em;color:#fff">${code}</div>` : "";
-    const html = `${eyebrow(M)}${big(code ? "Your code" : "Sign in")}
-${big6}<p style="margin:0 0 6px;color:#bdbdbd">${code ? "Type it on the site to sign in. It works for 10 minutes." : "Tap below to open your page on this device."}</p>
-${btn(u, code ? "Or tap to sign in" : "Open my page")}<p style="margin:0;color:#888;font-size:14px">Didn't ask for this? Ignore it and nothing changes.</p>`;
-    const text = `${code ? `Your ${M} sign-in code: ${code}\n\nType it on the site. It works for 10 minutes.\n\nOr tap to sign in: ${u}` : `Open your ${M} page on this device:\n${u}`}\n\nDidn't ask for this? Ignore it and nothing changes.`;
-    return { subject: code ? `${code} is your ${M} code` : `your ${M} sign-in link`, ...wrap(m, html, text, code ? "Type it on the site to sign in." : "") };
+    const F = "font-family:Arial,Helvetica,sans-serif";
+    const subject = code ? `Your sign-in code: ${code}` : "Your sign-in link";
+    const lead = code
+      ? "Type this code on the site. It works for 10 minutes."
+      : "Tap the button to sign in on this device. It works for 10 minutes.";
+    const codeRow = code
+      ? `<tr><td style="padding:16px 24px 0;font-family:Courier,monospace;font-size:34px;font-weight:bold;letter-spacing:8px;color:#f4f1ee;text-align:center">${code}</td></tr>`
+      : "";
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Sign in</title></head>
+<body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
+<tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">${code ? "Your sign-in code" : "Tap to sign in"}</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">${lead}</td></tr>
+${codeRow}
+<tr><td style="padding:22px 24px 0"><a href="${u}" style="display:block;background:#b6ff00;color:#000;${F};font-size:16px;font-weight:bold;text-align:center;text-decoration:none;padding:16px 12px;text-transform:uppercase;letter-spacing:1px">${code ? "Sign in with this link" : "Sign me in"}</a></td></tr>
+<tr><td style="padding:18px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Didn't ask for this? Ignore it and nothing changes.</td></tr>
+</table></td></tr></table></body></html>`;
+    const text = code
+      ? `Your sign-in code: ${code}\n\nType this code on the site. It works for 10 minutes.\n\nSign in with this link: ${u}\n\nDidn't ask for this? Ignore it and nothing changes.`
+      : `Tap the button to sign in on this device:\n${u}\n\nIt works for 10 minutes. Didn't ask for this? Ignore it and nothing changes.`;
+    return { subject, html, text };
   },
   // A promoter Dylan just added: one button signs them straight in to their checklist.
   // The link carries a one-time invite code (no email), good for 7 days.
