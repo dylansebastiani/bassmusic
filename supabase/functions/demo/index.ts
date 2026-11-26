@@ -51,11 +51,23 @@ async function ping(subject: string, l: Record<string, any>) {
 // A one-tap sign-in button by email, for someone who is on a crew (or is staff). Built like the ticket email so it
 // lands in the main inbox: plain sender, no bulk-mail headers. The link is single-use and short-lived, and the
 // secret is stored only as a hash (same scheme the promoter app checks).
+// Anyone on an artist pass, including a revoked one. null means the lookup failed, so send nothing.
+async function artistContact(email: string): Promise<boolean | null> {
+  const same = (e: string | null) => String(e || "").trim().toLowerCase() === email;
+  const [a, m] = await Promise.all([
+    db.from("artist_invites").select("email").ilike("email", email).limit(8),
+    db.from("artist_members").select("email").ilike("email", email).limit(8),
+  ]);
+  if (a.error || m.error) return null;
+  return (a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email));
+}
 async function sendSigninLink(email: string): Promise<boolean> {
   const { data: m } = await db.from("subscribers").select("id,status,first_name").eq("email", email).maybeSingle();
   if (!m || m.status === "deleted") return false;
   const { count } = await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id);
   if (!(count ?? 0) && !(await admins()).includes(email)) return false;
+  // Artist pass mail is the only mail an artist contact gets, and it is sent elsewhere.
+  if (await artistContact(email) !== false) return false;
   // One a minute per person, so nobody can flood an inbox by typing someone else's address.
   const { data: recent } = await db.from("signin_codes").select("id").eq("subscriber_id", m.id).gte("created_at", new Date(Date.now() - 60000).toISOString()).limit(1);
   if (recent?.length) return true;

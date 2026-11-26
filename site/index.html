@@ -381,7 +381,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <div class="fee" role="row"><span role="cell">Eventbrite</span><span class="track" aria-hidden="true"><b style="width:100%"></b></span><span role="cell">$3.52</span></div>
     <div class="fee" role="row"><span role="cell">Posh</span><span class="track" aria-hidden="true"><b style="width:99%"></b></span><span role="cell">$3.49</span></div>
     <div class="fee" role="row"><span role="cell">DICE</span><span class="track" aria-hidden="true"><b style="width:92%"></b></span><span role="cell">$3.25</span></div>
-    <div class="fee us" role="row"><span role="cell">Subduction</span><span class="track" aria-hidden="true"><b style="width:74%"></b></span><span role="cell">$2.60</span></div>
+    <div class="fee us" role="row"><span role="cell">Subduction</span><span class="track" aria-hidden="true"><b style="width:74%"></b></span><span role="cell">$2.61</span></div>
   </div>
   <p class="fine rv">Card processing included for everyone. Published US rates, Nov 2026: Eventbrite 3.7% + $1.79 plus 2.9%; Posh 10% + $0.99; DICE 13%; Subduction $1.50 plus Stripe's 2.9% + 30¢.</p>
   </div>
@@ -473,7 +473,18 @@ window.Stack = (function () {
   var attr = {};
   try { attr = JSON.parse(sessionStorage.getItem("stack_attr") || "{}"); } catch (e) {}
   KEYS.forEach(function (k) { if (q.get(k)) attr[k] = q.get(k).slice(0, 80); });
+  // Remember the first outside site that sent them here. Later pages on our site keep that.
+  if (!attr.referrer && document.referrer) {
+    try {
+      var ref = new URL(document.referrer), here = location.hostname.replace(/^www\./, ""), host = ref.hostname.replace(/^www\./, "");
+      if (host && host !== here) { attr.ref_host = host.slice(0, 80); attr.referrer = (ref.origin + ref.pathname).slice(0, 200); }
+    } catch (e) {}
+  }
   try { sessionStorage.setItem("stack_attr", JSON.stringify(attr)); } catch (e) {}
+  function source() {
+    var s = String(attr.utm_source || attr.src || attr.ref_host || "direct").trim();
+    return (s || "direct").slice(0, 20);
+  }
 
   // A/B headline variant, fixed per browser.
   function variant() {
@@ -499,7 +510,7 @@ window.Stack = (function () {
 
   function pageview(path) {
     try {
-      var b = JSON.stringify({ path: path, source: attr.src || null, event_slug: attr.e || null, variant: variant() });
+      var b = JSON.stringify({ path: path, source: source(), utm_source: attr.utm_source || null, utm_medium: attr.utm_medium || null, utm_campaign: attr.utm_campaign || null, referrer: attr.referrer || null, event_slug: attr.e || null, variant: variant() });
       if (navigator.sendBeacon) navigator.sendBeacon(FN + "/pageview", new Blob([b], { type: "text/plain" }));
       else api("pageview", JSON.parse(b)).catch(function () {});
     } catch (e) {}
@@ -523,7 +534,7 @@ window.Stack = (function () {
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
   window.__go = function (url) { location.href = url; };
-  return { C: C, FN: FN, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, savePending: savePending, flushPending: flushPending, pendingList: pendingList, fill: fill, esc: esc };
+  return { C: C, FN: FN, q: q, attr: attr, source: source, variant: variant, api: api, get: get, pageview: pageview, savePending: savePending, flushPending: flushPending, pendingList: pendingList, fill: fill, esc: esc };
 })();
 
 </script>

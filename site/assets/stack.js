@@ -10,7 +10,18 @@ window.Stack = (function () {
   var attr = {};
   try { attr = JSON.parse(sessionStorage.getItem("stack_attr") || "{}"); } catch (e) {}
   KEYS.forEach(function (k) { if (q.get(k)) attr[k] = q.get(k).slice(0, 80); });
+  // Remember the first outside site that sent them here. Later pages on our site keep that.
+  if (!attr.referrer && document.referrer) {
+    try {
+      var ref = new URL(document.referrer), here = location.hostname.replace(/^www\./, ""), host = ref.hostname.replace(/^www\./, "");
+      if (host && host !== here) { attr.ref_host = host.slice(0, 80); attr.referrer = (ref.origin + ref.pathname).slice(0, 200); }
+    } catch (e) {}
+  }
   try { sessionStorage.setItem("stack_attr", JSON.stringify(attr)); } catch (e) {}
+  function source() {
+    var s = String(attr.utm_source || attr.src || attr.ref_host || "direct").trim();
+    return (s || "direct").slice(0, 20);
+  }
 
   function variant() {
     var m = document.cookie.match(/(?:^|; )stack_v=([AB])/);
@@ -35,8 +46,9 @@ window.Stack = (function () {
   }
   function pageview(path) {
     try {
-      var b = JSON.stringify({ path: path, source: attr.src || null, event_slug: attr.e || null, variant: variant() });
+      var b = JSON.stringify({ path: path, source: source(), utm_source: attr.utm_source || null, utm_medium: attr.utm_medium || null, utm_campaign: attr.utm_campaign || null, referrer: attr.referrer || null, event_slug: attr.e || null, variant: variant() });
       if (navigator.sendBeacon) navigator.sendBeacon(FN + "/pageview", new Blob([b], { type: "text/plain" }));
+      else api("pageview", JSON.parse(b)).catch(function () {});
     } catch (e) {}
   }
 
@@ -76,5 +88,5 @@ window.Stack = (function () {
   function fmtDate(s, withTime) {
     try { return new Date(s).toLocaleString(undefined, withTime ? { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } : { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; }
   }
-  return { C: C, q: q, attr: attr, variant: variant, api: api, get: get, pageview: pageview, token: token, remember: remember, forget: forget, pendingList: pendingList, savePending: savePending, flushPending: flushPending, fill: fill, esc: esc, safeUrl: safeUrl, fmtDate: fmtDate };
+  return { C: C, q: q, attr: attr, source: source, variant: variant, api: api, get: get, pageview: pageview, token: token, remember: remember, forget: forget, pendingList: pendingList, savePending: savePending, flushPending: flushPending, fill: fill, esc: esc, safeUrl: safeUrl, fmtDate: fmtDate };
 })();

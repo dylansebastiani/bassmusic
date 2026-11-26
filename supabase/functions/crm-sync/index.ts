@@ -1,5 +1,5 @@
 // Keeps Brevo's contacts matching everyone on the site, on its own (a database timer calls this every
-// 10 minutes). Ticket buyers, guest list, artists, artist members and site members are each added or
+// 10 minutes). Ticket buyers, guest list, artists, artist members, site members and promoter signups are each added or
 // updated once, tagged with ROLE (Buyer / Guest / Artist / Member) and SHOW, and put on one list,
 // "Subduction - Everyone", which this creates the first time. Failures stay unsynced and retry next run.
 // Self-contained on purpose (no shared imports); it only reads people and writes a synced-at time.
@@ -42,8 +42,8 @@ Deno.serve(async (req) => {
   const newsletter = await setting<number | null>("brevo_list_id", null);
 
   // One person can be several things (an artist who also has a site account, a buyer who joined the
-  // waitlist). The strongest label wins and a weaker step never overwrites it: Artist > Buyer > Guest > Member.
-  const RANK: Record<string, number> = { Artist: 4, Buyer: 3, Guest: 2, Member: 1 };
+  // waitlist). The strongest label wins and a weaker step never overwrites it: Artist > Buyer > Promoter > Guest > Member.
+  const RANK: Record<string, number> = { Artist: 5, Buyer: 4, Promoter: 3, Guest: 2, Member: 1 };
   const best = new Map<string, string>();
   const note = (email: string | null, role: string) => {
     const e = String(email || "").trim().toLowerCase(); if (!e) return;
@@ -52,6 +52,9 @@ Deno.serve(async (req) => {
   for (const r of (await db.from("artist_invites").select("email").is("revoked_at", null).not("email", "is", null)).data || []) note(r.email, "Artist");
   for (const r of (await db.from("artist_members").select("email").is("revoked_at", null)).data || []) note(r.email, "Artist");
   for (const r of (await db.from("ticket_orders").select("email,status").in("status", ["paid", "comp"]).not("email", "is", null)).data || []) note(r.email, r.status === "paid" ? "Buyer" : "Guest");
+  const pleads = await db.from("promoter_leads").select("email");
+  if (pleads.error) console.error("crm-sync: promoter leads", pleads.error.message);
+  else for (const r of pleads.data || []) note(r.email, "Promoter");
 
   async function upsert(p: Person, withNewsletter: boolean) {
     const [first, ...rest] = (p.name || "").trim().split(/\s+/);
@@ -101,6 +104,28 @@ Deno.serve(async (req) => {
   for (const s of subs || []) {
     const ok = await upsert({ email: s.email, name: s.first_name, phone: s.phone, role: "Member", show: null, source: s.source || "site" }, true);
     if (ok) { synced++; await db.from("subscribers").update({ crm_synced_at: now }).eq("id", s.id); } else failed++;
+  }
+  // Promoter emails from the sign-in screen. A missing table (migration not run yet) must not stop the rest.
+  // Artist contacts are never written from this loop. Their pass mail is sent elsewhere.
+  const artistEmails = new Set<string>();
+  const [invAll, memAll] = await Promise.all([
+    db.from("artist_invites").select("email").not("email", "is", null),
+    db.from("artist_members").select("email"),
+  ]);
+  const artistKnown = !invAll.error && !memAll.error;
+  if (!artistKnown) console.error("crm-sync: artist list", invAll.error?.message || memAll.error?.message);
+  else {
+    for (const r of invAll.data || []) { const e = String(r.email || "").trim().toLowerCase(); if (e) artistEmails.add(e); }
+    for (const r of memAll.data || []) { const e = String(r.email || "").trim().toLowerCase(); if (e) artistEmails.add(e); }
+  }
+  const leads = await db.from("promoter_leads").select("id,email,source,utm_source").is("crm_synced_at", null).limit(100);
+  if (leads.error) console.error("crm-sync: promoter leads", leads.error.message);
+  for (const l of leads.data || []) {
+    const addr = String(l.email || "").trim().toLowerCase();
+    if (!artistKnown) { failed++; continue; }
+    if (artistEmails.has(addr)) { await db.from("promoter_leads").update({ crm_synced_at: now }).eq("id", l.id); continue; }
+    const ok = await upsert({ email: l.email, name: null, phone: null, role: "Promoter", show: null, source: l.utm_source || l.source || "promoter" }, false);
+    if (ok) { synced++; await db.from("promoter_leads").update({ crm_synced_at: now }).eq("id", l.id); } else failed++;
   }
   return json({ synced, failed, list_id: listId });
 });

@@ -300,6 +300,8 @@
     return '<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display:block;width:100%;height:auto;background:radial-gradient(ellipse at 50% 50%,color-mix(in srgb,var(--n2) 22%,var(--bg)),var(--bg) 75%);-webkit-mask-image:linear-gradient(transparent,#000 14%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 14%,#000 80%,transparent)"><g stroke-width="1" opacity=".75">' + L + "</g></svg>";
   }
 
+  // Count the visit. The first show's own page is left alone.
+  if (window.Stack && slug !== "underground") window.Stack.pageview(slug ? "/" + slug : "/show");
   if (!slug) { $("page").innerHTML = '<p class="msg">No show picked.</p>'; return; }
   (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
     data = d; if (d.lane === 2) FN = BASE + "/checkout";

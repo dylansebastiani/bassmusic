@@ -3,6 +3,7 @@
 (function () {
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/promoter", CONNECT = (C.supabaseUrl || "") + "/functions/v1/connect";
   var app = document.getElementById("app");
+  if (window.Stack) Stack.pageview("/promoter");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var me = null, coId = "", draft = null, warns = {}, flash = "";
@@ -29,24 +30,40 @@
   // ---------- sign in ----------
   function signin() {
     var DEMO = FN.replace(/\/promoter$/, "/demo");
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. We send you a button that signs you straight in. No codes, no passwords.</p>" +
-      '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off><button class=btn type=submit>Email me a sign-in button</button></form>' +
-      '<div id=sent hidden><div class=card><b>Check your email</b><small>We sent a "Sign me in" button to <span id=to></span>. Open it on this phone and tap the button.</small></div><button class=linkbtn type=button id=again>Send it again</button></div>' +
-      '<p class=msg role=status></p><p class=note id=newhere>New here? <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>';
+    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. If you already throw shows with us, we send a button that signs you straight in. If you're new, we save your email and write you back. No codes and no passwords.</p>" +
+      '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
+      '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
+      '<button class=btn type=submit>Send my email</button></form>' +
+      '<div id=sent hidden><div class=card><b id=senttitle>Got it</b><small id=sentmsg></small></div><button class=linkbtn type=button id=again>Send it again</button></div>' +
+      '<p class=msg role=status></p><p class=note id=newhere>First time here. <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>';
     var em = document.getElementById("em");
+    function showSent(v, fromDemo) {
+      document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false;
+      document.getElementById("senttitle").textContent = fromDemo ? "Check your email" : "Got it";
+      document.getElementById("sentmsg").textContent = fromDemo
+        ? "We sent a sign-in button to " + v + ". Open it on this phone and tap the button."
+        : "If you already have a promoter account, a sign-in button is on its way to " + v + ". If you're new, we saved that email and we'll write you back.";
+      say("");
+    }
     function sendLink() {
       var v = em.value.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v)) return say("Check your email address.", true);
+      var trap = document.getElementById("hp_field");
+      if (trap && trap.value) return showSent(v, false);
       say("Sending…");
-      fetch(DEMO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "signin", email: v }) })
+      var A = (window.Stack && Stack.attr) || {};
+      var lead = { a: "lead", email: v, hp_field: trap ? trap.value : "", source: window.Stack && Stack.source ? Stack.source() : "direct",
+        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null };
+      fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lead) })
         .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); }); })
-        .then(function () { document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false; document.getElementById("to").textContent = v; say(""); })
+        .then(function () { return fetch(DEMO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "signin", email: v }) }).catch(function () {}); })
+        .then(function () { showSent(v, false); })
         .catch(function (x) { say(x.message, true); });
     }
     document.getElementById("f1").onsubmit = function (e) { e.preventDefault(); sendLink(); };
-    document.getElementById("again").onclick = function () { say("Sent again. It can take a minute to arrive."); sendLink(); };
+    document.getElementById("again").onclick = function () { sendLink(); };
     // Coming from the demo without the email's key: the button is already on its way.
     var pe = ""; try { pe = sessionStorage.getItem("promo_email") || ""; sessionStorage.removeItem("promo_email"); } catch (x) {}
-    if (pe) { em.value = pe; document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false; document.getElementById("to").textContent = pe; }
+    if (pe) { em.value = pe; showSent(pe, true); }
   }
 
   // ---------- home: the checklist ----------

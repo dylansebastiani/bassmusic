@@ -60,8 +60,10 @@
   <p><span data-k="labelName"></span><br><span data-k="mailingAddress" class="addr"></span><a data-mail="contactEmail"></a></p>
   <footer><a href="./">Home</a><a href="privacy.html">Privacy</a></footer>
 </main>
+<script src="assets/stack.js"></script>
 <script>
 (function () { var C = window.STACK || {};
+  if (window.Stack) Stack.pageview("/terms");
   document.querySelectorAll("[data-k]").forEach(function (el) { el.textContent = C[el.getAttribute("data-k")] || ""; });
   // Hide the mailing address line until a real one is set in config (same rule as the ticket emails).
   document.querySelectorAll(".addr").forEach(function (el) { var a = C.mailingAddress || ""; if (!a || /TBD/i.test(a)) el.remove(); else el.insertAdjacentHTML("afterend", "<br>"); });
