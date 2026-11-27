@@ -1,5 +1,5 @@
 import { db, setting } from "../_shared/db.ts";
-import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE } from "../_shared/util.ts";
+import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, sha256 } from "../_shared/util.ts";
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
@@ -7,6 +7,8 @@ import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
 import { SITE_URL } from "../_shared/config.ts";
+import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
+import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
@@ -22,6 +24,9 @@ import { SITE_URL } from "../_shared/config.ts";
 //   POST {a:"kit-save", show, kit}                        event kit
 //   POST {a:"submit", show}                               ready for Dylan: builds the first page draft if none exists,
 //                                                         then one email to Dylan and one to the promoter
+//   POST {a:"referral-settle", credit}                    Dylan only: mark a referral credit paid. Sends no money.
+//   GET  ?a=street&show=                                  named links for one show, with tickets and revenue
+//   POST {a:"street-save", show, label, code?, payout?}   add or update a link. A payout is what the promoter owes.
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
 const CONTACT = "hello@subduction.art";
 const HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
@@ -32,6 +37,15 @@ const KINDS = ["logo", "partners", "figure", "hero", "hero_small", "flyer", "ico
 const EXT: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4" };
 const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+function referralCode(v: unknown): string | null {
+  const s = (clean(v, 16) || "").toLowerCase();
+  return /^[a-z0-9]{8}$/.test(s) ? s : null;
+}
+// Link the new crew to whoever's code they used. Missing migration or a bad code must not block signup.
+async function attachReferral(companyId: string, email: string) {
+  const { error } = await db.rpc("attach_promoter_referral", { p_company: companyId, p_email: email || null, p_code: null });
+  if (error) console.error("promoter: referral", error.message);
+}
 // Keep the site name and the path. Drop the query, so a referrer can't carry an email or a token into the row.
 function safeRef(v: unknown): string | null {
   const s = clean(v, 300);
@@ -63,7 +77,7 @@ async function syncLead(email: string, source: string): Promise<boolean> {
 }
 // The same Brevo send the promoter invite uses. Straight to Dylan, not through the email runner.
 // The person who typed the address is never a recipient, and neither is any artist contact.
-async function tellDylan(email: string, info: { source: string; utm_medium: string | null; utm_campaign: string | null; referrer: string | null }) {
+async function tellDylan(email: string, info: { source: string; utm_medium: string | null; utm_campaign: string | null; referrer: string | null; referral: string | null }) {
   try {
     const list = ((await setting<string[]>("admin_emails", [])) || []).map((e) => String(e).toLowerCase()).filter((e) => EMAIL_RE.test(e) && e !== email);
     const to: string[] = [];
@@ -73,6 +87,7 @@ async function tellDylan(email: string, info: { source: string; utm_medium: stri
     if (info.utm_medium) lines.push("Medium: " + info.utm_medium);
     if (info.utm_campaign) lines.push("Campaign: " + info.utm_campaign);
     if (info.referrer) lines.push("Referrer: " + info.referrer);
+    if (info.referral) lines.push("Referral code: " + info.referral);
     lines.push("", "They typed it at " + SITE_URL + "/promoter");
     const addr = String(await setting("mailing_address", ""));
     if (addr && !/TBD/i.test(addr)) lines.push("", "Subduction", addr);
@@ -193,6 +208,7 @@ async function ownerFor(companyId: string, email: string): Promise<string | null
   if (!m) return null;
   await db.from("company_staff").upsert({ company_id: companyId, subscriber_id: m.id, role: "owner" }, { onConflict: "company_id,subscriber_id", ignoreDuplicates: true });
   await db.from("companies").update({ contact_email: email }).eq("id", companyId).is("contact_email", null);
+  await attachReferral(companyId, email);
   return m.id;
 }
 
@@ -258,22 +274,63 @@ Deno.serve(async (req) => {
       if ((count ?? 0) > 0) return ok({ ok: true });
     }
     const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
+    const referral = referralCode(b.referral_code);
     const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
     const { data: existing } = await db.from("promoter_leads").select("id").eq("email", email).maybeSingle();
-    if (existing) return ok({ ok: true });
-    const { error } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) });
+    if (existing) {
+      if (referral) await db.from("promoter_leads").update({ referral_code: referral }).eq("id", existing.id).is("referral_code", null);
+      return ok({ ok: true });
+    }
+    const leadRow = { email, source, utm_source, utm_medium, utm_campaign, referrer, referral_code: referral, ip_hash: await ipHash(req, salt) };
+    let { error } = await db.from("promoter_leads").insert(leadRow);
+    // Column arrives with migration 0051. Until then, save the lead the old way.
+    if (error && /referral_code/.test(error.message || "")) ({ error } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) }));
     if (error && (error.code === "23505" || /duplicate key/i.test(error.message || ""))) return ok({ ok: true });
     if (error) { console.error("promoter: lead", error.message); return no("Couldn't save that. Try again.", 500); }
     const artist = await artistContact(email);
     // Confirmed artist contacts are stored here and nowhere else. No Brevo write, no email to them.
     if (artist === true) await db.from("promoter_leads").update({ crm_synced_at: new Date().toISOString() }).eq("email", email);
     else if (artist === false && await syncLead(email, utm_source || source)) await db.from("promoter_leads").update({ crm_synced_at: new Date().toISOString() }).eq("email", email);
-    await tellDylan(email, { source, utm_medium, utm_campaign, referrer });
+    await tellDylan(email, { source, utm_medium, utm_campaign, referrer, referral });
     return ok({ ok: true });
   }
 
   const st = await staffAuth(req);
-  if (!st) return no("Sign in again.", 401);
+  if (!st) {
+    // A live sign-in with no promoter crew is not a bad sign-in. Tell the page so it keeps the session.
+    const tk = (req.headers.get("x-admin-token") || "").trim();
+    if (/^[0-9a-f]{64}$/.test(tk)) {
+      const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tk)).maybeSingle();
+      if (s && new Date(s.expires_at).getTime() > Date.now()) {
+        const { data: m } = await db.from("subscribers").select("status").eq("id", s.subscriber_id).maybeSingle();
+        if (m && m.status !== "deleted") return json({ error: "No promoter crew on this account yet.", no_crew: true }, 403);
+      }
+    }
+    return no("Sign in again.", 401);
+  }
+
+  // Ledger only. Dylan marks the row paid. No transfer is created.
+  if (a === "referral-settle") {
+    if (!st.owner) return no("Only Subduction can mark a referral credit paid.", 403);
+    const res = await settleReferralCredit(String(b.credit || ""), st.id);
+    if ("error" in res) return no(res.error);
+    return ok({ settled: true });
+  }
+
+  if (a === "street" || a === "street-save") {
+    const id = a === "street" ? (u.searchParams.get("show") || "") : String(b.show || "");
+    if (!UUID_RE.test(id)) return no("Not found", 404);
+    const { data: show } = await db.from("events").select("id,slug,name,company_id").eq("id", id).maybeSingle();
+    const co = show ? await loadCompany(show.company_id) : null;
+    if (!show || !co || !canSee(st, show.company_id)) return no("Not found", 404);
+    if (handsOff(show, co)) return no("This show can't be changed here.", 409);
+    if (a === "street-save") {
+      const saved = await saveStreetLink(show, { label: b.label, code: b.code, payout: b.payout }, SITE_URL);
+      if ("error" in saved && saved.error) return no(String(saved.error));
+      return ok(saved);
+    }
+    return ok(await streetView(show, SITE_URL));
+  }
 
   if (a === "me") {
     const ids = st.owner ? null : st.companies.map((c) => c.id);
@@ -284,13 +341,14 @@ Deno.serve(async (req) => {
     const { data: shows } = await db.from("events").select("id,slug,name,company_id,review_status,review_note,sales_open,kit,page,page_draft,city,venue,age,location_secret,address_reveal_at,starts_at")
       .in("company_id", (cos || []).map((c) => c.id).concat(["00000000-0000-0000-0000-000000000000"])).order("created_at", { ascending: false });
     const sIds = (shows || []).map((s) => s.id).concat(["00000000-0000-0000-0000-000000000000"]);
-    const [{ data: nights }, { data: types }] = await Promise.all([
+    const [{ data: nights }, { data: types }, referral] = await Promise.all([
       db.from("ticket_nights").select("id,event_id,slug,label,starts_at,ends_at,sort").in("event_id", sIds).order("sort"),
       db.from("ticket_types").select("id,event_id,slug,name,night_ids,tiers,on_sale,sort").in("event_id", sIds).order("sort"),
+      referralCards((cos || []).map((c) => c.id), SITE_URL),
     ]);
     return ok({ email: st.email, owner: st.owner,
       companies: (cos || []).map((c) => ({ id: c.id, slug: c.slug, name: c.name, status: c.status, brand: c.brand || {}, paid_ready: c.legacy_stripe || c.stripe_charges_enabled,
-        can_manage: canManage(st, c.id), ...(st.owner ? { contact_email: c.contact_email } : {}) })),
+        can_manage: canManage(st, c.id), referral: referral?.[c.id] || null, ...(st.owner ? { contact_email: c.contact_email } : {}) })),
       shows: (shows || []).map((s) => {
         const ns = (nights || []).filter((n) => n.event_id === s.id), ts = (types || []).filter((t) => t.event_id === s.id && t.slug !== "test" && t.slug !== "artist");
         const kit = s.kit || {};

@@ -10,7 +10,7 @@
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (r.status === 403 && j.no_crew) { try { localStorage.setItem("me_tab", "crew"); } catch (e) {} location.replace("me.html"); return new Promise(function () {}); } if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
   }
   var call = function (a, body) { return api(FN, Object.assign({ a: a }, body || {})); };
   function signOut() { tok = ""; try { localStorage.removeItem(KEY); } catch (e) {} location.hash = ""; route(); }
@@ -29,6 +29,36 @@
   }
   function firstShow() { var co = company(); return co ? me.shows.filter(function (s) { return s.company_id === co.id; })[0] : null; }
   function wireTop() { var o = document.getElementById("out"); if (o) o.onclick = signOut; }
+  function money(cents) { return "$" + ((Number(cents) || 0) / 100).toFixed(2); }
+  function referralHtml(co) {
+    var r = co && co.referral;
+    if (!r || !r.code) return "";
+    var rows = (r.rows || []).map(function (x) {
+      var state = x.status === "settled" ? "Paid" : "Pending";
+      var mark = me.owner && x.status === "pending" ? '<button type=button class=ghost data-settle="' + esc(x.id) + '">Mark this paid</button>' : "";
+      return '<div class=card><b>' + esc(x.crew) + "</b><small>" + esc(x.show) + " · " + x.tickets + " paid " + (x.tickets === 1 ? "ticket" : "tickets") + " · " + money(x.credit_cents) + " · " + state + (x.note ? ". " + esc(x.note) : "") + "</small>" + mark + "</div>";
+    }).join("");
+    var owed = r.pending_cents ? "<p class=note>Pending " + money(r.pending_cents) + ".</p>" : "";
+    var how = me.owner && (r.rows || []).some(function (x) { return x.status === "pending"; }) ? "<p class=note>Mark paid only updates this list. It does not send money.</p>" : "";
+    return "<h2>Referral link</h2><p class=note>" + esc(r.line || "") + "</p>" +
+      '<div class=card><span class=refcode>' + esc(r.link) + '</span><button type=button class=ghost id=copyref>Copy link</button></div>' + owed + rows + how;
+  }
+  function wireReferral(co) {
+    var copy = document.getElementById("copyref");
+    if (copy && co.referral) copy.onclick = function () {
+      var link = co.referral.link, done = function () { say("Copied."); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, function () { say(link); });
+      else say(link);
+    };
+    app.querySelectorAll("[data-settle]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation(); b.disabled = true;
+        call("referral-settle", { credit: b.getAttribute("data-settle") })
+          .then(function () { flash = "Marked paid. No money was sent."; return load(); }).then(route)
+          .catch(function (x) { say(x.message, true); b.disabled = false; });
+      };
+    });
+  }
 
   // ---------- sign in ----------
   function signin() {
@@ -54,8 +84,10 @@
       if (trap && trap.value) return showSent(v, false);
       say("Sending…");
       var A = (window.Stack && Stack.attr) || {};
+      var pref = String(A.pref || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
       var lead = { a: "lead", email: v, hp_field: trap ? trap.value : "", source: window.Stack && Stack.source ? Stack.source() : "direct",
-        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null };
+        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null,
+        referral_code: /^[a-z0-9]{8}$/.test(pref) ? pref : null };
       fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lead) })
         .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); }); })
         .then(function () { return fetch(DEMO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "signin", email: v }) }).catch(function () {}); })
@@ -88,15 +120,17 @@
     if (!s && !me.owner) {
       app.innerHTML = top() + "<div class=qnum>Welcome</div><h1>" + esc(co.name) + ", you're in.</h1><p class=lead>Three quick things and your show is ready to sell. About 5 minutes.</p>" +
         '<ol class="steps plain"><li><span class=n>1</span><span><b>Your show</b><small>Name, date, place, ticket prices.</small></span></li><li><span class=n>2</span><span><b>Your flyer</b><small>Drop it in. Any size.</small></span></li><li><span class=n>3</span><span><b>Get paid</b><small>Connect your bank so ticket money goes straight to you.</small></span></li></ol>' +
-        '<a class=btn href="#show/new/1">Start with my show</a><p class=note>You can stop any time. It saves as you go.</p>';
-      wireTop(); return;
+        '<a class=btn href="#show/new/1">Start with my show</a><p class=note>You can stop any time. It saves as you go.</p>' + referralHtml(co) + '<p class=msg role=status></p>';
+      wireTop(); wireReferral(co); return;
     }
     app.innerHTML = top(me.owner ? "#" : "") + (me.owner ? '<div class=qnum>Setting up for</div>' : "") +
       "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
       (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
+      (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
       '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and your page starts in our neon look.</small></div>' +
+      referralHtml(co) +
       (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "") +
       (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
       (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
@@ -105,6 +139,7 @@
     wireTop();
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     if (flash) { say(flash); flash = ""; }
+    wireReferral(co);
     var inv = document.getElementById("inv");
     if (inv) inv.onclick = function () {
       var em = document.getElementById("ie").value.trim(); say("Sending…");
@@ -121,7 +156,8 @@
       '<button class=btn type=button id=addco>Add promoter</button><p class=msg role=status></p></div>' +
       (list.length ? "<h2>Promoters</h2>" + list.map(function (c) {
         var n = me.shows.filter(function (x) { return x.company_id === c.id; }), w = n.filter(function (x) { return x.review_status === "submitted"; }).length;
-        return '<div class=card data-href="#co/' + c.id + '"><b>' + esc(c.name) + "</b><small>" + (w ? w + " sent to you" : n.length ? n.length + " show" + (n.length > 1 ? "s" : "") : "Nothing filled in yet") + "</small></div>"; }).join("") : "");
+        var pend = c.referral && c.referral.pending_cents ? " · Referral credit pending " + money(c.referral.pending_cents) : "";
+        return '<div class=card data-href="#co/' + c.id + '"><b>' + esc(c.name) + "</b><small>" + (w ? w + " sent to you" : n.length ? n.length + " show" + (n.length > 1 ? "s" : "") : "Nothing filled in yet") + pend + "</small></div>"; }).join("") : "");
     wireTop();
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     document.getElementById("addco").onclick = function () {
@@ -438,6 +474,48 @@
     if (b) b.onclick = function () { say("Sending…"); call("submit", { show: s.id }).then(function () { return load(); }).then(function () { send(id); }).catch(function (x) { say(x.message, true); }); };
   }
 
+  function links(id) {
+    var s = showById(id); if (!s) return go(homeHref());
+    function money(cents) { return "$" + ((Number(cents) || 0) / 100).toFixed(2); }
+    function paint(d) {
+      if (!d || d.ready === false) {
+        app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=note>" + esc((d && d.error) || "Street team links are not ready yet.") + "</p>";
+        wireTop(); return;
+      }
+      var rows = (d.rows || []).map(function (r) {
+        var owed = r.owed_cents == null ? "No payout set" : "You owe " + money(r.owed_cents);
+        return '<div class=card><b>' + esc(r.label) + (r.saved ? "" : " (not saved yet)") + '</b><span class=streetcode>' + esc(r.link) + "</span><small>" +
+          r.tickets + " paid " + (r.tickets === 1 ? "ticket" : "tickets") + " · " + money(r.revenue_cents) + " in tickets · " + owed +
+          '</small><button type=button class=ghost data-copy="' + esc(r.link) + '">Copy link</button></div>';
+      }).join("");
+      app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=note>" + esc(d.line || "") + "</p>" + rows +
+        "<h2>Add a link</h2>" +
+        '<label for=sl-name>Name</label><input id=sl-name maxlength=60 placeholder="DJ Name">' +
+        '<label for=sl-code>Code</label><input id=sl-code maxlength=32 placeholder="djname" autocapitalize=off spellcheck=false>' +
+        '<label for=sl-pay>Payout per ticket, optional</label><input id=sl-pay inputmode=decimal placeholder="2.50">' +
+        '<button class=btn type=button id=sl-save>Save link</button><p class=msg role=status></p>';
+      wireTop();
+      app.querySelectorAll("[data-copy]").forEach(function (b) {
+        b.onclick = function () {
+          var t = b.getAttribute("data-copy");
+          (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { say("Copied."); }, function () { say(t); });
+        };
+      });
+      document.getElementById("sl-save").onclick = function () {
+        say("Saving…");
+        call("street-save", { show: id, label: document.getElementById("sl-name").value, code: document.getElementById("sl-code").value, payout: document.getElementById("sl-pay").value.trim() })
+          .then(function (r) { paint(r); say("Saved."); })
+          .catch(function (x) { say(x.message, true); });
+      };
+    }
+    app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=msg role=status>Loading…</p>";
+    wireTop();
+    api(FN + "?a=street&show=" + encodeURIComponent(id)).then(paint).catch(function (x) {
+      app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + '</p><p class="msg bad">' + esc(x.message) + "</p>";
+      wireTop();
+    });
+  }
+
   function load() { return api(FN + "?a=me").then(function (r) { me = r; if (!coId || !me.companies.some(function (c) { return c.id === coId; })) coId = (me.companies[0] || {}).id || ""; }); }
   function route() {
     app.onclick = null; warns = {};
@@ -453,6 +531,7 @@
     if (h[0] === "music") return music(h[1]);
     if (h[0] === "paid") return paid();
     if (h[0] === "send") return send(h[1]);
+    if (h[0] === "links") return links(h[1]);
     home();
   }
   window.addEventListener("hashchange", route);

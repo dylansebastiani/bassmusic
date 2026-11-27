@@ -6,7 +6,9 @@ window.Stack = (function () {
   var MKEY = "stack_member";
 
   // Attribution travels with the visitor across pages and survives a reload.
-  var KEYS = ["src", "e", "r", "utm_source", "utm_medium", "utm_campaign"];
+  // pref is a promoter referral code. It rides along with the visit. It is not a ticket link.
+  // ref is a street-team code for a show. It rides along with the visit, same as the other campaign fields.
+  var KEYS = ["src", "e", "r", "utm_source", "utm_medium", "utm_campaign", "pref", "ref"];
   var attr = {};
   try { attr = JSON.parse(sessionStorage.getItem("stack_attr") || "{}"); } catch (e) {}
   KEYS.forEach(function (k) { if (q.get(k)) attr[k] = q.get(k).slice(0, 80); });

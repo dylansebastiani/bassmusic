@@ -95,7 +95,7 @@ async function subductionShows(today: string) {
   const slugById: Record<string, string> = {};
   for (const e of rows) slugById[e.id] = e.slug;
   const bySlug: Record<string, { starts_at: string; lineup: unknown; flyer_url: unknown }[]> = {};
-  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,lineup,flyer_url").in("event_id", rows.map((e) => e.id));
+  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,lineup,flyer_url").in("event_id", rows.map((e) => e.id)).order("starts_at");
   if (nErr) console.error("directory: nights", nErr.message);
   for (const n of ns || []) {
     const slug = slugById[n.event_id];

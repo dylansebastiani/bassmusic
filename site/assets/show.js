@@ -239,9 +239,12 @@
       if (!checkEmail(true)) { $("bmsg").textContent = "Check your email address."; $("bemail").focus(); return; }
       if (!checkPhone(true)) { $("bmsg").textContent = "Add a phone number we can reach you at."; $("bphone").focus(); return; }
       $("go").disabled = true; $("bmsg").textContent = "Holding your tickets...";
+      // Promoter shows can pick up a street-team code saved with the visit. The original lane keeps the ref it already had.
+      var linkRef = ref || null;
+      if (data.lane === 2 && !linkRef && window.Stack && Stack.attr && Stack.attr.ref) linkRef = String(Stack.attr.ref).toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || null;
       Promise.all([
         fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, phone: phone, promo: $("bpromo").value.trim() || null, ref: ref || null, page: "show" }) })
+          body: JSON.stringify({ a: "checkout", e: slug, items: items, name: name, email: email, phone: phone, promo: $("bpromo").value.trim() || null, ref: data.lane === 2 ? linkRef : (ref || null), page: "show" }) })
           .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); if (!j.free) $("bmsg").textContent = "Tickets held. Opening secure checkout..."; return j; }); }),
         loadStripe(),
       ]).then(function (res) {
@@ -308,6 +311,28 @@
     $("page").innerHTML = '<div class="miss"><a class="brand" href="/" aria-label="Subduction home"><img src="/assets/logo.png" alt=""></a><h1 class="disp">' + text + '</h1><a class="btn" href="/">Back home</a></div>';
   }
 
+  // Event markup for approved promoter shows. T.O.F.T.U. stays out through Jan 9, 2027 Chicago time.
+  var TOFTU_SCHEMA_AFTER = Date.parse("2027-01-10T00:00:00-06:00");
+  function schemaHeld() { return slug === "underground" && Date.now() < TOFTU_SCHEMA_AFTER; }
+  function applySchema(schema) {
+    var old = document.getElementById("event-schema");
+    if (!schema) { if (old) old.remove(); return; }
+    var s = old || document.createElement("script");
+    s.type = "application/ld+json";
+    s.id = "event-schema";
+    s.textContent = JSON.stringify(schema);
+    if (!old) document.head.appendChild(s);
+  }
+  function pullSchema() {
+    if (PREVIEW || schemaHeld() || !data || data.preview || data.lane !== 2) return;
+    fetch((C.supabaseUrl || "") + "/functions/v1/shows?e=" + encodeURIComponent(slug)).then(function (r) {
+      if (r.status === 404) { applySchema(null); return null; }
+      return r.ok ? r.json() : null;
+    }).then(function (x) {
+      if (x && Object.prototype.hasOwnProperty.call(x, "schema")) applySchema(x.schema || null);
+    }).catch(function () {});
+  }
+
   // Count the visit. The first show's own page is left alone.
   if (window.Stack && slug !== "underground") window.Stack.pageview(slug ? "/" + slug : "/show");
   if (!slug) { miss("No show picked."); return; }
@@ -318,11 +343,15 @@
     if (!d.page && !PREVIEW && slug === "underground") { location.replace("tickets.html?e=" + encodeURIComponent(slug)); return; }
     // A brand-new show in the studio: wait for the studio to send its first draft.
     if (!d.page && PREVIEW) { $("page").innerHTML = '<p class="msg">Waiting for the studio…</p>'; return; }
+    var wantSchema = d.lane === 2 && !d.preview && !PREVIEW && !schemaHeld();
     var go = function () { render(); var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid); };
-    if (d.page) return go();
+    if (d.page) { if (wantSchema) pullSchema(); return go(); }
     // Every other show: its published design if it has one, otherwise a plain page with no one else's look on it.
     return fetch((C.supabaseUrl || "") + "/functions/v1/shows?e=" + slug).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
-      .then(function (x) { d.page = (x && x.page && x.page.theme && x.page.sections) ? x.page : plainPage(d); go(); });
+      .then(function (x) {
+        if (wantSchema && x && Object.prototype.hasOwnProperty.call(x, "schema")) applySchema(x.schema || null);
+        d.page = (x && x.page && x.page.theme && x.page.sections) ? x.page : plainPage(d); go();
+      });
   }).catch(function (e) {
     if (e && (e.status === 403 || e.message === "Not live yet.")) {
       var rob = document.querySelector('meta[name="robots"]');
