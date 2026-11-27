@@ -111,7 +111,9 @@ async function showPages() {
   let shows = [];
   try { shows = (await (await fetch(`${fn}/shows`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
   catch (e) { console.warn("build: could not fetch the show list, short links fall back to the 404 page:", e.message); return; }
-  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">');
+  // The page's own generic title and description are dropped, so each built page prints exactly one of each.
+  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">')
+    .replace(/<meta name="description"[^>]*>\s*/, "").replace(/<title>[^<]*<\/title>\s*/, "");
   const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let n = 0;
   for (const s of shows) {
@@ -121,7 +123,8 @@ async function showPages() {
     // Never let a show's name shadow a real page or folder of the site.
     if (existsSync(join(out, s.slug)) || existsSync(join(out, s.slug + ".html"))) { console.warn(`build: show "${s.slug}" clashes with a site page, skipped`); continue; }
     const image = s.image || s.share_url || s.poster_url || `${pub.siteUrl}/assets/og.jpg`;
-    const desc = (s.description || `Tickets for ${s.name || "this show"}.`).slice(0, 200);
+    // A show with a secret location never puts its written description in a public preview.
+    const desc = ((s.location_secret !== false ? "" : s.description) || `Tickets for ${s.name || "this show"}.`).slice(0, 200);
     const tags = `<title>${esc(s.name)}</title>\n<meta name="description" content="${esc(desc)}">\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:description" content="${esc(desc)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">\n<meta property="og:image" content="${esc(image)}">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="${esc(s.name)}">\n<meta name="twitter:description" content="${esc(desc)}">\n<meta name="twitter:image" content="${esc(image)}">` +
       eventSchemaTag(s);
     mkdirSync(join(out, s.slug), { recursive: true });

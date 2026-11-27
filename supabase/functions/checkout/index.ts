@@ -209,17 +209,20 @@ Deno.serve(async (req) => {
     const { data: tk } = await db.from("tickets").select("id,code,token,holder_name,tier,status,is_comp,event_id,type_id").eq("token", t).maybeSingle();
     if (!tk) return no("Not found", 404);
     const [{ data: ev }, { data: ty }, { data: scans }] = await Promise.all([
-      db.from("events").select("slug,name,venue,city,address,age,location_secret,company_id").eq("id", tk.event_id).single(),
+      db.from("events").select("slug,name,venue,city,address,age,location_secret,address_reveal_at,company_id").eq("id", tk.event_id).single(),
       db.from("ticket_types").select("slug,name,night_ids").eq("id", tk.type_id).single(),
       db.from("ticket_scans").select("night_id,scanned_at").eq("ticket_id", tk.id),
     ]);
     const { data: co } = ev?.company_id ? await db.from("companies").select("name,legacy_stripe").eq("id", ev.company_id).maybeSingle() : { data: null };
     if (!ev || !co || co.legacy_stripe) return no("Not found", 404);
     const { data: nights } = await db.from("ticket_nights").select("id,label,starts_at,ends_at").in("id", ty?.night_ids || []).order("sort");
+    // A secret-location show keeps its address off the ticket until the reveal time has passed.
+    const held = !!ev.location_secret && (!ev.address_reveal_at || Date.parse(ev.address_reveal_at) > Date.now());
+    const address = held ? null : ev.address;
     return json({
       by: co.name,
       ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp, artist: ty?.slug === "artist" },
-      event: { slug: ev.slug, name: ev.name, venue: ev.venue, city: ev.city, address: ev.address, age: ev.age, address_later: !ev.address && !!ev.location_secret },
+      event: { slug: ev.slug, name: ev.name, venue: ev.venue, city: ev.city, address, age: ev.age, address_later: !address && !!ev.location_secret },
       nights: (nights || []).map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, used_at: scans?.find((s) => s.night_id === n.id)?.scanned_at || null })),
     });
   }
