@@ -10,7 +10,8 @@
 //                                   email). Bot check + 3 a minute per IP. Same answer whether or not we know the email
 //   POST {a:"redeem", invite}       the button's link -> a session token
 //   POST {a:"code", email, code}    the 6-digit code from the same email -> a session token
-//   GET  ?a=me                      the home page (x-admin-token)
+//   POST {a:"member", key}          a fan's member key -> a session token (refused for crew, staff and admins). 10 a minute per IP
+//   GET  ?a=me                   the home page (x-admin-token)
 //   GET  ?a=crew&e=<slug>           the show hub for its crew: art + colors, share link, page checklist, numbers,
 //                                   artists (pass status + sell links), playlist (x-admin-token)
 //   GET  ?a=qr&e=<slug>             a QR code of the show's public link (public: it's the same link anyone can see)
@@ -414,7 +415,7 @@ Deno.serve(async (req) => {
         const email = String(b.email || "").trim().toLowerCase().slice(0, 254), code = String(b.code || "").replace(/\D/g, "");
         const bad = () => no("That code didn't work. Check it, or send a new one.");
         if (!EMAIL_RE.test(email) || code.length !== 6) return bad();
-        const { data: m } = await db.from("subscribers").select("id,email,status").eq("email", email).maybeSingle();
+        const { data: m } = await db.from("subscribers").select("id,email,status,access_token").eq("email", email).maybeSingle();
         if (!m || m.status === "deleted") return bad();
         const { data: rows } = await db.from("signin_codes").select("id,code_hash,attempts").eq("subscriber_id", m.id).is("used_at", null)
           .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(6);
@@ -427,7 +428,7 @@ Deno.serve(async (req) => {
         await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", hit.id);
         const token = hex(32);
         await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
-        return json({ token, email: m.email });
+        return json({ token, email: m.email, member: m.access_token });
       }
       if (b.a === "redeem") {
         const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-redeem") });
@@ -439,8 +440,24 @@ Deno.serve(async (req) => {
         if (!c || c.used_at || new Date(c.expires_at).getTime() < Date.now() || c.attempts >= 5) return bad();
         if (c.code_hash !== await sha256(`${c.subscriber_id}|${secret}|${await setting("ip_salt", "unset")}`)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); return bad(); }
         await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
-        const { data: m } = await db.from("subscribers").select("id,email,status").eq("id", c.subscriber_id).maybeSingle();
+        const { data: m } = await db.from("subscribers").select("id,email,status,access_token").eq("id", c.subscriber_id).maybeSingle();
         if (!m || m.status === "deleted") return bad();
+        const token = hex(32);
+        await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
+        return json({ token, email: m.email, member: m.access_token });
+      }
+      if (b.a === "member") {
+        const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-member") });
+        if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
+        const key = String(b.key || "").trim().toLowerCase();
+        const refuse = () => no("Sign in with your email.", 401);
+        if (!UUID_RE.test(key)) return refuse();
+        // Member key only (access_token). The weaker light_token QR key is never accepted.
+        const { data: m } = await db.from("subscribers").select("id,email,status").eq("access_token", key).maybeSingle();
+        if (!m || m.status === "deleted") return refuse();
+        if ((await admins()).includes(String(m.email).toLowerCase())) return refuse();
+        const { data: staff } = await db.from("company_staff").select("company_id").eq("subscriber_id", m.id).limit(1);
+        if (staff && staff.length) return refuse();   // crew and staff carry promoter powers, so they use the email sign-in
         const token = hex(32);
         await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
         return json({ token, email: m.email });
