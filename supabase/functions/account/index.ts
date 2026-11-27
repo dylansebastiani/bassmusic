@@ -10,7 +10,7 @@
 //                                   email). Bot check + 3 a minute per IP. Same answer whether or not we know the email
 //   POST {a:"redeem", invite}       the button's link -> a session token
 //   POST {a:"code", email, code}    the 6-digit code from the same email -> a session token
-//   POST {a:"member", key}          a fan's member key -> a session token (refused for crew, staff and admins). 10 a minute per IP
+//   POST {a:"member", key}          a fan's member key -> a session token (refused for crew, staff, admins and artists; 24h session without tickets). 10 a minute per IP
 //   GET  ?a=me                   the home page (x-admin-token)
 //   GET  ?a=crew&e=<slug>           the show hub for its crew: art + colors, share link, page checklist, numbers,
 //                                   artists (pass status + sell links), playlist (x-admin-token)
@@ -66,11 +66,13 @@ const admins = async () => ((await setting<unknown[]>("admin_emails", [])) || []
 async function who(req: Request) {
   const token = (req.headers.get("x-admin-token") || "").trim();
   if (!/^[0-9a-f]{64}$/.test(token)) return null;
-  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(token)).maybeSingle();
+  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at,created_at").eq("token_hash", await sha256(token)).maybeSingle();
   if (!s || new Date(s.expires_at).getTime() < Date.now()) return null;
   const { data: m } = await db.from("subscribers").select("id,email,first_name,status").eq("id", s.subscriber_id).maybeSingle();
   if (!m || m.status === "deleted") return null;
-  return m as { id: string; email: string; first_name: string | null; status: string };
+  // Sessions made from a fan's member key last 24 hours (email sign-ins last 30 days), so a short one is the lower-trust kind.
+  const limited = new Date(s.expires_at).getTime() - new Date(s.created_at).getTime() <= 2 * 86400000;
+  return { ...m, limited } as { id: string; email: string; first_name: string | null; status: string; limited: boolean };
 }
 
 // Bot check for sign-in (Cloudflare Turnstile). Inline on purpose: this file imports nothing from _shared.
@@ -146,7 +148,7 @@ async function nightsFor(eventIds: string[]) {
   for (const n of data || []) (out[n.event_id] ||= []).push({ id: n.id, label: n.label, starts_at: n.starts_at, capacity: n.capacity ?? null });
   return out;
 }
-async function home(m: { id: string; email: string; first_name: string | null }) {
+async function home(m: { id: string; email: string; first_name: string | null; limited?: boolean }) {
   const email = String(m.email).toLowerCase();
   const [{ data: orders }, { data: invites }, { data: staff }] = await Promise.all([
     db.from("ticket_orders").select("id,event_id,status,comp_list,artist_invite_id").eq("email", email).in("status", ["paid", "comp"]).order("created_at", { ascending: false }).limit(100),
@@ -179,7 +181,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
     const kind = o?.artist_invite_id && (!o.comp_list || o.comp_list === "Artist") ? "artist" : o?.status === "comp" ? "guest" : "ticket";
     (ticketsByEvent[t.event_id] ||= []).push({ type: kind === "artist" ? "Artist pass" : (tyMap[t.type_id] || "Ticket") + (kind === "guest" ? " · guest list" : ""), kind, code: t.code, url: `${SITE}/${page}.html?t=${t.token}` });
   }
-  const tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
+  let tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
     .sort((a, b) => String(a.when).localeCompare(String(b.when)));
   // Every show they're booked on, each with its own sell link and how many tickets it has moved.
   const sold: Record<string, number> = {};
@@ -188,9 +190,14 @@ async function home(m: { id: string; email: string; first_name: string | null })
     const mine = (os || []).filter((o) => (i.sell_promo_id && o.promo_id === i.sell_promo_id) || (i.sell_ref && o.ref && o.ref.toLowerCase() === String(i.sell_ref).toLowerCase())).map((o) => o.id);
     sold[i.id] = mine.length ? ((await db.from("tickets").select("id", { count: "exact", head: true }).in("order_id", mine)).count ?? 0) : 0;
   }
-  const artist = (invites || []).filter((i) => evMap[i.event_id]).map((i) => ({ name: i.name, show: evMap[i.event_id].name, when: firstNight(i.event_id),
+  let artist = (invites || []).filter((i) => evMap[i.event_id]).map((i) => ({ name: i.name, show: evMap[i.event_id].name, when: firstNight(i.event_id),
     nights: (nights[i.event_id] || []).map((n) => n.label), url: `${SITE}/artist.html?k=${i.token}`, claimed: !!i.claimed_at,
     sell_link: i.sell_ref ? `${SITE}/go/${i.sell_ref}` : null, sold: sold[i.id] || 0 }));
+  // A member-key session is lower trust: no ticket links, ticket codes or artist pass links until they sign in with their email.
+  if (m.limited) {
+    tickets = tickets.map((g) => ({ ...g, tickets: [] }));
+    artist = artist.map((a) => ({ ...a, url: null as any, sell_link: null }));
+  }
   // One artist profile per person. First time we see them, it's carried over from their artist pass.
   let { data: prof } = await db.from("artist_profiles").select("name,bio,hometown,genre,links,photo_path").eq("subscriber_id", m.id).maybeSingle();
   if (!prof && (invites || []).length) {
@@ -228,7 +235,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
   const isStaff = (await admins()).includes(email);
   // Creating and editing artist profiles isn't open to everyone yet: staff see it to test it.
   const preview = isStaff || (await setting<boolean>("artist_profiles_open", false)) === true;
-  return { email: m.email, name: m.first_name || "", staff: isStaff, tickets, artist, profile, artist_preview: preview, crews, music: `${SITE}/collection.html`, demo: `${SITE}/demo.html`, waitlist: `${SITE}/artists.html` };
+  return { email: m.email, name: m.first_name || "", staff: isStaff, tickets, artist, profile, artist_preview: preview, crews, limited: !!m.limited, tickets_note: m.limited ? "Sign in with your email to open your tickets" : null, music: `${SITE}/collection.html`, demo: `${SITE}/demo.html`, waitlist: `${SITE}/artists.html` };
 }
 
 // ---- a show's numbers for its crew (read-only) ----
@@ -447,20 +454,28 @@ Deno.serve(async (req) => {
         return json({ token, email: m.email, member: m.access_token });
       }
       if (b.a === "member") {
-        const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-member") });
-        if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
-        const key = String(b.key || "").trim().toLowerCase();
         const refuse = () => no("Sign in with your email.", 401);
+        const { data: n, error: re } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-member") });
+        if (re || n == null) return refuse();   // the counter failed: refuse rather than allow
+        if (n > 10) return no("Too many tries. Wait a minute.", 429);
+        const key = String(b.key || "").trim().toLowerCase();
         if (!UUID_RE.test(key)) return refuse();
         // Member key only (access_token). The weaker light_token QR key is never accepted.
         const { data: m } = await db.from("subscribers").select("id,email,status").eq("access_token", key).maybeSingle();
         if (!m || m.status === "deleted") return refuse();
-        if ((await admins()).includes(String(m.email).toLowerCase())) return refuse();
-        const { data: staff } = await db.from("company_staff").select("company_id").eq("subscriber_id", m.id).limit(1);
-        if (staff && staff.length) return refuse();   // crew and staff carry promoter powers, so they use the email sign-in
+        // Read the admin list directly so a failed read refuses (setting() swallows errors).
+        const { data: adm, error: ae } = await db.from("settings").select("value").eq("key", "admin_emails").maybeSingle();
+        if (ae) return refuse();
+        const list = Array.isArray(adm?.value) ? (adm!.value as unknown[]).map((e) => String(e).toLowerCase()) : [];
+        if (list.includes(String(m.email).toLowerCase())) return refuse();
+        const { data: staff, error: se } = await db.from("company_staff").select("company_id").eq("subscriber_id", m.id).limit(1);
+        if (se || !staff || staff.length) return refuse();   // crew and staff carry promoter powers, so they use the email sign-in
+        const { data: inv, error: ie } = await db.from("artist_invites").select("id").ilike("email", String(m.email).toLowerCase()).limit(1);
+        if (ie || !inv || inv.length) return refuse();   // anyone with an artist invite signs in with their email
         const token = hex(32);
-        await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
-        return json({ token, email: m.email });
+        // Lower trust than an email sign-in: 24 hours, and home() hides tickets and passes for it.
+        await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 86400000).toISOString() });
+        return json({ token, email: m.email, limited: true });
       }
       if (b.a === "profile") {
         const me = await who(req);
