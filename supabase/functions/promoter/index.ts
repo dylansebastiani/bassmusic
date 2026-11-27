@@ -1,5 +1,5 @@
 import { db, setting } from "../_shared/db.ts";
-import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, clientIp, verifyTurnstile } from "../_shared/util.ts";
+import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, sha256, clientIp, verifyTurnstile } from "../_shared/util.ts";
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
@@ -357,7 +357,18 @@ Deno.serve(async (req) => {
   }
 
   const st = await staffAuth(req);
-  if (!st) return no("Sign in again.", 401);
+  if (!st) {
+    // A live sign-in with no promoter crew is not a bad sign-in. Tell the page so it keeps the session.
+    const tk = (req.headers.get("x-admin-token") || "").trim();
+    if (/^[0-9a-f]{64}$/.test(tk)) {
+      const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tk)).maybeSingle();
+      if (s && new Date(s.expires_at).getTime() > Date.now()) {
+        const { data: m } = await db.from("subscribers").select("status").eq("id", s.subscriber_id).maybeSingle();
+        if (m && m.status !== "deleted") return json({ error: "No promoter crew on this account yet.", no_crew: true }, 403);
+      }
+    }
+    return no("Sign in again.", 401);
+  }
 
   if (req.method === "GET" && a === "buyers") {
     const id = u.searchParams.get("show") || "";
