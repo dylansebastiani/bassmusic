@@ -116,10 +116,7 @@
         return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(open) });
       })
         .then(function (r) { tsToken = null; if (tsId !== null && window.turnstile) turnstile.reset(tsId); return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); })
-        .then(function (j) {
-          if (j.artist) { say("That email is on an artist pass. Open the link from your pass email.", true); return; }
-          showSent(v, false);
-        })
+        .then(function () { showSent(v, false); })
         .catch(function (x) { say(x.message, true); });
     }
     document.getElementById("f1").onsubmit = function (e) { e.preventDefault(); sendLink(); };

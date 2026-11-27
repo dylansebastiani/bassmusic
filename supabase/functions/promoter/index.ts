@@ -212,6 +212,30 @@ async function ownerFor(companyId: string, email: string): Promise<string | null
   return m.id;
 }
 
+// Runs only after the person has proved the inbox: a good code or a live session. A lead that has no crew
+// yet gets its company, owner row and Brevo contact now, and Dylan gets his alert now. Not before.
+async function provision(subscriberId: string, email: string): Promise<boolean> {
+  email = email.toLowerCase();
+  const { count } = await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", subscriberId);
+  if ((count ?? 0) > 0) return false;
+  const { data: lead } = await db.from("promoter_leads").select("*").eq("email", email).maybeSingle();
+  if (!lead) return false;
+  if (await isAdminEmail(email)) return false;
+  const artist = await artistContact(email);
+  if (artist !== false) return false;
+  const local = email.split("@")[0].replace(/[^a-z0-9]+/gi, " ").trim().slice(0, 40) || "My crew";
+  const name = local.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  let slug = slugify(name) || "crew";
+  if ((await db.from("companies").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
+  const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email }).select("id").single();
+  if (error || !co) { console.error("promoter: provision", error?.message); return false; }
+  if (!(await ownerFor(co.id, email))) return false;
+  const source = String(lead.source || "direct");
+  if (await syncLead(email, lead.utm_source || source)) await db.from("promoter_leads").update({ crm_synced_at: new Date().toISOString() }).eq("email", email);
+  await tellDylan(email, { source, utm_medium: lead.utm_medium || null, utm_campaign: lead.utm_campaign || null, referrer: lead.referrer || null, referral: lead.referral_code || null });
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_P } }); }
   const ok = (body: unknown) => json(body, 200, { "Cache-Control": "no-store", ...CORS_P });
@@ -229,7 +253,7 @@ Deno.serve(async (req) => {
     if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
     const { data: m } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
     const { count } = m ? await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id) : { count: 0 };
-    const allowed = !!m && m.status !== "deleted" && ((count ?? 0) > 0 || await isAdminEmail(email));
+    const allowed = !!m && m.status !== "deleted" && ((count ?? 0) > 0 || await isAdminEmail(email) || !!(await db.from("promoter_leads").select("id").eq("email", email).maybeSingle()).data);
     // Same answer either way, so this can't be used to find out who's a promoter.
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
@@ -240,6 +264,7 @@ Deno.serve(async (req) => {
     if (!c || new Date(c.expires_at).getTime() < Date.now() || c.attempts >= 5) return no("That code expired. Send a new one.");
     if (c.code_hash !== await codeHash(m!.id, code)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); return no("That code didn't match."); }
     await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
+    await provision(m!.id, email);
     return ok({ token: await newSession(m!.id), email });
   }
 
@@ -256,6 +281,7 @@ Deno.serve(async (req) => {
     await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
     const { data: m } = await db.from("subscribers").select("email,status").eq("id", c.subscriber_id).maybeSingle();
     if (!m || m.status === "deleted") return bad();
+    await provision(c.subscriber_id, m.email);
     return ok({ token: await newSession(c.subscriber_id), email: m.email });
   }
 
@@ -295,9 +321,9 @@ Deno.serve(async (req) => {
     return ok({ ok: true });
   }
 
-  // One email opens a new promoter account. Nobody gets a session from this call: both a new and an
-  // existing address get the normal sign-in email, and only that email's code or button signs in.
-  // The answer is the same for both, so it can't be used to find out who already has an account.
+  // One email starts a promoter account. The answer is always the same, so it can't be used to find out
+  // who is already on file. A new address is saved as a lead and sent the normal sign-in email. The
+  // company, owner row, Brevo contact and alert to Dylan come only after that sign-in succeeds (provision).
   if (a === "open") {
     if (clean(b.hp_field, 200) || clean(b.website, 200) || clean(b.company, 200)) return ok({ ok: true });
     const email = (clean(b.email, 254) || "").toLowerCase();
@@ -307,36 +333,26 @@ Deno.serve(async (req) => {
     if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
     if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req), clean(b.ts_err, 20)))) return no("Bot check failed. Refresh and try again.", 403);
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
-    const artist = await artistContact(email);
-    if (artist === true) return ok({ artist: true });
-    const signinTo = async (id: string) => {
-      if (artist !== false) return;
-      const { data: m } = await db.from("subscribers").select(MEMBER_COLS).eq("id", id).maybeSingle();
-      if (m && m.status !== "deleted") await sendSignin(m as SigninMember);
-    };
-    const { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
-    // Any address that already has a subscriber row (buyer, fan, crew, Dylan) only gets the sign-in email.
-    // No company is opened, no staff row is added, and no token comes back.
-    if (m && m.status !== "deleted") { await signinTo(m.id); return ok({ existing: true }); }
-    const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
-    const referral = referralCode(b.referral_code);
-    const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
-    // The attribution row ownerFor's referral link reads, same as the lead action.
-    const leadRow = { email, source, utm_source, utm_medium, utm_campaign, referrer, referral_code: referral, ip_hash: await ipHash(req, salt) };
-    let { error: le } = await db.from("promoter_leads").insert(leadRow);
-    if (le && /referral_code/.test(le.message || "")) ({ error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) }));
-    if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
-    else if (le && referral) await db.from("promoter_leads").update({ referral_code: referral }).eq("email", email).is("referral_code", null);
-    const local = email.split("@")[0].replace(/[^a-z0-9]+/gi, " ").trim().slice(0, 40) || "My crew";
-    const name = local.replace(/\b\w/g, (ch) => ch.toUpperCase());
-    let slug = slugify(name) || "crew";
-    if ((await db.from("companies").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
-    const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email }).select("id").single();
-    if (error || !co) return no("Couldn't open that. Try again.", 500);
-    const sid = await ownerFor(co.id, email);
-    if (!sid) return no("Couldn't open that. Try again.", 500);
-    if (artist === false) { await syncLead(email, utm_source || source); await tellDylan(email, { source, utm_medium, utm_campaign, referrer, referral }); }
-    await signinTo(sid);
+    if (await artistContact(email) !== false) return ok({ ok: true });
+    let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
+    if (!m) {
+      const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
+      const referral = referralCode(b.referral_code);
+      const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
+      // The only record a new address leaves before it is verified. ownerFor's referral link reads it.
+      const leadRow = { email, source, utm_source, utm_medium, utm_campaign, referrer, referral_code: referral, ip_hash: await ipHash(req, salt) };
+      let { error: le } = await db.from("promoter_leads").insert(leadRow);
+      if (le && /referral_code/.test(le.message || "")) ({ error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) }));
+      if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
+      else if (le && referral) await db.from("promoter_leads").update({ referral_code: referral }).eq("email", email).is("referral_code", null);
+      // The sign-in code needs a subscriber row to hang on. It has no company and no crew until the code is used.
+      m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id,status").single()).data
+        || (await db.from("subscribers").select("id,status").eq("email", email).maybeSingle()).data;
+    }
+    if (m && m.status !== "deleted") {
+      const { data: full } = await db.from("subscribers").select(MEMBER_COLS).eq("id", m.id).maybeSingle();
+      if (full) await sendSignin(full as SigninMember);
+    }
     return ok({ ok: true });
   }
 
@@ -345,8 +361,8 @@ Deno.serve(async (req) => {
     const slug = (u.searchParams.get("e") || "").toLowerCase();
     const code = (u.searchParams.get("c") || "").toLowerCase();
     if (slug === "underground" || !/^[a-z0-9-]{1,80}$/.test(slug) || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(code)) return no("Not found", 404);
-    const { data: ev } = await db.from("events").select("id,slug,name,company_id").eq("slug", slug).maybeSingle();
-    if (!ev || ev.id === UNDERGROUND_EVENT_ID || ev.slug === "underground") return no("Not found", 404);
+    const { data: ev } = await db.from("events").select("id,slug,name,company_id,review_status").eq("slug", slug).maybeSingle();
+    if (!ev || ev.review_status !== "approved" || ev.id === UNDERGROUND_EVENT_ID || ev.slug === "underground") return no("Not found", 404);
     const linkCo = await loadCompany(ev.company_id);
     if (!linkCo || handsOff(ev, linkCo)) return no("Not found", 404);
     const view = await streetView(ev, SITE_URL);
@@ -356,7 +372,18 @@ Deno.serve(async (req) => {
     return ok({ show: ev.name, slug: ev.slug, label: row.label, tickets: row.tickets, link: row.link });
   }
 
-  const st = await staffAuth(req);
+  let st = await staffAuth(req);
+  if (!st) {
+    // A signed-in address that asked for a promoter account but has no crew yet gets it now.
+    const tk0 = (req.headers.get("x-admin-token") || "").trim();
+    if (/^[0-9a-f]{64}$/.test(tk0)) {
+      const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tk0)).maybeSingle();
+      if (s0 && new Date(s0.expires_at).getTime() > Date.now()) {
+        const { data: m0 } = await db.from("subscribers").select("email,status").eq("id", s0.subscriber_id).maybeSingle();
+        if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email)) st = await staffAuth(req);
+      }
+    }
+  }
   if (!st) {
     // A live sign-in with no promoter crew is not a bad sign-in. Tell the page so it keeps the session.
     const tk = (req.headers.get("x-admin-token") || "").trim();
@@ -382,7 +409,8 @@ Deno.serve(async (req) => {
     const { data: tix } = orderIds.length ? await db.from("tickets").select("order_id,code").in("order_id", orderIds) : { data: [] as { order_id: string; code: string }[] };
     const codes: Record<string, string[]> = {};
     for (const t of tix || []) (codes[t.order_id] ||= []).push(t.code);
-    const cell = (v: unknown) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+    // A cell that starts with = + - @ (or a tab/return) would run as a formula in a spreadsheet. A leading ' stops that.
+    const cell = (v: unknown) => { let t = String(v ?? ""); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
     const lines = ["name,email,phone,status,total,codes,when"];
     for (const o of orders || []) lines.push([cell(o.name), cell(o.email), cell(o.phone), cell(o.status), cell(((Number(o.total_cents) || 0) / 100).toFixed(2)), cell((codes[o.id] || []).join(" ")), cell(o.created_at)].join(","));
     return new Response(lines.join("\n") + "\n", { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${show.slug}-buyers.csv"`, "Cache-Control": "no-store", ...CORS_P } });
@@ -575,6 +603,8 @@ Deno.serve(async (req) => {
 
   if (a === "kit-save") {
     const kit = cleanKit(b.kit, HOSTS);
+    // The pixel id has its own save (pixel-save). The kit form doesn't carry it, so keep what's stored.
+    if (show.kit?.pixel) kit.pixel = show.kit.pixel;
     await db.from("events").update({ kit }).eq("id", show.id);
     return ok({ kit });
   }
