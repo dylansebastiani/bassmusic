@@ -150,7 +150,8 @@
         var p = g.promo;
         h += '<div class="crewh"><div><h3>' + esc(g.name) + '</h3><div class="sub">' + (g.owner ? "You run this crew" : "You're on this crew") +
           (p ? (p.stripe_ready ? ", selling with your Stripe" : "") : "") + "</div></div>" +
-          (p ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>";
+          (p ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>" +
+          (p && g.shows.length ? '<div class="mcard"><h3>Message my crowd</h3><div class="sub">Email the people who bought tickets to your past shows about your next date. You review it before it sends.</div><a class="mbtn" href="promoter.html#crowd/">Message my crowd</a></div>' : "");
         if (p && !p.stripe_ready && p.role === "owner") h += '<div class="mcard warn"><b>Connect Stripe</b> before your next show goes on sale, so ticket money goes straight to your bank. <a class="mlink" href="promoter.html">Connect it</a></div>';
         h += g.shows.length ? '<div class="posters">' + g.shows.map(function (sh) {
           return '<button type="button" class="poster" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
