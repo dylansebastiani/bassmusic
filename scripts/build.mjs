@@ -207,14 +207,16 @@ async function directoryPages() {
     const pageUrl = `${pub.siteUrl}/shows/${path}`;
     const cards = list.map((s) => {
       const href = esc(s.url);
+      const own = s.source === "subduction";
       const ext = /^https:\/\//.test(s.url || "");
       const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
-      const frame = img
-        ? `<span class="frame">${img}<span class="tickets">Tickets</span></span>`
-        : `<span class="frame blank"><span class="tickets">Tickets</span></span>`;
+      const tag = `<span class="tickets">${own ? "Tickets here<small>$1.50 fee</small>" : "Tickets"}</span>`;
+      const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
+      // A secret location never prints the venue name, here or anywhere else on the page.
       const venue = s.secret ? "Secret location" : (s.venue || "");
       const city = [s.city, s.state].filter(Boolean).join(", ");
-      return `<a class="poster${img ? "" : " noart"}" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}>${frame}<span class="meta"><span class="when">${esc(s.when || "")}</span><h3>${esc(s.name)}</h3>${venue ? `<span class="venue">${esc(venue)}</span>` : ""}<span class="city">${esc(city)}</span></span></a>`;
+      const names = (s.lineup || []).length ? `<span class="lineup">${esc(s.lineup.join(", "))}</span>` : "";
+      return `<article class="cell"><a class="poster${img ? "" : " noart"}" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}>${frame}<span class="meta"><span class="when">${esc(s.when || "")}${s.fresh ? ' <span class="new">Just added</span>' : ""}</span><h3>${esc(s.name)}</h3>${venue ? `<span class="venue">${esc(venue)}</span>` : ""}<span class="city">${esc(city)}</span>${names}</span></a></article>`;
     }).join("");
     let html = baseHtml
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
@@ -222,7 +224,7 @@ async function directoryPages() {
       .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(sample.city || "Bass")} <em>shows.</em></h1>`)
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", desc)
       .replaceAll("https://subduction.art/shows", pageUrl)
-      .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, `<div id="list" class="wall">${cards}</div>`)
+      .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, () => `<div id="list" class="wall">${cards}</div>`)
       .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
     mkdirSync(join(out, "shows", path), { recursive: true });

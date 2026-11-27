@@ -2,9 +2,10 @@
 // the honeypot matches the promoter form, and the submitter is never a recipient.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import vm from "node:vm";
 import {
   alertRecipients, canReplyTo, chicagoYmd, cityPath, dateOk, externalCard, honeypotFilled,
-  leadMail, matches, normTicketUrl, publicCard, splitPlace, subductionCard, ticketLink,
+  isFresh, leadMail, lineupNames, matches, normTicketUrl, publicCard, splitPlace, subductionCard, ticketLink,
 } from "../supabase/functions/directory/listing.mjs";
 
 const today = "2026-11-26";
@@ -88,8 +89,55 @@ assert.equal(dateOk("2026-11-25", today), false);
 assert.equal(cityPath("Des Moines", "IA"), "des-moines-ia");
 assert.equal(cityPath("review", "IL"), "");
 
+// Lineup names: only public, named acts.
+assert.deepEqual(lineupNames([{ lineup: [{ name: "A" }, { name: "B", note: "x" }, { name: "TBA", tba: true }, { name: "Hush", secret: true }] }, { lineup: [{ name: "A" }] }]), ["A", "B"]);
+const withLineup = subductionCard(underground, [{ starts_at: "2027-01-09T00:00:00Z", lineup: [{ name: "Ace" }] }], today);
+assert.deepEqual(publicCard(withLineup).lineup, ["Ace"]);
+assert.equal(publicCard(withLineup).slug, "underground");
+
+// An outside listing marked secret never prints the typed venue or any email.
+const secretListed = externalCard({
+  status: "approved", name: "Warehouse", show_date: "2027-03-01", venue: "Real Venue Name", venue_secret: true,
+  city: "Chicago", state: "IL", ticket_url: "https://tickets.example/night", submitter_email: "p@example.com",
+  reviewed_at: "2026-11-25T12:00:00Z",
+}, today, new Date("2026-11-27T12:00:00Z"));
+const secretPub = publicCard(secretListed);
+assert.equal(secretPub.secret, true);
+assert.equal(secretPub.venue, "");
+assert.equal(secretPub.fresh, true);
+assert.equal(secretPub.slug, "");
+assert.doesNotMatch(JSON.stringify(secretPub), /Real Venue|p@example/);
+assert.equal(matches(secretPub, { q: "real venue" }), false);
+assert.equal(isFresh("2026-01-01T00:00:00Z", new Date("2026-11-27T00:00:00Z")), false);
+assert.match(leadMail({ name: "N", when: "Fri", venue: "Real Venue Name", venue_secret: true, city: "C", state: "IL", ticket_url: "https://t.example", from: "p@example.com", review_url: "https://x" }).text, /Real Venue Name/);
+
+// Calendar files: public fields only, built from the public card.
+const showsJs = readFileSync(new URL("../site/assets/shows.js", import.meta.url), "utf8");
+const ctx = { module: { exports: {} } };
+vm.runInNewContext(showsJs, ctx);
+const { buildIcs } = ctx.module.exports;
+const ics = buildIcs(pub, "https://subduction.art");
+assert.match(ics, /LOCATION:Secret location\\, Peoria\\, IL/);
+assert.match(ics, /URL:https:\/\/subduction\.art\/underground\//);
+assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 2);
+assert.doesNotMatch(ics, /Hidden|123|address/i);
+const icsOut = buildIcs(publicCard(listed), "https://subduction.art");
+assert.match(icsOut, /URL:https:\/\/tickets\.example\/night/);
+assert.doesNotMatch(buildIcs(secretPub, "https://subduction.art"), /Real Venue/);
+assert.match(buildIcs(secretPub, "https://subduction.art"), /LOCATION:Secret location/);
+
+// Ticket labels and nav links.
+assert.match(showsJs, /Tickets here<small>\$1\.50 fee/);
+assert.doesNotMatch(showsJs + readFileSync(new URL("../scripts/build.mjs", import.meta.url), "utf8"), /Powered by Subduction/);
+const home = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
+assert.ok((home.match(/href="\/shows"/g) || []).length >= 2);
+
 const src = readFileSync(new URL("../supabase/functions/directory/index.ts", import.meta.url), "utf8");
 const rules = readFileSync(new URL("../supabase/functions/directory/listing.mjs", import.meta.url), "utf8");
+const eventsSelect = (src.match(/from\("events"\)\s*\.select\("([^"]*)"/) || [])[1] || "";
+assert.ok(eventsSelect.includes("location_secret"));
+assert.doesNotMatch(eventsSelect, /address/);
+assert.doesNotMatch(src + rules, /address_full/);
 assert.match(src, /honeypotFilled/);
 assert.match(rules, /hp_field/);
 assert.match(rules, /slug === "underground"/);

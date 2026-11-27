@@ -44,6 +44,7 @@ h1{font-size:clamp(64px,16vw,128px);max-width:8ch;margin-top:8px}
 .frame.blank{background:
   radial-gradient(ellipse at 50% 40%,rgba(182,255,0,.14),transparent 58%),
   linear-gradient(160deg,#141414,#050505 70%)}
+.tickets small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;margin-top:2px}
 .tickets{position:absolute;left:12px;bottom:12px;background:var(--hot);color:#000;font-family:var(--disp);font-size:16px;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px 6px}
 .meta{display:flex;flex-direction:column;gap:4px;min-width:0}
 .when{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot)}
@@ -119,3 +120,13 @@ form[hidden]{display:none}
   .send{grid-template-columns:.9fr 1fr;gap:64px;align-items:start}
   .send-copy{position:sticky;top:96px}
 }
+
+.cell{display:flex;flex-direction:column;gap:12px;min-width:0}
+.new{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--hot);color:var(--hot)}
+.lineup{font-size:13px;color:var(--mute);margin-top:4px}
+.free{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hot);margin-top:4px}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.tool{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#e6e1dd;background:none;border:1px solid var(--line);padding:8px 12px;cursor:pointer}
+.tool:hover,.tool:focus-visible,.tool.on{border-color:var(--hot);color:var(--hot);outline:none}
+.check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;color:#e6e1dd}
+.check input{width:auto;margin-top:3px}

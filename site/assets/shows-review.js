@@ -17,7 +17,7 @@
   function say(t) { $("msg").textContent = t || ""; }
   function block(s, extra) {
     var img = s.flyer ? '<img class="flyer" src="' + esc(s.flyer) + '" alt="">' : "";
-    var where = [s.venue, s.city, s.state].filter(Boolean).join(", ");
+    var where = [s.venue, s.city, s.state].filter(Boolean).join(", ") + (s.venue_secret ? " (shown publicly as Secret location)" : "");
     var buttons = s.status === "pending"
       ? '<div class="row"><button type="button" class="btn" data-act="approve"' + extra + '>Put it on the list</button><button type="button" class="btn ghost" data-act="reject"' + extra + ">Leave it off</button></div>"
       : "<p class=\"fine\">" + (s.status === "approved" ? "It's on the list." : "Left off.") + "</p>";

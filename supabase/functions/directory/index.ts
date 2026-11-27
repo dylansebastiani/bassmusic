@@ -94,12 +94,12 @@ async function subductionShows(today: string) {
   if (!rows.length) return [];
   const slugById: Record<string, string> = {};
   for (const e of rows) slugById[e.id] = e.slug;
-  const bySlug: Record<string, { starts_at: string }[]> = {};
-  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at").in("event_id", rows.map((e) => e.id));
+  const bySlug: Record<string, { starts_at: string; lineup: unknown }[]> = {};
+  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,lineup").in("event_id", rows.map((e) => e.id));
   if (nErr) console.error("directory: nights", nErr.message);
   for (const n of ns || []) {
     const slug = slugById[n.event_id];
-    if (slug && n.starts_at) (bySlug[slug] ||= []).push({ starts_at: n.starts_at });
+    if (slug && n.starts_at) (bySlug[slug] ||= []).push({ starts_at: n.starts_at, lineup: n.lineup });
   }
   const cards = [];
   for (const ev of rows) {
@@ -111,12 +111,12 @@ async function subductionShows(today: string) {
 
 async function listingShows(today: string) {
   const { data, error } = await db.from("directory_listings")
-    .select("name,show_date,venue,city,state,ticket_url,flyer_path,status")
+    .select("name,show_date,venue,venue_secret,city,state,ticket_url,flyer_path,status,reviewed_at")
     .eq("status", "approved").gte("show_date", today).order("show_date").limit(200);
   if (error) { console.error("directory: listings", error.message); return []; }
   const cards = [];
   for (const row of data || []) {
-    const card = externalCard({ ...row, flyer_url: flyerUrl(row.flyer_path) }, today);
+    const card = externalCard({ ...row, flyer_url: flyerUrl(row.flyer_path) }, today, new Date());
     if (card) cards.push(publicCard(card));
   }
   return cards;
@@ -129,6 +129,7 @@ function reviewView(row: Record<string, unknown>) {
     name: row.name,
     when: formatDay(String(row.show_date || "").slice(0, 10)) || String(row.show_date || ""),
     venue: row.venue,
+    venue_secret: !!row.venue_secret,
     city: place.city,
     state: place.state,
     ticket_url: row.ticket_url,
@@ -179,13 +180,13 @@ Deno.serve(async (req) => {
     if (a === "review") {
       const k = url.searchParams.get("k") || "";
       if (!TOKEN_RE.test(k)) return no("Not found", 404);
-      const { data: row } = await db.from("directory_listings").select("id,name,show_date,venue,city,state,ticket_url,flyer_path,submitter_email,status").eq("review_token_hash", await sha256(k)).maybeSingle();
+      const { data: row } = await db.from("directory_listings").select("id,name,show_date,venue,venue_secret,city,state,ticket_url,flyer_path,submitter_email,status").eq("review_token_hash", await sha256(k)).maybeSingle();
       if (!row) return no("Not found", 404);
       return json({ show: reviewView(row) });
     }
     if (a === "pending") {
       if (!await staff(req)) return no("Sign in again.", 401);
-      const { data, error } = await db.from("directory_listings").select("id,name,show_date,venue,city,state,ticket_url,flyer_path,submitter_email,status,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await db.from("directory_listings").select("id,name,show_date,venue,venue_secret,city,state,ticket_url,flyer_path,submitter_email,status,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
       if (error) return no("Couldn't load that. Try again.", 500);
       return json({ pending: (data || []).map(reviewView) });
     }
@@ -233,6 +234,7 @@ Deno.serve(async (req) => {
   const name = cleanText(fields.name, 120);
   const when = cleanText(fields.date, 10);
   const venue = cleanText(fields.venue, 120);
+  const venueSecret = ["1", "true", "on", "yes"].includes(cleanText(fields.venue_secret, 8).toLowerCase());
   const place = listingPlace(fields.city, fields.state);
   const ticket = normTicketUrl(fields.ticket_url);
   const email = cleanText(fields.email, 254).toLowerCase();
@@ -259,7 +261,7 @@ Deno.serve(async (req) => {
   if (upErr) { console.error("directory: upload", upErr.message); return no("Couldn't save that flyer. Try again.", 500); }
 
   const { error } = await db.from("directory_listings").insert({
-    id, name, show_date: when, venue, city: place.city, state: place.state, ticket_url: ticket,
+    id, name, show_date: when, venue, venue_secret: venueSecret, city: place.city, state: place.state, ticket_url: ticket,
     flyer_path: path, submitter_email: email, status: "pending", review_token_hash: await sha256(token),
     ip_hash: await ipHash(req),
   });
@@ -277,7 +279,7 @@ Deno.serve(async (req) => {
   }
   const artistOf = (addr: string) => flags.get(addr) ?? null;
   const mail = leadMail({
-    name, when: formatDay(when), venue, city: place.city, state: place.state, ticket_url: ticket, from: email,
+    name, when: formatDay(when), venue, venue_secret: venueSecret, city: place.city, state: place.state, ticket_url: ticket, from: email,
     review_url: `${SITE}/shows/review?k=${token}`,
   });
   await tellDylan(mail, alertRecipients(list, email, artistOf), canReplyTo(email, artistOf) ? email : "");

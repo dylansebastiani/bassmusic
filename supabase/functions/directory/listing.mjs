@@ -100,6 +100,20 @@ function upcomingDates(values, today) {
   return out;
 }
 
+// Names already on the public lineup (ticket_nights.lineup, the same list the ticket page shows).
+// Acts marked tba or secret are left out. No new table, nothing from the held draft.
+export function lineupNames(nights) {
+  const out = [];
+  for (const n of nights || []) {
+    for (const a of (n && Array.isArray(n.lineup) ? n.lineup : [])) {
+      if (!a || a.tba || a.secret) continue;
+      const name = cleanText(a.name, 60);
+      if (name && !out.includes(name)) out.push(name);
+    }
+  }
+  return out.slice(0, 12);
+}
+
 // An approved show that is actually on sale, or already has a public page.
 // Past nights drop off. A secret location never contributes a street or a venue name.
 export function subductionCard(ev, nights, today) {
@@ -128,10 +142,19 @@ export function subductionCard(ev, nights, today) {
     state: place.state,
     url: ticketLink(ev.slug),
     flyer,
+    lineup: lineupNames(nights),
+    fresh: false,
   };
 }
 
-export function externalCard(row, today) {
+// An outside listing approved in the last week gets a "Just added" mark.
+export function isFresh(reviewedAt, now) {
+  const t = reviewedAt ? new Date(reviewedAt).getTime() : NaN;
+  const n = (now instanceof Date ? now : new Date(now || Date.now())).getTime();
+  return Number.isFinite(t) && Number.isFinite(n) && n - t >= 0 && n - t <= 7 * 86400000;
+}
+
+export function externalCard(row, today, now) {
   if (!row || row.status !== "approved") return null;
   const dates = upcomingDates([row.show_date], today);
   if (!dates.length) return null;
@@ -143,18 +166,21 @@ export function externalCard(row, today) {
     name: cleanText(row.name, 120) || "Show",
     dates,
     when: whenLabel(dates),
-    venue: cleanText(row.venue, 120),
-    secret: false,
+    venue: row.venue_secret ? "" : cleanText(row.venue, 120),
+    secret: !!row.venue_secret,
     city: cleanText(row.city, 80),
     state: cleanText(row.state, 2).toUpperCase(),
     url,
     flyer: typeof row.flyer_url === "string" && /^https:\/\//.test(row.flyer_url) ? row.flyer_url : "",
+    lineup: [],
+    fresh: isFresh(row.reviewed_at, now),
   };
 }
 
 export function publicCard(card) {
   return {
     source: card.source,
+    slug: card.source === "subduction" ? card.slug : "",
     name: card.name,
     when: card.when,
     dates: card.dates,
@@ -164,6 +190,8 @@ export function publicCard(card) {
     state: card.state,
     url: card.url,
     flyer: card.flyer || "",
+    lineup: card.lineup || [],
+    fresh: !!card.fresh,
     path: cityPath(card.city, card.state),
   };
 }
@@ -188,7 +216,7 @@ export function leadMail(show) {
     "",
     "Show: " + show.name,
     "Date: " + show.when,
-    "Venue: " + (show.venue || "Secret location"),
+    "Venue: " + (show.venue_secret ? "Secret location (typed: " + show.venue + ")" : show.venue || "Secret location"),
     "City: " + [show.city, show.state].filter(Boolean).join(", "),
     "Tickets: " + show.ticket_url,
     "From: " + show.from,

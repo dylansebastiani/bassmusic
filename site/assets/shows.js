@@ -1,5 +1,35 @@
 /* Public directory at /shows. Filters run in the browser on the list the directory function returns. */
 (function () {
+  // Calendar file for one public card. Only public fields go in: name, dates, city, state, ticket link,
+  // and the venue name or the words "Secret location". Never a street address.
+  function icsEsc(t) { return String(t == null ? "" : t).replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,"); }
+  function icsFold(line) {
+    var out = [], rest = line;
+    while (rest.length > 73) { out.push(rest.slice(0, 73)); rest = " " + rest.slice(73); }
+    out.push(rest);
+    return out.join("\r\n");
+  }
+  function nextDay(ymd) {
+    var p = ymd.split("-").map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1));
+    return d.toISOString().slice(0, 10).replace(/-/g, "");
+  }
+  function buildIcs(s, origin) {
+    var url = /^https:\/\//i.test(s.url || "") ? s.url : String(origin || "https://subduction.art").replace(/\/$/, "") + (s.url || "/shows");
+    var where = [s.secret ? "Secret location" : (s.venue || ""), s.city, s.state].filter(Boolean).join(", ");
+    var stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Subduction//Shows//EN", "CALSCALE:GREGORIAN"];
+    (s.dates || []).forEach(function (ymd, i) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return;
+      var uid = (String(s.name || "show").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + "-" + ymd + "-" + i);
+      lines.push("BEGIN:VEVENT", "UID:" + uid + "@subduction.art", "DTSTAMP:" + stamp,
+        "DTSTART;VALUE=DATE:" + ymd.replace(/-/g, ""), "DTEND;VALUE=DATE:" + nextDay(ymd),
+        "SUMMARY:" + icsEsc(s.name), "LOCATION:" + icsEsc(where), "URL:" + url,
+        "DESCRIPTION:" + icsEsc("Tickets: " + url), "END:VEVENT");
+    });
+    lines.push("END:VCALENDAR");
+    return lines.map(icsFold).join("\r\n") + "\r\n";
+  }
+  if (typeof window === "undefined") { if (typeof module !== "undefined") module.exports = { buildIcs: buildIcs }; return; }
   var C = window.STACK || {};
   var FN = (C.supabaseUrl || "") + "/functions/v1/directory";
   var $ = function (id) { return document.getElementById(id); };
@@ -21,25 +51,92 @@
     try { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
     catch (e) { return ""; }
   }
-  function card(s) {
+  function card(s, i) {
+    var own = s.source === "subduction";
     var ext = /^https:\/\//i.test(s.url || "");
     var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="">' : "";
-    var frame = img
-      ? '<span class="frame">' + img + '<span class="tickets">Tickets</span></span>'
-      : '<span class="frame blank"><span class="tickets">Tickets</span></span>';
+    var label = own ? 'Tickets here<small>$1.50 fee</small>' : "Tickets";
+    var tag = '<span class="tickets">' + label + "</span>";
+    var frame = img ? '<span class="frame">' + img + tag + "</span>" : '<span class="frame blank">' + tag + "</span>";
     var venue = s.secret ? "Secret location" : (s.venue || "");
     var city = [s.city, s.state].filter(Boolean).join(", ");
-    return '<a class="poster' + (img ? "" : " noart") + '" href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" +
-      frame + '<span class="meta"><span class="when">' + esc(s.when || "") + "</span><h3>" + esc(s.name) + "</h3>" +
+    var names = (s.lineup || []).length ? '<span class="lineup">' + esc(s.lineup.join(", ")) + "</span>" : "";
+    var free = own && s.slug ? '<span class="free" data-free="' + esc(s.slug) + '" hidden>Free tracks with a ticket</span>' : "";
+    var tools = (own && s.slug ? '<button type="button" class="tool" data-listen="' + esc(s.slug) + '" hidden>Listen</button>' : "") +
+      '<button type="button" class="tool" data-cal="' + i + '">Add to calendar</button>';
+    return '<article class="cell"><a class="poster' + (img ? "" : " noart") + '" href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" +
+      frame + '<span class="meta"><span class="when">' + esc(s.when || "") + (s.fresh ? ' <span class="new">Just added</span>' : "") + "</span><h3>" + esc(s.name) + "</h3>" +
       (venue ? '<span class="venue">' + esc(venue) + "</span>" : "") +
-      '<span class="city">' + esc(city) + "</span></span></a>";
+      '<span class="city">' + esc(city) + "</span>" + names + free + '</span></a><div class="tools">' + tools + "</div></article>";
+  }
+  var shown = [];
+  var lists = {};
+  var audio = null, playing = null;
+  function playlistFor(slug) {
+    if (!lists[slug]) {
+      lists[slug] = fetch((C.supabaseUrl || "") + "/functions/v1/playlist?show=" + encodeURIComponent(slug))
+        .then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
+        .then(function (j) { return (j.tracks || []).filter(function (t) { return t.audio_url && /^https:\/\//.test(t.audio_url); }); });
+    }
+    return lists[slug];
+  }
+  function reveal() {
+    var seen = {};
+    $("list").querySelectorAll("[data-listen]").forEach(function (b) {
+      var slug = b.getAttribute("data-listen");
+      if (seen[slug]) return;
+      seen[slug] = true;
+      playlistFor(slug).then(function (tracks) {
+        if (!tracks.length) return;
+        $("list").querySelectorAll('[data-listen="' + slug + '"]').forEach(function (x) { x.hidden = false; });
+        if (tracks.some(function (t) { return t.downloadable; })) {
+          $("list").querySelectorAll('[data-free="' + slug + '"]').forEach(function (x) { x.hidden = false; });
+        }
+      });
+    });
+  }
+  function stop() {
+    if (audio) { audio.pause(); audio = null; }
+    document.querySelectorAll("[data-listen]").forEach(function (b) { b.textContent = "Listen"; b.classList.remove("on"); });
+    playing = null;
+  }
+  function listen(btn) {
+    var slug = btn.getAttribute("data-listen");
+    if (playing === slug) { stop(); return; }
+    stop();
+    playlistFor(slug).then(function (tracks) {
+      if (!tracks.length) return;
+      document.querySelectorAll("audio").forEach(function (a) { try { a.pause(); } catch (e) {} });
+      var n = Math.floor(Math.random() * tracks.length);
+      var a = new Audio();
+      audio = a; playing = slug;
+      function go() {
+        var t = tracks[n % tracks.length];
+        a.src = t.audio_url; a.play().catch(function () { stop(); });
+        document.querySelectorAll('[data-listen="' + slug + '"]').forEach(function (b) { b.textContent = "Stop: " + (t.title || "track"); b.classList.add("on"); });
+      }
+      a.addEventListener("ended", function () { n++; go(); });
+      go();
+    });
+  }
+  function download(i) {
+    var s = shown[i];
+    if (!s) return;
+    var blob = new Blob([buildIcs(s, location.origin)], { type: "text/calendar;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (String(s.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "show") + ".ics";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
   }
   function quiet(title, line) {
     return '<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">' + title + "</p><p>" + line + "</p></div>";
   }
   function paint(list) {
     if (!list.length) { $("list").innerHTML = quiet("Nothing <em>up.</em>", "No shows match this search."); return; }
+    shown = list;
     $("list").innerHTML = list.map(card).join("");
+    reveal();
   }
   function chosen() {
     return { q: $("q").value.trim().toLowerCase(), state: $("state").value, city: $("city").value, date: $("on").value };
@@ -89,6 +186,12 @@
     }
   }
 
+  $("list").addEventListener("click", function (e) {
+    var t = e.target.closest ? e.target.closest("button") : null;
+    if (!t) return;
+    if (t.hasAttribute("data-cal")) download(Number(t.getAttribute("data-cal")));
+    else if (t.hasAttribute("data-listen")) listen(t);
+  });
   $("filters").addEventListener("submit", function (e) { e.preventDefault(); });
   ["q", "state", "city", "on"].forEach(function (id) {
     $(id).addEventListener("input", function () {
@@ -134,6 +237,7 @@
     fd.set("name", name); fd.set("date", when); fd.set("venue", venue); fd.set("city", city); fd.set("state", state);
     fd.set("ticket_url", link); fd.set("email", email); fd.set("hp_field", trap ? trap.value : "");
     fd.set("flyer", file);
+    fd.set("venue_secret", $("secretv").checked ? "1" : "");
     $("go").disabled = true; say("Sending.");
     fetch(FN, { method: "POST", body: fd }).then(function (r) {
       return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't send that. Try again."); return j; });
