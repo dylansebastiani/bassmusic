@@ -214,7 +214,9 @@ async function ownerFor(companyId: string, email: string): Promise<string | null
 
 // Runs only after the person has proved the inbox: a good code or a live session. A lead that has no crew
 // yet gets its company, owner row and Brevo contact now, and Dylan gets his alert now. Not before.
-async function provision(subscriberId: string, email: string): Promise<boolean> {
+// `referral` comes only from the person's own proven sign-in (code, emailed link or live session), never from
+// the public lead/open forms. Only the first one sticks.
+async function provision(subscriberId: string, email: string, referral?: unknown): Promise<boolean> {
   email = email.toLowerCase();
   const { count } = await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", subscriberId);
   if ((count ?? 0) > 0) return false;
@@ -223,6 +225,13 @@ async function provision(subscriberId: string, email: string): Promise<boolean> 
   if (await isAdminEmail(email)) return false;
   const artist = await artistContact(email);
   if (artist !== false) return false;
+  const ref = referralCode(referral);
+  if (ref && !lead.referral_code) {
+    const { error: re } = await db.from("promoter_leads").update({ referral_code: ref }).eq("id", lead.id).is("referral_code", null);
+    if (!re) lead.referral_code = ref;
+  }
+  // The bare subscriber row from `open` was saved unsubscribed. The inbox is proven now, so turn it on.
+  await db.from("subscribers").update({ status: "active" }).eq("id", subscriberId).eq("status", "unsubscribed").eq("source", "promoter");
   const local = email.split("@")[0].replace(/[^a-z0-9]+/gi, " ").trim().slice(0, 40) || "My crew";
   const name = local.replace(/\b\w/g, (ch) => ch.toUpperCase());
   let slug = slugify(name) || "crew";
@@ -253,7 +262,7 @@ Deno.serve(async (req) => {
     if ((n ?? 0) > 10) return no("Too many tries. Wait a minute.", 429);
     const { data: m } = await db.from("subscribers").select(MEMBER_COLS).eq("email", email).maybeSingle();
     const { count } = m ? await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id) : { count: 0 };
-    const allowed = !!m && m.status !== "deleted" && ((count ?? 0) > 0 || await isAdminEmail(email) || !!(await db.from("promoter_leads").select("id").eq("email", email).maybeSingle()).data);
+    const allowed = !!m && m.status !== "deleted" && ((count ?? 0) > 0 || await isAdminEmail(email));
     // Same answer either way, so this can't be used to find out who's a promoter.
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
@@ -264,7 +273,7 @@ Deno.serve(async (req) => {
     if (!c || new Date(c.expires_at).getTime() < Date.now() || c.attempts >= 5) return no("That code expired. Send a new one.");
     if (c.code_hash !== await codeHash(m!.id, code)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); return no("That code didn't match."); }
     await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
-    await provision(m!.id, email);
+    await provision(m!.id, email, b.referral_code);
     return ok({ token: await newSession(m!.id), email });
   }
 
@@ -281,7 +290,7 @@ Deno.serve(async (req) => {
     await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
     const { data: m } = await db.from("subscribers").select("email,status").eq("id", c.subscriber_id).maybeSingle();
     if (!m || m.status === "deleted") return bad();
-    await provision(c.subscriber_id, m.email);
+    await provision(c.subscriber_id, m.email, b.referral_code);
     return ok({ token: await newSession(c.subscriber_id), email: m.email });
   }
 
@@ -293,6 +302,7 @@ Deno.serve(async (req) => {
     const salt = await setting("ip_salt", "unset");
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, salt + "|promoter-lead") });
     if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
+    if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req), clean(b.ts_err, 20)))) return no("Bot check failed. Refresh and try again.", 403);
     if (await isAdminEmail(email)) return ok({ ok: true });
     const { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
     if (m && m.status !== "deleted") {
@@ -300,17 +310,13 @@ Deno.serve(async (req) => {
       if ((count ?? 0) > 0) return ok({ ok: true });
     }
     const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
-    const referral = referralCode(b.referral_code);
+    // No referral code here: this form is public, so anyone could stamp one on someone else's address.
+    // It is read later, from the person's own sign-in (see provision).
+    const referral = null;
     const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
     const { data: existing } = await db.from("promoter_leads").select("id").eq("email", email).maybeSingle();
-    if (existing) {
-      if (referral) await db.from("promoter_leads").update({ referral_code: referral }).eq("id", existing.id).is("referral_code", null);
-      return ok({ ok: true });
-    }
-    const leadRow = { email, source, utm_source, utm_medium, utm_campaign, referrer, referral_code: referral, ip_hash: await ipHash(req, salt) };
-    let { error } = await db.from("promoter_leads").insert(leadRow);
-    // Column arrives with migration 0051. Until then, save the lead the old way.
-    if (error && /referral_code/.test(error.message || "")) ({ error } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) }));
+    if (existing) return ok({ ok: true });
+    let { error } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) });
     if (error && (error.code === "23505" || /duplicate key/i.test(error.message || ""))) return ok({ ok: true });
     if (error) { console.error("promoter: lead", error.message); return no("Couldn't save that. Try again.", 500); }
     const artist = await artistContact(email);
@@ -332,27 +338,32 @@ Deno.serve(async (req) => {
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, salt + "|promoter-open") });
     if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
     if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req), clean(b.ts_err, 20)))) return no("Bot check failed. Refresh and try again.", 403);
-    // Artist pass mail is sent on its own. This screen never emails an artist contact.
-    if (await artistContact(email) !== false) return ok({ ok: true });
-    let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
-    if (!m) {
-      const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
-      const referral = referralCode(b.referral_code);
-      const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
-      // The only record a new address leaves before it is verified. ownerFor's referral link reads it.
-      const leadRow = { email, source, utm_source, utm_medium, utm_campaign, referrer, referral_code: referral, ip_hash: await ipHash(req, salt) };
-      let { error: le } = await db.from("promoter_leads").insert(leadRow);
-      if (le && /referral_code/.test(le.message || "")) ({ error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) }));
-      if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
-      else if (le && referral) await db.from("promoter_leads").update({ referral_code: referral }).eq("email", email).is("referral_code", null);
-      // The sign-in code needs a subscriber row to hang on. It has no company and no crew until the code is used.
-      m = (await db.from("subscribers").insert({ email, source: "promoter" }).select("id,status").single()).data
-        || (await db.from("subscribers").select("id,status").eq("email", email).maybeSingle()).data;
-    }
-    if (m && m.status !== "deleted") {
-      const { data: full } = await db.from("subscribers").select(MEMBER_COLS).eq("id", m.id).maybeSingle();
-      if (full) await sendSignin(full as SigninMember);
-    }
+    // Everything below runs after the answer goes out, so the response time is the same for every address
+    // (artist contacts, existing members and new people can't be told apart by timing).
+    const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
+    const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
+    const ipH = await ipHash(req, salt);
+    const work = (async () => {
+      // Artist pass mail is sent on its own. This screen never emails an artist contact.
+      if (await artistContact(email) !== false) return;
+      let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
+      if (!m) {
+        // The only record a new address leaves before it is verified. No referral code here: it comes later from
+        // the person's own sign-in (see provision).
+        const { error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: ipH });
+        if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
+        // The sign-in code needs a subscriber row to hang on. It is saved unsubscribed (no mail, no Brevo) and turned
+        // on in provision() once the inbox is proven. It has no company and no crew until then.
+        m = (await db.from("subscribers").insert({ email, source: "promoter", status: "unsubscribed" }).select("id,status").single()).data
+          || (await db.from("subscribers").select("id,status").eq("email", email).maybeSingle()).data;
+      }
+      if (m && m.status !== "deleted") {
+        const { data: full } = await db.from("subscribers").select(MEMBER_COLS).eq("id", m.id).maybeSingle();
+        if (full) await sendSignin(full as SigninMember);
+      }
+    })().catch((e) => console.error("promoter: open", String(e?.message || e)));
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(work); else await work;
     return ok({ ok: true });
   }
 
@@ -380,7 +391,7 @@ Deno.serve(async (req) => {
       const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tk0)).maybeSingle();
       if (s0 && new Date(s0.expires_at).getTime() > Date.now()) {
         const { data: m0 } = await db.from("subscribers").select("email,status").eq("id", s0.subscriber_id).maybeSingle();
-        if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email)) st = await staffAuth(req);
+        if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email, b.referral_code)) st = await staffAuth(req);
       }
     }
   }

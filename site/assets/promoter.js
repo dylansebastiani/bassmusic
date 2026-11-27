@@ -107,10 +107,8 @@
       if (trap && trap.value) return showSent(v, false);
       say("Opening…");
       var A = (window.Stack && Stack.attr) || {};
-      var pref = String(A.pref || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
       var open = { a: "open", email: v, hp_field: trap ? trap.value : "", source: window.Stack && Stack.source ? Stack.source() : "direct",
-        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null,
-        referral_code: /^[a-z0-9]{8}$/.test(pref) ? pref : null };
+        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null };
       tsPass(12000).then(function () {
         open.turnstile = tsToken; open.ts_err = tsToken ? null : (tsErr || (tsLoaded ? "no-pass" : "not-loaded"));
         return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(open) });
@@ -577,7 +575,7 @@
   if (invite) {
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
     app.innerHTML = "<p class=lead>Signing you in…</p>";
-    call("redeem", { invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; route(); })
+    call("redeem", { invite: invite, referral_code: (function () { var p = String(((window.Stack && Stack.attr) || {}).pref || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8); return /^[a-z0-9]{8}$/.test(p) ? p : null; })() }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; route(); })
       .catch(function (x) { tok = ""; signin(); say(x.message, true); });
     return;
   }

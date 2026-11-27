@@ -19,6 +19,7 @@ export interface Kit {
   partners?: string;             // a partner strip just for this show (else the brand's)
   video?: string; share?: string;
   links?: string;                // "here's a Drive link" for Dylan to upload from
+  pixel?: string;                // optional Meta pixel id (digits), saved by pixel-save
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
