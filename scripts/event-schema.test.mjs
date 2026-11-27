@@ -88,8 +88,22 @@ assert.deepEqual(offers.map((o) => o.name), ["GA"]);
 
 const root = new URL("..", import.meta.url);
 const tickets = readFileSync(new URL("site/tickets.html", root), "utf8");
-assert.equal(tickets.includes("application/ld+json"), false);
-assert.equal(tickets.includes("schema.org"), false);
+// Dylan approved a static, venue-free Event block on /underground/ for search (issue #68):
+// two nights, "Secret Location", no street, no price. Anything else stays out.
+const ld = tickets.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+assert.ok(ld, "tickets.html carries the T.O.F.T.U. Event markup");
+assert.equal(tickets.split("application/ld+json").length, 2);
+const nights = JSON.parse(ld[1]);
+assert.deepEqual(nights.map((n) => [n.startDate, n.endDate]), [
+  ["2027-01-08T18:00:00-06:00", "2027-01-09T01:00:00-06:00"],
+  ["2027-01-09T18:00:00-06:00", "2027-01-10T01:00:00-06:00"],
+]);
+for (const n of nights) {
+  assert.equal(n.location.name, "Secret Location");
+  assert.equal(n.location.address.streetAddress, undefined);
+  assert.equal(n.offers.price, undefined);
+  assert.equal(n.offers.url, "https://subduction.art/underground/");
+}
 const build = readFileSync(new URL("scripts/build.mjs", root), "utf8");
 assert.match(build, /join\(out, "underground", "index.html"\)[\s\S]{0,220}tickets\.html/);
 assert.match(build, /63b511f3-d838-404f-9c2e-5d4b98fbf013/);
