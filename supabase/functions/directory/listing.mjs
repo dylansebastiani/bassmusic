@@ -111,7 +111,7 @@ export function lineupNames(nights) {
       if (name && !out.includes(name)) out.push(name);
     }
   }
-  return out.slice(0, 12);
+  return out.length > 12 ? [...out.slice(0, 12), "+ more"] : out;
 }
 
 // An approved show that is actually on sale, or already has a public page.
@@ -125,9 +125,13 @@ export function subductionCard(ev, nights, today) {
   const dates = upcomingDates(fromNights.length ? fromNights : [ev.starts_at], today);
   if (!dates.length) return null;
   const place = splitPlace(ev.city);
-  const secret = !!ev.location_secret;
+  const secret = !!ev.location_secret || ev.slug === "underground";
   let flyer = "";
-  if (ev.slug === "underground") flyer = "/assets/toftu/poster-fri.webp";
+  if (ev.slug === "underground") {
+    // The same uploaded flyer the /underground/ page uses now.
+    const n = (nights || []).find((x) => x && typeof x.flyer_url === "string" && /^https:\/\//.test(x.flyer_url));
+    flyer = n ? n.flyer_url : "";
+  }
   else if (typeof ev.share_url === "string" && /^https:\/\//.test(ev.share_url)) flyer = ev.share_url;
   else if (typeof ev.poster_url === "string" && /^https:\/\//.test(ev.poster_url)) flyer = ev.poster_url;
   return {
@@ -142,7 +146,7 @@ export function subductionCard(ev, nights, today) {
     state: place.state,
     url: ticketLink(ev.slug),
     flyer,
-    lineup: lineupNames(nights),
+    lineup: ev.slug === "underground" ? [] : lineupNames(nights),
     fresh: false,
   };
 }

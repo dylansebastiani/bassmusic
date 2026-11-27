@@ -204,13 +204,14 @@ async function directoryPages() {
     const where = [sample.city, DIR_STATE[sample.state] || sample.state].filter(Boolean).join(", ");
     const title = where ? `Bass shows in ${where}` : "Midwest bass shows";
     const desc = where ? `Upcoming bass shows in ${where}.` : "Upcoming bass shows across the Midwest, by city and date.";
+    const ogTitle = sample.city ? `${sample.city}${sample.state ? ", " + sample.state : ""} bass shows` : "Midwest bass shows";
     const pageUrl = `${pub.siteUrl}/shows/${path}`;
     const cards = list.map((s) => {
       const href = esc(s.url);
       const own = s.source === "subduction";
       const ext = /^https:\/\//.test(s.url || "");
       const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
-      const tag = `<span class="tickets">${own ? "Tickets here<small>$1.50 fee</small>" : "Tickets"}</span>`;
+      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>$1.50 fee</small>" : "Tickets"}</span>`;
       const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
       // A secret location never prints the venue name, here or anywhere else on the page.
       const venue = s.secret ? "Secret location" : (s.venue || "");
@@ -220,6 +221,8 @@ async function directoryPages() {
     }).join("");
     let html = baseHtml
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
+      .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${esc(ogTitle)}">`)
+      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${esc(ogTitle)}">`)
       .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where || "Midwest")}</p>`)
       .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(sample.city || "Bass")} <em>shows.</em></h1>`)
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", desc)
@@ -237,4 +240,8 @@ await trackPages();
 await showPages();
 await goPages();
 await directoryPages();
+// Trailing-slash and review links need real files: GitHub Pages ignores _redirects.
+mkdirSync(join(out, "shows", "review"), { recursive: true });
+writeFileSync(join(out, "shows", "index.html"), readFileSync(join(out, "shows.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
+if (existsSync(join(out, "shows-review.html"))) writeFileSync(join(out, "shows", "review", "index.html"), readFileSync(join(out, "shows-review.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");

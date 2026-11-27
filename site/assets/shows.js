@@ -55,14 +55,14 @@
     var own = s.source === "subduction";
     var ext = /^https:\/\//i.test(s.url || "");
     var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="">' : "";
-    var label = own ? 'Tickets here<small>$1.50 fee</small>' : "Tickets";
+    var label = own && s.slug !== "underground" ? 'Tickets here<small>$1.50 fee</small>' : "Tickets";
     var tag = '<span class="tickets">' + label + "</span>";
     var frame = img ? '<span class="frame">' + img + tag + "</span>" : '<span class="frame blank">' + tag + "</span>";
     var venue = s.secret ? "Secret location" : (s.venue || "");
     var city = [s.city, s.state].filter(Boolean).join(", ");
     var names = (s.lineup || []).length ? '<span class="lineup">' + esc(s.lineup.join(", ")) + "</span>" : "";
-    var free = own && s.slug ? '<span class="free" data-free="' + esc(s.slug) + '" hidden>Free tracks with a ticket</span>' : "";
-    var tools = (own && s.slug ? '<button type="button" class="tool" data-listen="' + esc(s.slug) + '" hidden>Listen</button>' : "") +
+    var free = own && s.slug && s.slug !== "underground" ? '<span class="free" data-free="' + esc(s.slug) + '" hidden>Free tracks with a ticket</span>' : "";
+    var tools = (own && s.slug && s.slug !== "underground" ? '<button type="button" class="tool" data-listen="' + esc(s.slug) + '" hidden>Listen</button>' : "") +
       '<button type="button" class="tool" data-cal="' + i + '">Add to calendar</button>';
     return '<article class="cell"><a class="poster' + (img ? "" : " noart") + '" href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" +
       frame + '<span class="meta"><span class="when">' + esc(s.when || "") + (s.fresh ? ' <span class="new">Just added</span>' : "") + "</span><h3>" + esc(s.name) + "</h3>" +

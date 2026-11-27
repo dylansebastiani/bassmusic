@@ -25,7 +25,7 @@ assert.equal(card.city, "Peoria");
 assert.equal(card.state, "IL");
 assert.deepEqual(card.dates, ["2027-01-08", "2027-01-09"]);
 assert.equal(card.when, "Fri Jan 8 + Sat Jan 9");
-assert.equal(card.flyer, "/assets/toftu/poster-fri.webp");
+assert.equal(card.flyer, "");
 assert.equal(JSON.stringify(card).includes("Hidden"), false);
 
 assert.equal(subductionCard({ ...underground, review_status: "submitted" }, nights, today), null);
@@ -91,9 +91,9 @@ assert.equal(cityPath("review", "IL"), "");
 
 // Lineup names: only public, named acts.
 assert.deepEqual(lineupNames([{ lineup: [{ name: "A" }, { name: "B", note: "x" }, { name: "TBA", tba: true }, { name: "Hush", secret: true }] }, { lineup: [{ name: "A" }] }]), ["A", "B"]);
-const withLineup = subductionCard(underground, [{ starts_at: "2027-01-09T00:00:00Z", lineup: [{ name: "Ace" }] }], today);
+const withLineup = subductionCard({ ...underground, slug: "zz-lane-test" }, [{ starts_at: "2027-01-09T00:00:00Z", lineup: [{ name: "Ace" }] }], today);
 assert.deepEqual(publicCard(withLineup).lineup, ["Ace"]);
-assert.equal(publicCard(withLineup).slug, "underground");
+assert.equal(publicCard(withLineup).slug, "zz-lane-test");
 
 // An outside listing marked secret never prints the typed venue or any email.
 const secretListed = externalCard({
@@ -161,3 +161,20 @@ const showJs = readFileSync(new URL("../site/assets/show.js", import.meta.url), 
 assert.doesNotMatch(showPage + showJs, /Run it on Subduction/);
 
 console.log("directory checks passed");
+
+// T.O.F.T.U. card: only the approved fields.
+{
+  const nf = [{ starts_at: "2027-01-09T00:00:00Z", lineup: [{ name: "Ace" }], flyer_url: "https://cdn.example.com/new-flyer.webp" }];
+  const c = subductionCard({ ...underground, location_secret: false, venue: "Hangovers" }, nf, today);
+  assert.equal(c.secret, true, "underground is always secret");
+  assert.equal(c.venue, "");
+  assert.deepEqual(c.lineup, [], "no lineup on the underground card");
+  assert.equal(c.flyer, "https://cdn.example.com/new-flyer.webp");
+  assert.equal(c.url, "/underground/");
+  const noFlyer = subductionCard(underground, nights, today);
+  assert.equal(noFlyer.flyer, "");
+  const js = readFileSync(new URL("../site/assets/shows.js", import.meta.url), "utf8");
+  assert.match(js, /data-free[^;]*;/);
+  assert.equal((js.match(/s\.slug !== "underground"/g) || []).length, 3, "fee, free tracks and listen all skip underground");
+}
+assert.deepEqual(lineupNames([{ lineup: Array.from({ length: 14 }, (_, i) => ({ name: "A" + i })) }]).slice(-1), ["+ more"]);

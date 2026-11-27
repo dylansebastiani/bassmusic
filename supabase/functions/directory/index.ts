@@ -94,12 +94,12 @@ async function subductionShows(today: string) {
   if (!rows.length) return [];
   const slugById: Record<string, string> = {};
   for (const e of rows) slugById[e.id] = e.slug;
-  const bySlug: Record<string, { starts_at: string; lineup: unknown }[]> = {};
-  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,lineup").in("event_id", rows.map((e) => e.id));
+  const bySlug: Record<string, { starts_at: string; lineup: unknown; flyer_url: unknown }[]> = {};
+  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,lineup,flyer_url").in("event_id", rows.map((e) => e.id));
   if (nErr) console.error("directory: nights", nErr.message);
   for (const n of ns || []) {
     const slug = slugById[n.event_id];
-    if (slug && n.starts_at) (bySlug[slug] ||= []).push({ starts_at: n.starts_at, lineup: n.lineup });
+    if (slug && n.starts_at) (bySlug[slug] ||= []).push({ starts_at: n.starts_at, lineup: n.lineup, flyer_url: n.flyer_url });
   }
   const cards = [];
   for (const ev of rows) {
@@ -280,7 +280,7 @@ Deno.serve(async (req) => {
   const artistOf = (addr: string) => flags.get(addr) ?? null;
   const mail = leadMail({
     name, when: formatDay(when), venue, venue_secret: venueSecret, city: place.city, state: place.state, ticket_url: ticket, from: email,
-    review_url: `${SITE}/shows/review?k=${token}`,
+    review_url: `${SITE}/shows-review.html?k=${token}`,
   });
   await tellDylan(mail, alertRecipients(list, email, artistOf), canReplyTo(email, artistOf) ? email : "");
   return json({ ok: true });
