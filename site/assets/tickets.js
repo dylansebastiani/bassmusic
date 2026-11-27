@@ -91,7 +91,9 @@
     $("flyers").hidden = !data.nights.some(function (n) { return (n.lineup || []).length; }) ||
       (!up.length && data.nights.some(function (n) { return (n.lineup || []).some(function (a) { return a.tba; }); }));
     if (up.length) $("flyers").innerHTML = up.map(function (n) {
-      return '<a href="' + esc(n.flyer_url) + '" target="_blank" rel="noopener"><img src="' + esc(n.flyer_url) + '" alt="' + esc(n.label) + ' flyer" loading="lazy"></a>';
+      // Show the small local thumb; the full upload is only the click-through link.
+      var thumb = n.flyer_url;
+      return '<a href="' + esc(n.flyer_url) + '" target="_blank" rel="noopener"><img src="' + thumb + '" alt="' + esc(n.label) + ' flyer" width="480" height="600" loading="lazy"></a>';
     }).join("");
     renderTypes();
     $("loading").hidden = true; $("ev").hidden = false;
@@ -213,8 +215,21 @@
     })();
   }
 
+  // Built page may carry a snapshot (#evt-data) so nights and prices paint with no network wait.
+  // The live fetch then replaces it quietly; live data wins (sold out, price changes).
+  var snap = null;
+  try {
+    var el = $("evt-data");
+    if (el) { snap = vis(JSON.parse(el.textContent)); if (!(snap && snap.event && snap.nights && snap.types) || snap.event.slug && snap.event.slug !== slug) snap = null; }
+  } catch (e) { snap = null; }
+  if (snap) { data = snap; render(); }
+  var sid = q.get("s"), doneShown = false;
+  function afterFirst() { if (!doneShown && sid && /^cs_/.test(sid)) { doneShown = true; showDone(sid); } }
+  if (snap) afterFirst();
   (window.__tix ? window.__tix.then(vis) : load()).then(function (d) {
-    data = d; render();
-    var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid);
-  }).catch(function (e) { $("loading").textContent = e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again."; });
+    data = d; render(); afterFirst();
+  }).catch(function (e) {
+    if (snap) return; // keep the snapshot on screen if the refresh fails
+    $("loading").textContent = e.message === "Not found" ? "That show isn't here." : "Couldn't load. Refresh to try again.";
+  });
 })();

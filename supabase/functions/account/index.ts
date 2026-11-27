@@ -6,7 +6,8 @@
 // staff function still checks the staff list or the crew role on each call.
 // Self-contained on purpose (no shared imports) so deploying it can never disturb the ticketing functions.
 // Read-only toward orders and tickets: it never changes checkout, tickets or ticket emails.
-//   POST {a:"signin", email}        email a one-tap sign-in button (same answer whether or not we know the email)
+//   POST {a:"signin", email, turnstile}  email a one-tap sign-in button. A new email gets an account (source "account", no welcome
+//                                   email). Bot check + 3 a minute per IP. Same answer whether or not we know the email
 //   POST {a:"redeem", invite}       the button's link -> a session token
 //   POST {a:"code", email, code}    the 6-digit code from the same email -> a session token
 //   GET  ?a=me                      the home page (x-admin-token)
@@ -71,21 +72,25 @@ async function who(req: Request) {
   return m as { id: string; email: string; first_name: string | null; status: string };
 }
 
-// Does this email have anything here at all? (a member, a ticket, an artist spot or a crew)
-async function hasAnything(email: string, memberId: string | null) {
-  if (memberId) return true;
-  const [{ count: o }, { count: a }] = await Promise.all([
-    db.from("ticket_orders").select("id", { count: "exact", head: true }).eq("email", email).in("status", ["paid", "comp"]),
-    db.from("artist_invites").select("id", { count: "exact", head: true }).ilike("email", email).is("revoked_at", null),
-  ]);
-  return (o ?? 0) + (a ?? 0) > 0;
+// Bot check for sign-in (Cloudflare Turnstile). Inline on purpose: this file imports nothing from _shared.
+// No TURNSTILE_SECRET set means allow, same as the signup form.
+async function botCheck(token: unknown, ip: string) {
+  const secret = Deno.env.get("TURNSTILE_SECRET");
+  if (!secret) return true;
+  if (typeof token !== "string" || !token || token.length > 2048) return false;
+  const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secret, response: token, remoteip: ip }),
+    signal: AbortSignal.timeout(10_000),
+  }).then((x) => x.json()).catch(() => ({ success: false }));
+  const hosts = (Deno.env.get("TURNSTILE_HOSTNAMES") || "subduction.art,www.subduction.art").split(",").map((h) => h.trim()).filter(Boolean);
+  return r.success === true && r.action === "signup" && hosts.includes(r.hostname);
 }
 
 async function sendSignin(email: string) {
   let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
   if (m?.status === "deleted") return;
-  if (!(await hasAnything(email, m?.id || null))) return;
-  // Someone with a ticket or an artist spot but no member record yet gets one, so they have an account to sign in to.
+  // Anyone with a valid email gets an account, so they have something to sign in to.
   // Made the same way the promoter sign-up makes one (no welcome email is queued); source "account" marks where it came from.
   if (!m) m = (await db.from("subscribers").insert({ email, source: "account" }).select("id,status").single()).data;
   if (!m) return;
@@ -395,6 +400,11 @@ Deno.serve(async (req) => {
         if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
         const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account") });
         if ((n ?? 0) > 6) return no("Too many tries. Wait a minute and try again.", 429);
+        // Second, tighter limit on every call (new email or not), so the answer never depends on who has an account.
+        const { data: n2 } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-new") });
+        if ((n2 ?? 0) > 3) return no("Too many tries. Wait a minute and try again.", 429);
+        const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+        if (!(await botCheck(b.turnstile, ip))) return no("Bot check failed. Refresh and try again.", 403);
         await sendSignin(email);
         return json({ sent: true });   // same answer either way, so this can't be used to find out who's here
       }
@@ -440,7 +450,7 @@ Deno.serve(async (req) => {
         if (!me) return no("Sign in again.", 401);
         const email = String(me.email).toLowerCase();
         const preview = (await admins()).includes(email) || (await setting<boolean>("artist_profiles_open", false)) === true;
-        if (!preview) return no("Join the artist list from the artists page.", 403);
+        if (!preview) return no("Artist profiles are coming soon.", 403);
         const name = clean(b.name, 60);
         if (!name) return no("Add your artist name.");
         const typed = (b.links && typeof b.links === "object" ? b.links : {}) as Record<string, unknown>;

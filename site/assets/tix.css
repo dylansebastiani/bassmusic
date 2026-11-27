@@ -167,7 +167,10 @@ html:has(.toftu){background:#050505}
 .flyers a{display:block;border:1px solid var(--uv)}
 .flyers a:first-child{box-shadow:0 0 18px -4px rgba(255,90,31,.6)}
 .flyers a:last-child{box-shadow:0 0 18px -4px rgba(138,43,226,.7)}
+.flyers a{aspect-ratio:4/5}
 .flyers img{width:100%;height:auto}
+#nights{min-height:360px}
+#shop{min-height:640px}
 .toftu .night li:nth-child(2){font-weight:600;font-size:17px}
 /* real art: crisp logo, full hero, the violet figure leaping over the ticket list */
 .brand .wm{mix-blend-mode:normal;filter:drop-shadow(0 0 18px rgba(138,43,226,.45))}

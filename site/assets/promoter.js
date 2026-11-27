@@ -10,7 +10,7 @@
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (r.status === 403 && j.no_crew) { try { localStorage.setItem("me_tab", "crew"); } catch (e) {} location.replace("me.html"); return new Promise(function () {}); } if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
   }
   var call = function (a, body) { return api(FN, Object.assign({ a: a }, body || {})); };
   function signOut() { tok = ""; try { localStorage.removeItem(KEY); } catch (e) {} location.hash = ""; route(); }

@@ -33,11 +33,31 @@
     var email = $("semail").value.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { $("smsg").textContent = "Check your email address."; return; }
     $("sgo").disabled = true; $("smsg").textContent = "Sending...";
-    api("", { a: "signin", email: email }).then(function () {
-      $("smsg").innerHTML = "If that email has tickets, a show or a crew here, a sign-in email is on its way to <b>" + esc(email) + "</b>. Tap the button in it, or type its code below.";
+    tsPass(12000).then(function () { return api("", { a: "signin", email: email, turnstile: tsToken }); }).then(function () {
+      $("smsg").innerHTML = "A sign-in email is on its way to <b>" + esc(email) + "</b>. Tap the button in it, or type its code below.";
       sentTo = email; $("cf").hidden = false; $("ccode").focus();
-    }).catch(function (err) { $("smsg").textContent = err.message; }).then(function () { $("sgo").disabled = false; });
+    }).catch(function (err) { $("smsg").textContent = err.message; }).then(function () {
+      tsToken = null; if (tsId !== null) turnstile.reset(tsId);
+      $("sgo").disabled = false;
+    });
   });
+  // Bot check (Cloudflare Turnstile), loaded when someone starts typing their email. Same pattern as the home page.
+  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [];
+  function tsGot(t) { tsToken = t; var w = tsWaiters; tsWaiters = []; w.forEach(function (f) { f(); }); }
+  function loadTurnstile() {
+    if (tsLoaded || !C.turnstileSiteKey) return; tsLoaded = true;
+    window.__tsOnload = function () {
+      tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, action: "signup", appearance: "interaction-only", "refresh-expired": "auto",
+        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function () { tsToken = null; } });
+    };
+    var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
+  }
+  function tsPass(ms) {
+    if (!C.turnstileSiteKey || tsToken) return Promise.resolve();
+    loadTurnstile();
+    return new Promise(function (res) { tsWaiters.push(res); setTimeout(res, ms); });
+  }
+  $("semail").addEventListener("focus", loadTurnstile, { once: true });
   var sentTo = "";
   $("cf").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -111,7 +131,7 @@
       if (!d.profile && !d.artist.length && !editing) {
         h += d.artist_preview
           ? '<div class="mcard"><h3>Play shows?</h3><div class="sub">Make one artist profile. Every promoter who books you gets it already filled in, and your shows, passes and sell links all live here.</div><button type="button" class="mbtn" data-edit>Create artist profile</button></div>'
-          : '<div class="mcard"><h3>Your artist page</h3><div class="sub">One page for the shows you play, with your passes, guest lists and sell links. Join with your email.</div><a class="mbtn" href="' + esc(d.waitlist) + '">Join the artist list</a></div>';
+          : '<div class="mcard"><h3>Artist profiles are coming soon</h3><div class="sub">One profile for every show you play, with your passes, guest lists and sell links in one place. Join the list and we\'ll tell you the day it opens.</div><a class="mbtn" href="' + esc(d.waitlist) + '">Join the artist list</a></div>';
       }
     }
     if (tab === "crew") {
