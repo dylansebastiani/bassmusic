@@ -127,6 +127,8 @@
       "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
       (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
+      (co.paid_ready ? '<div class=card><b>Your money</b><small>' + StackSavings.stripeNote() + "</small></div>" : "") +
+      (shows.some(function (x) { return x.sales && x.sales.count; }) ? "<h2>What you kept</h2>" + shows.map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "") +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
       '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and your page starts in our neon look.</small></div>' +
@@ -412,7 +414,7 @@
   function paid() {
     var co = company();
     var fs = firstShow(), nextHref = fs ? "#send/" + fs.id : homeHref();
-    app.innerHTML = top(homeHref()) + stepHead(3, "Get paid") + "<h1>Get paid</h1>" + (co.paid_ready ? "<p class=lead>&#10003; You're all set. Ticket money goes straight to your own account.</p>" + '<a class=btn href="' + nextHref + '">' + (fs ? "Next: send my show" : "Done") + "</a>"
+    app.innerHTML = top(homeHref()) + stepHead(3, "Get paid") + "<h1>Get paid</h1>" + (co.paid_ready ? "<p class=lead>&#10003; You're all set. Ticket money goes straight to your own account.</p><p class=note>" + StackSavings.stripeNote() + "</p>" + '<a class=btn href="' + nextHref + '">' + (fs ? "Next: send my show" : "Done") + "</a>"
       : "<p class=lead>Ticket money goes straight to your own bank. Stripe is the payment company that sends it. It takes about 5 minutes and you'll need your bank details.</p><p class=note>Subduction never holds your money.</p>" +
         (company().can_manage ? '<button class=btn type=button id=st>Connect my bank</button>' : "<p class=note>Only the crew's owner can do this step.</p>") +
         (fs ? '<a class=linkbtn href="' + nextHref + '">Do this later and send my show now</a>' : "")) + "<p class=msg role=status></p>";

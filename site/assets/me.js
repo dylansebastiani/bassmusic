@@ -152,6 +152,7 @@
           (p ? (p.stripe_ready ? ", selling with your Stripe" : "") : "") + "</div></div>" +
           (p ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>";
         if (p && !p.stripe_ready && p.role === "owner") h += '<div class="mcard warn"><b>Connect Stripe</b> before your next show goes on sale, so ticket money goes straight to your bank. <a class="mlink" href="promoter.html">Connect it</a></div>';
+        if (p && p.stripe_ready) h += '<div class="mcard"><div class="sub">' + StackSavings.stripeNote() + "</div></div>";
         h += g.shows.length ? '<div class="posters">' + g.shows.map(function (sh) {
           return '<button type="button" class="poster" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
             '<span class="poart"' + (sh.image ? ' style="background-image:url(\'' + esc(sh.image) + '\')"' : "") + "></span>" +
@@ -159,6 +160,7 @@
             '<span class="state' + (sh.on_sale ? " live" : "") + '">' + (sh.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
             (sh.on_sale || sh.sold ? '<span class="psold"><b>' + (sh.sold || 0) + "</b> sold" + (sh.cap ? ", " + sh.cap + " spots a night" : "") + "</span>" : "") + "</span></button>";
         }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (p ? " Tap Add a show to start one." : "") + "</p>";
+        g.shows.forEach(function (sh) { if (sh.sales) h += '<div class="mcard"><h3>' + esc(sh.name) + "</h3>" + StackSavings.line(sh.sales) + "</div>"; });
       });
       if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
     }
