@@ -102,7 +102,7 @@ writeFileSync(join(out, "_headers"), [
   "  X-Frame-Options: DENY",
   "  Referrer-Policy: strict-origin-when-cross-origin",
   "  Permissions-Policy: camera=(self), microphone=(), geolocation=()",
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
   "",
 ].join("\n"));
 // One page per live track at /t/<CODE>/: the same sticker page, with the song, the artist and
@@ -139,16 +139,21 @@ async function showPages() {
   let shows = [];
   try { shows = (await (await fetch(`${fn}/shows`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
   catch (e) { console.warn("build: could not fetch the show list, short links fall back to the 404 page:", e.message); return; }
-  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">');
+  // The page's own generic title and description are dropped, so each built page prints exactly one of each.
+  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">')
+    .replace(/<meta name="description"[^>]*>\s*/, "").replace(/<title>[^<]*<\/title>\s*/, "");
   const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let n = 0;
   for (const s of shows) {
     if (!/^[a-z0-9-]{1,80}$/.test(s.slug || "")) continue;
+    if (s.slug === "underground" || s.id === "63b511f3-d838-404f-9c2e-5d4b98fbf013") continue;
     if (s.review_status && s.review_status !== "approved") { console.warn(`build: show "${s.slug}" is not approved, skipped`); continue; }
     // Never let a show's name shadow a real page or folder of the site.
     if (existsSync(join(out, s.slug)) || existsSync(join(out, s.slug + ".html"))) { console.warn(`build: show "${s.slug}" clashes with a site page, skipped`); continue; }
-    const tags = `<title>${esc(s.name)}</title>\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">` +
-      (s.share_url ? `\n<meta property="og:image" content="${esc(s.share_url)}">\n<meta name="twitter:card" content="summary_large_image">` : "") +
+    const image = s.image || s.share_url || s.poster_url || `${pub.siteUrl}/assets/og.jpg`;
+    // A show with a secret location never puts its written description in a public preview.
+    const desc = ((s.location_secret !== false ? "" : s.description) || `Tickets for ${s.name || "this show"}.`).slice(0, 200);
+    const tags = `<title>${esc(s.name)}</title>\n<meta name="description" content="${esc(desc)}">\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:description" content="${esc(desc)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">\n<meta property="og:image" content="${esc(image)}">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="${esc(s.name)}">\n<meta name="twitter:description" content="${esc(desc)}">\n<meta name="twitter:image" content="${esc(image)}">` +
       eventSchemaTag(s);
     mkdirSync(join(out, s.slug), { recursive: true });
     writeFileSync(join(out, s.slug, "index.html"), base.replace('<meta property="og:type" content="website">', '<meta property="og:type" content="website">\n' + tags));
