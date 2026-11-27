@@ -111,7 +111,7 @@
         '<label for="bphone">Phone</label><input type="tel" id="bphone" autocomplete="tel" inputmode="tel" maxlength="20" required aria-describedby="hphone" placeholder="(309) 555-0123"><small class="hint" id="hphone" aria-live="polite"></small>' +
         '<details class="promo" id="promoBox"><summary>Have a code?</summary><label for="bpromo">Code</label><input type="text" id="bpromo" autocomplete="off" maxlength="30"></details>' +
         '<button type="submit" class="btn" id="go">Checkout</button><p class="msg" id="bmsg" role="status"></p>' +
-        '<p class="fineprint">' + (s.fineprint ? esc(s.fineprint) : fine) + ' <a href="privacy.html">Privacy</a>.</p></form>' +
+        '<p class="fineprint">' + (s.fineprint ? esc(s.fineprint) : fine) + ' Your ticket also makes you a Subduction member: unreleased tracks and first word on shows by email. Unsubscribe anytime. <a href="privacy.html">Privacy</a>.</p></form>' +
         '<div id="payWrap" hidden><button type="button" class="back" id="back">&larr; Change tickets</button><div id="checkout"></div></div></section>';
     },
     partners: function () { var a = data.page.art; return a.partners ? img(a.partners, "s-partners", "Event partners", ' decoding="async"') : ""; },

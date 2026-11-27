@@ -143,7 +143,7 @@ async function sendTickets(orderId: string) {
     .select("id,event_id,email,name,subtotal_cents,discount_cents,fee_cents,total_cents,company_id").maybeSingle();
   if (!o || !o.email) return false;
   const [{ data: ev }, { data: tix }, { data: types }, { data: nights }, { data: co }] = await Promise.all([
-    db.from("events").select("slug,name,venue,city,address,age,location_secret").eq("id", o.event_id).single(),
+    db.from("events").select("slug,name,venue,city,address,age,location_secret,address_reveal_at").eq("id", o.event_id).single(),
     db.from("tickets").select("code,token,type_id,holder_name").eq("order_id", o.id).eq("status", "valid").order("created_at"),
     db.from("ticket_types").select("id,name,night_ids").eq("event_id", o.event_id),
     db.from("ticket_nights").select("id,label,starts_at,ends_at").eq("event_id", o.event_id).order("sort"),
@@ -152,7 +152,9 @@ async function sendTickets(orderId: string) {
   const unclaim = () => db.from("ticket_orders").update({ emailed_at: null }).eq("id", o.id);
   if (!ev || !tix?.length) { await unclaim(); return false; }
   const ns = nights || [], by = co?.name || ev.name, reply = co?.contact_email || CONTACT;
-  const where = ev.address ? `${ev.venue ? ev.venue + ", " : ""}${ev.address}` : ev.location_secret ? "The address will be emailed to you before the show." : [ev.venue, ev.city].filter(Boolean).join(", ");
+  // A secret-location show prints no venue or address until the reveal time has passed.
+  const held = !!ev.location_secret && (!ev.address_reveal_at || Date.parse(ev.address_reveal_at) > Date.now());
+  const where = held ? "The address will be emailed to you before the show." : ev.address ? `${ev.venue ? ev.venue + ", " : ""}${ev.address}` : [ev.venue, ev.city].filter(Boolean).join(", ");
   const rows = tix.map((t) => {
     const ty = types?.find((x) => x.id === t.type_id);
     const mine = ns.filter((n) => (ty?.night_ids || []).includes(n.id));
@@ -222,7 +224,7 @@ Deno.serve(async (req) => {
     return json({
       by: co.name,
       ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp, artist: ty?.slug === "artist" },
-      event: { slug: ev.slug, name: ev.name, venue: ev.venue, city: ev.city, address, age: ev.age, address_later: !address && !!ev.location_secret },
+      event: { slug: ev.slug, name: ev.name, venue: held ? null : ev.venue, city: ev.city, address, age: ev.age, address_later: !address && !!ev.location_secret },
       nights: (nights || []).map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, used_at: scans?.find((s) => s.night_id === n.id)?.scanned_at || null })),
     });
   }
