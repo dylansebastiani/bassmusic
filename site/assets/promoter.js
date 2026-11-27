@@ -68,20 +68,37 @@
     });
   }
 
+  // ---------- bot check (same Cloudflare pass the signup form uses) ----------
+  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [], tsErr = null;
+  function tsGot(t) { tsToken = t; var w = tsWaiters; tsWaiters = []; w.forEach(function (f) { f(); }); }
+  function loadTurnstile() {
+    if (tsLoaded || !C.turnstileSiteKey) return; tsLoaded = true;
+    var el = document.createElement("div"); document.body.appendChild(el);
+    window.__tsOnload = function () {
+      tsId = turnstile.render(el, { sitekey: C.turnstileSiteKey, action: "signup", appearance: "interaction-only", "refresh-expired": "auto",
+        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function (c) { tsToken = null; tsErr = String(c || "error").slice(0, 20); } });
+    };
+    var sc = document.createElement("script"); sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; sc.async = true; document.head.appendChild(sc);
+  }
+  function tsPass(ms) {
+    if (!C.turnstileSiteKey || tsToken) return Promise.resolve();
+    loadTurnstile();
+    return new Promise(function (res) { tsWaiters.push(res); setTimeout(res, ms); });
+  }
+
   // ---------- sign in ----------
   function signin() {
-    var DEMO = FN.replace(/\/promoter$/, "/demo");
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. If you're new, this opens your show. If you already throw shows with us, we send a button that signs you straight in. No codes and no passwords.</p>" +
+    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. We send a button that signs you in and opens your show. No passwords.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
       '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
       '<button class=btn type=submit>Send my email</button></form>' +
       '<div id=sent hidden><div class=card><b id=senttitle>Got it</b><small id=sentmsg></small></div><button class=linkbtn type=button id=again>Send it again</button></div>' +
       '<p class=msg role=status></p><p class=note id=newhere>First time here. <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>';
-    var em = document.getElementById("em");
+    var em = document.getElementById("em"); em.addEventListener("focus", loadTurnstile, { once: true });
     function showSent(v, fromDemo) {
       document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false;
       document.getElementById("senttitle").textContent = fromDemo ? "Check your email" : "Got it";
-      document.getElementById("sentmsg").textContent = "We sent a sign-in button to " + v + ". Open it on this phone and tap the button.";
+      document.getElementById("sentmsg").textContent = "If that email can sign in, a sign-in button is on its way to " + v + ". Open it on this phone and tap it.";
       say("");
     }
     function sendLink() {
@@ -89,14 +106,19 @@
       var trap = document.getElementById("hp_field");
       if (trap && trap.value) return showSent(v, false);
       say("Opening…");
-      var trapVal = trap ? trap.value : "";
-      fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "open", email: v, hp_field: trapVal }) })
-        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); })
+      var A = (window.Stack && Stack.attr) || {};
+      var pref = String(A.pref || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+      var open = { a: "open", email: v, hp_field: trap ? trap.value : "", source: window.Stack && Stack.source ? Stack.source() : "direct",
+        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null,
+        referral_code: /^[a-z0-9]{8}$/.test(pref) ? pref : null };
+      tsPass(12000).then(function () {
+        open.turnstile = tsToken; open.ts_err = tsToken ? null : (tsErr || (tsLoaded ? "no-pass" : "not-loaded"));
+        return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(open) });
+      })
+        .then(function (r) { tsToken = null; if (tsId !== null && window.turnstile) turnstile.reset(tsId); return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); })
         .then(function (j) {
-          if (j.token) { tok = j.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; say(""); route(); return; }
           if (j.artist) { say("That email is on an artist pass. Open the link from your pass email.", true); return; }
-          if (j.existing) return fetch(DEMO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "signin", email: v }) }).then(function () { showSent(v, true); });
-          say("");
+          showSent(v, false);
         })
         .catch(function (x) { say(x.message, true); });
     }

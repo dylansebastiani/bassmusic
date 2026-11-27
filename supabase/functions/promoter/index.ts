@@ -1,5 +1,5 @@
 import { db, setting } from "../_shared/db.ts";
-import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE } from "../_shared/util.ts";
+import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, clientIp, verifyTurnstile } from "../_shared/util.ts";
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
@@ -295,8 +295,9 @@ Deno.serve(async (req) => {
     return ok({ ok: true });
   }
 
-  // One email opens a new promoter account. No mail is sent. Someone who already has a crew
-  // gets existing:true so the page can send the usual sign-in button.
+  // One email opens a new promoter account. Nobody gets a session from this call: both a new and an
+  // existing address get the normal sign-in email, and only that email's code or button signs in.
+  // The answer is the same for both, so it can't be used to find out who already has an account.
   if (a === "open") {
     if (clean(b.hp_field, 200) || clean(b.website, 200) || clean(b.company, 200)) return ok({ ok: true });
     const email = (clean(b.email, 254) || "").toLowerCase();
@@ -304,13 +305,28 @@ Deno.serve(async (req) => {
     const salt = await setting("ip_salt", "unset");
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, salt + "|promoter-open") });
     if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
-    if (await isAdminEmail(email)) return ok({ existing: true });
+    if (!(await verifyTurnstile(clean(b.turnstile, 4000), clientIp(req), clean(b.ts_err, 20)))) return no("Bot check failed. Refresh and try again.", 403);
+    // Artist pass mail is sent on its own. This screen never emails an artist contact.
+    const artist = await artistContact(email);
+    if (artist === true) return ok({ artist: true });
+    const signinTo = async (id: string) => {
+      if (artist !== false) return;
+      const { data: m } = await db.from("subscribers").select(MEMBER_COLS).eq("id", id).maybeSingle();
+      if (m && m.status !== "deleted") await sendSignin(m as SigninMember);
+    };
     const { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
-    if (m && m.status !== "deleted") {
-      const { count } = await db.from("company_staff").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id);
-      if ((count ?? 0) > 0) return ok({ existing: true });
-    }
-    if (await artistContact(email) === true) return ok({ artist: true });
+    // Any address that already has a subscriber row (buyer, fan, crew, Dylan) only gets the sign-in email.
+    // No company is opened, no staff row is added, and no token comes back.
+    if (m && m.status !== "deleted") { await signinTo(m.id); return ok({ existing: true }); }
+    const utm_source = clean(b.utm_source, 80), utm_medium = clean(b.utm_medium, 80), utm_campaign = clean(b.utm_campaign, 80), referrer = safeRef(b.referrer);
+    const referral = referralCode(b.referral_code);
+    const source = (clean(b.source, 80) || utm_source || "direct").slice(0, 80);
+    // The attribution row ownerFor's referral link reads, same as the lead action.
+    const leadRow = { email, source, utm_source, utm_medium, utm_campaign, referrer, referral_code: referral, ip_hash: await ipHash(req, salt) };
+    let { error: le } = await db.from("promoter_leads").insert(leadRow);
+    if (le && /referral_code/.test(le.message || "")) ({ error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: await ipHash(req, salt) }));
+    if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
+    else if (le && referral) await db.from("promoter_leads").update({ referral_code: referral }).eq("email", email).is("referral_code", null);
     const local = email.split("@")[0].replace(/[^a-z0-9]+/gi, " ").trim().slice(0, 40) || "My crew";
     const name = local.replace(/\b\w/g, (ch) => ch.toUpperCase());
     let slug = slugify(name) || "crew";
@@ -319,10 +335,12 @@ Deno.serve(async (req) => {
     if (error || !co) return no("Couldn't open that. Try again.", 500);
     const sid = await ownerFor(co.id, email);
     if (!sid) return no("Couldn't open that. Try again.", 500);
-    return ok({ token: await newSession(sid) });
+    if (artist === false) { await syncLead(email, utm_source || source); await tellDylan(email, { source, utm_medium, utm_campaign, referrer, referral }); }
+    await signinTo(sid);
+    return ok({ ok: true });
   }
 
-  // Public page for one street-team link. Counts only. No buyer names, and never T.O.F.T.U.
+  // Public page for one street-team link. Ticket count only: no money, no buyer names, and never T.O.F.T.U.
   if (req.method === "GET" && a === "link") {
     const slug = (u.searchParams.get("e") || "").toLowerCase();
     const code = (u.searchParams.get("c") || "").toLowerCase();
@@ -332,9 +350,10 @@ Deno.serve(async (req) => {
     const linkCo = await loadCompany(ev.company_id);
     if (!linkCo || handsOff(ev, linkCo)) return no("Not found", 404);
     const view = await streetView(ev, SITE_URL);
-    const row = ((view.rows || []) as { code: string; label: string; tickets: number; revenue_cents: number; owed_cents: number | null; link: string }[]).find((r) => r.code === code);
+    const row = ((view.rows || []) as { code: string; label: string; tickets: number; link: string }[]).find((r) => r.code === code);
     if (!row) return no("Not found", 404);
-    return ok({ show: ev.name, slug: ev.slug, label: row.label, tickets: row.tickets, revenue_cents: row.revenue_cents, owed_cents: row.owed_cents, link: row.link });
+    // Codes are guessable, so the public page gets the ticket count only. Money stays behind sign-in.
+    return ok({ show: ev.name, slug: ev.slug, label: row.label, tickets: row.tickets, link: row.link });
   }
 
   const st = await staffAuth(req);
@@ -345,7 +364,7 @@ Deno.serve(async (req) => {
     if (!UUID_RE.test(id) || id === UNDERGROUND_EVENT_ID) return no("Not found", 404);
     const { data: show } = await db.from("events").select("id,slug,name,company_id").eq("id", id).maybeSingle();
     const buyerCo = show ? await loadCompany(show.company_id) : null;
-    if (!show || !buyerCo || !canSee(st, show.company_id) || handsOff(show, buyerCo) || show.slug === "underground") return no("Not found", 404);
+    if (!show || !buyerCo || !canManage(st, show.company_id) || handsOff(show, buyerCo) || show.slug === "underground") return no("Not found", 404);
     const { data: orders, error } = await db.from("ticket_orders").select("id,name,email,phone,status,total_cents,created_at").eq("event_id", show.id).in("status", ["paid", "comp"]).order("created_at");
     if (error) return no("Couldn't load buyers.", 500);
     const orderIds = (orders || []).map((o) => o.id);

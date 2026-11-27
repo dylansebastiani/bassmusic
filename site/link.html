@@ -41,7 +41,7 @@ h1{font-size:clamp(40px,10vw,64px)}
     $("label").textContent = d.label;
     $("show").textContent = d.show;
     $("count").textContent = String(d.tickets || 0);
-    $("owed").textContent = (d.tickets === 1 ? "paid ticket" : "paid tickets") + (d.owed_cents ? ". Owed $" + (d.owed_cents / 100).toFixed(2) : ".");
+    $("owed").textContent = (d.tickets === 1 ? "paid ticket" : "paid tickets");
     $("go").href = d.link || ("/" + d.slug);
   }).catch(function () { $("show").textContent = "That link isn't here."; $("go").hidden = true; });
 })();
