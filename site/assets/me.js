@@ -21,6 +21,7 @@
       });
     });
   }
+  function saveMember(r) { if (r && /^[0-9a-f-]{36}$/i.test(r.member || "")) { try { localStorage.setItem("stack_member", r.member); } catch (e) {} } }
   function signOut() { tok = ""; try { localStorage.removeItem(KEY); } catch (e) {} show("signin"); }
   function show(which) {
     $("signin").hidden = which !== "signin"; $("home").hidden = which !== "home"; $("signout").hidden = which !== "home";
@@ -65,10 +66,10 @@
     if (code.length !== 6) { $("smsg").textContent = "The code is 6 digits."; return; }
     $("cgo").disabled = true; $("smsg").textContent = "Checking...";
     api("", { a: "code", email: sentTo || $("semail").value.trim(), code: code }).then(function (r) {
-      tok = r.token; try { localStorage.setItem(KEY, tok); } catch (err) {} $("cf").hidden = true; $("smsg").textContent = ""; load();
+      tok = r.token; try { localStorage.setItem(KEY, tok); } catch (err) {} saveMember(r); $("cf").hidden = true; $("smsg").textContent = ""; load();
     }).catch(function (err) { $("smsg").textContent = err.message; }).then(function () { $("cgo").disabled = false; });
   });
-  $("signout").addEventListener("click", signOut);
+  $("signout").addEventListener("click", function () { try { localStorage.removeItem("stack_member"); } catch (e) {} signOut(); });
 
   // ---- home ----
   function load() {
@@ -585,7 +586,15 @@
   if (invite) {
     history.replaceState(null, "", location.pathname);
     $("msg").textContent = "Signing you in...";
-    api("", { a: "redeem", invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} load(); })
+    api("", { a: "redeem", invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} saveMember(r); load(); })
       .catch(function (err) { show("signin"); $("smsg").textContent = err.message; });
-  } else if (tok) load(); else show("signin");
+  } else if (tok) load();
+  else {
+    var mk = ""; try { mk = localStorage.getItem("stack_member") || ""; } catch (e) {}
+    if (/^[0-9a-f-]{36}$/i.test(mk)) {
+      $("msg").textContent = "Signing you in...";
+      api("", { a: "member", key: mk }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} load(); })
+        .catch(function () { $("msg").textContent = ""; show("signin"); });
+    } else show("signin");
+  }
 })();
