@@ -62,6 +62,16 @@ try {
 // Any address that isn't a file falls back to the show page, which reads the show from the address:
 // subduction.art/<slug> works the moment a show is published, before the next rebuild gives it its own page below.
 writeFileSync(join(out, "404.html"), readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
+// GitHub Pages ignores _redirects, so these folder addresses get a tiny stub that hands off to the real page,
+// keeping any ?query and #hash. A show named after one of these folders is skipped by the slug-clash check in showPages().
+const stubs = [["artists", "/artists.html"], ["promoter", "/promoter.html"], ["account", "/me.html"], ["login", "/me.html"], ["signin", "/me.html"]];
+for (const [dir, to] of stubs) {
+  mkdirSync(join(out, dir), { recursive: true });
+  writeFileSync(join(out, dir, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${JSON.stringify(to)} + location.search + location.hash);</script></head>
+<body style="background:#050505;color:#F4F1EE;font:16px Arial,sans-serif;text-align:center;padding:40px"><a href="${to}" style="color:#F4F1EE">Continue</a></body></html>`);
+}
 // Pretty routes and the short links used in emails (/c/<token>, /u/<token>).
 const fn = pub.supabaseUrl + "/functions/v1";
 writeFileSync(join(out, "_redirects"), [
