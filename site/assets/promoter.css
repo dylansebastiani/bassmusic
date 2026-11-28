@@ -127,3 +127,5 @@ body.pro{min-height:100vh;background:#000}
 .pro .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}.pro .acts .ghostbtn{display:block;text-align:center;text-decoration:none;padding:12px 8px;font-size:14px}
 .pro input:not([type]),.pro input[type=tel],.pro input[type=url]{width:100%;background:#000;border:1px solid var(--line);color:var(--fg);font:inherit;font-size:17px;padding:14px;border-radius:0;color-scheme:dark;box-sizing:border-box}
 .pro .steps li.done .n{background:none;border-color:var(--hot);color:var(--hot)}
+.pro .feeline span a{color:inherit;text-decoration:underline}
+.pro #preview{margin-top:28px}
