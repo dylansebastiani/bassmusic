@@ -24,6 +24,7 @@ jobs:
           SUPABASE_URL: https://hxfuelulxsituzcgsvhg.supabase.co
           SITE_URL: https://subduction.art
           TURNSTILE_SITE_KEY: 0x4AAAAAAFZadT27taMa0fvL
+          BUILD_REFS_KEY: ${{ secrets.BUILD_REFS_KEY }}
       - run: touch dist/.nojekyll
       - uses: peaceiris/actions-gh-pages@v4
         with:

@@ -11,6 +11,7 @@ import { brevo } from "../_shared/email/brevo.ts";
 import { SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
+import { audience, cleanCrowd, postalAddress, sendCrowd, MAX_RECIPIENTS } from "../_shared/crowd.ts";
 import { paidSales } from "../_shared/paid_sales.ts";
 import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
 
@@ -31,6 +32,8 @@ import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
 //   POST {a:"referral-settle", credit}                    Dylan only: mark a referral credit paid. Sends no money.
 //   GET  ?a=street&show=                                  named links for one show, with tickets and revenue
 //   POST {a:"street-save", show, label, code?, payout?}   add or update a link. A payout is what the promoter owes.
+//   POST {a:"crowd-count", show}                          how many of this show's paid, still-subscribed buyers. A number only. Sends nothing.
+//   POST {a:"crowd-send", show, subject, body, next_date?} the Send button on the review screen. One send per company per day.
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
 const CONTACT = "hello@subduction.art";
 // Marks the placeholder subscriber row `open` saves before the inbox is proven. provision() reactivates only these.
@@ -632,6 +635,34 @@ Deno.serve(async (req) => {
   }
 
   if (!show) return no("Pick a show.");
+
+  if (a === "crowd-count" || a === "crowd-send") {
+    // Owner only, same as the brand kit. Other staff can see buyers but must not email them.
+    if (!canManage(st, show.company_id)) return no("Only the company's owner can message the crowd.", 403);
+    if (handsOff(show as any, co)) return no("This show can't be messaged from here.", 409);
+    let n: Awaited<ReturnType<typeof audience>>;
+    try { n = await audience(show as any); } catch (e) { console.error("promoter: crowd", (e as Error).message); return no("Couldn't count your crowd. Try again.", 500); }
+    if (a === "crowd-count") return ok({ count: n.length, max: MAX_RECIPIENTS });
+    const c = cleanCrowd(b);
+    if ("error" in c) return no(c.error);
+    if (!postalAddress()) return no("Email can't go out until Subduction adds a mailing address.", 409);
+    if (!n.length) return no("Nobody to send to for this show.", 409);
+    if (n.length > MAX_RECIPIENTS) return no("That crowd is over " + MAX_RECIPIENTS + " people. Message Subduction and we'll send it with you.", 409);
+    // Claim today's send first. The unique key (company, day) lets only one request through.
+    const { data: claim, error: ce } = await db.from("crowd_sends").insert({ company_id: companyId, event_id: show.id, sent_by: st.id, subject: c.subject, next_date: c.nextDate || null, recipients: n.length }).select("id").single();
+    if (ce || !claim) {
+      if (ce && (ce.code === "23505" || /duplicate key/i.test(ce.message || ""))) return no("You already messaged your crowd today. Try again tomorrow.", 429);
+      console.error("promoter: crowd claim", ce?.message);
+      return no("Sending isn't ready yet. Try again later.", 503);
+    }
+    const out = await sendCrowd(c, co.name, String(show.name || "the show"), n);
+    if (out.sent === 0) await db.from("crowd_sends").delete().eq("id", claim.id);   // nothing went out, so it doesn't use up today
+    else await db.from("crowd_sends").update({ sent: out.sent, status: out.stopped ? "stopped" : "sent" }).eq("id", claim.id);
+    await db.from("engagement_events").insert({ subscriber_id: st.id, type: "promoter:crowd", meta: { show: show.slug, company: co.slug, sent: out.sent } });
+    if (out.stopped) return ok({ sent: out.sent, total: out.total, stopped: true });
+    if (out.sent === 0) return no("The email service didn't take it. Nothing was sent. Try again later.", 502);
+    return ok({ sent: out.sent, total: out.total, stopped: false });
+  }
 
   if (a === "kit-save") {
     if (!canManage(st, companyId)) return no("Only the company's owner can change the event kit.", 403);

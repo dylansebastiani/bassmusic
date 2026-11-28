@@ -127,7 +127,14 @@ assert.doesNotMatch(buildIcs(secretPub, "https://subduction.art"), /Real Venue/)
 assert.match(buildIcs(secretPub, "https://subduction.art"), /LOCATION:Secret location/);
 
 // Ticket labels and nav links.
-assert.match(showsJs, /Tickets here<small>\$1\.50 fee/);
+assert.match(showsJs, /Tickets here<small>. \+ feeNote\(\)/);
+assert.match(showsJs, /F\.feeCents\(2500\)/);
+assert.equal(showsJs.includes("1.50"), false);
+const buildJs = readFileSync(new URL("../scripts/build.mjs", import.meta.url), "utf8");
+assert.equal(buildJs.includes("$1.50 fee"), false); assert.match(buildJs, /feeCents\(2500\)/);
+assert.match(buildJs, /"Tickets here<small>" \+ feeNoteText \+ "<\/small>"/);
+assert.doesNotMatch(buildJs, /"[^"`\n]*\$\{feeNoteText\}[^"`\n]*"/);
+assert.match(buildJs, /city page \$\{path\} contains a literal/);
 assert.doesNotMatch(showsJs + readFileSync(new URL("../scripts/build.mjs", import.meta.url), "utf8"), /Powered by Subduction/);
 const home = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
 assert.ok((home.match(/href="\/shows"/g) || []).length >= 2);
