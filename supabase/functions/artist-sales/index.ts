@@ -14,6 +14,7 @@
 //   POST ?a=notify                      cron (x-runner-secret): email artists about newly credited sales
 // Milestones are staff-only. Nothing about them is ever shown or sent to an artist.
 import { ipFromHeaders } from "../_shared/client_ip.mjs";
+import { CONFIG } from "../_shared/config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 import { publicRefs } from "./refs.mjs";
@@ -35,6 +36,11 @@ async function sha256(s: string) {
 async function setting<T>(key: string, fallback: T): Promise<T> {
   const { data } = await db.from("settings").select("value").eq("key", key).maybeSingle();
   return (data?.value as T) ?? fallback;
+}
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
 }
 const base = (name: string) => (name || "artist").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "").slice(0, 20) || "artist";
 const short = (tag: string) => `${SITE}/go/${tag}`;
@@ -216,7 +222,7 @@ async function sendAlert(to: string, artist: string, ev: Ev, fresh: number, tota
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("artist-sales: BREVO_API_KEY not set"); return false; }
   const F = "font-family:Arial,Helvetica,sans-serif", GOLD = "#F2C14E";
-  const addr = String(await setting("mailing_address", "") || "");
+  const addr = await mailingAddress();
   const off = `${FN}?a=alerts-off&k=${token}`;
   const head = fresh === 1 ? "You just sold a ticket" : `You just sold ${fresh} tickets`;
   const subject = `${head}: ${ev.name}`.slice(0, 120);

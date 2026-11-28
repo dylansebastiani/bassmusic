@@ -94,3 +94,24 @@ body.pro{min-height:100vh;background:#000}
 .pro .streetcode{display:block;font-family:var(--mono,ui-monospace,monospace);font-size:13px;line-height:1.4;word-break:break-all}
 .save{display:block;margin-top:6px}.save em{font-style:normal;font-size:12px;color:var(--mute);border:1px solid var(--line);padding:1px 6px;margin-left:4px}.save small{display:block;color:var(--mute);margin-top:4px}.save.none{color:var(--mute);font-size:14px}
 .note a,.card small a{color:inherit;text-decoration:underline}
+/* home: summary card and grouped sections */
+.pro .sumcard{display:grid;gap:6px}
+.pro .sumcard b{font-size:20px}
+.pro .pill{justify-self:start;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--hot);color:var(--hot);padding:2px 8px}
+.pro .sumcard .lbl,.pro .stats .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:6px}
+.pro .linkrow{display:flex;gap:8px;align-items:center}.pro .linkrow .streetcode{flex:1;min-width:0}.pro .linkrow .ghostbtn{width:auto;padding:10px 16px}
+.pro .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pro .stats b{display:block;font-size:22px}
+.pro h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:18px;margin:18px 0 4px}
+.pro details.sec{margin-top:18px}.pro details.sec>summary{font-family:var(--disp);text-transform:uppercase;font-size:22px}
+.pro .pts{margin:0 0 16px;padding-left:18px;color:var(--fg);font-size:15px;line-height:1.7}
+/* shared site header and footer: signed-out start screen only */
+.pro.in .sx-bar,.pro.in .sx-foot{display:none}
+
+/* Signed-out start screen: pitch, fee line and a sample preview above the email form. */
+.pro .pitch{font-size:18px;line-height:1.45;margin:0 0 14px}
+.pro .feeline{display:grid;gap:2px;border-left:3px solid var(--hot);padding:4px 0 4px 12px;margin:0 0 16px}
+.pro .feeline b{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:24px;line-height:1;color:var(--hot)}
+.pro .feeline span{color:var(--mute);font-size:15px}
+.pro .preview{margin:0 0 16px}
+.pro .preview img{display:block;width:100%;height:auto;border:1px solid var(--line);background:#000}
+.pro .preview figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:8px}
