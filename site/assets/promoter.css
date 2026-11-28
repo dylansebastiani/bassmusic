@@ -107,3 +107,11 @@ body.pro{min-height:100vh;background:#000}
 /* shared site header and footer: signed-out start screen only */
 .pro.in .sx-bar,.pro.in .sx-foot{display:none}
 
+/* Signed-out start screen: pitch, fee line and a sample preview above the email form. */
+.pro .pitch{font-size:18px;line-height:1.45;margin:0 0 14px}
+.pro .feeline{display:grid;gap:2px;border-left:3px solid var(--hot);padding:4px 0 4px 12px;margin:0 0 16px}
+.pro .feeline b{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:24px;line-height:1;color:var(--hot)}
+.pro .feeline span{color:var(--mute);font-size:15px}
+.pro .preview{margin:0 0 16px}
+.pro .preview img{display:block;width:100%;height:auto;border:1px solid var(--line);background:#000}
+.pro .preview figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:8px}

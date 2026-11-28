@@ -90,7 +90,11 @@
   // ---------- sign in ----------
   function signin() {
     app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1>" +
-      "<ul class=pts><li>Your own ticket page, built for you.</li><li>$1.50 flat buyer fee, you keep your full ticket price.</li><li>No passwords.</li></ul>" +
+      "<p class=pitch>Send us your show. We build your ticket page, fans buy on their phone, and you scan them in at the door.</p>" +
+      "<p class=feeline id=feeline><b>$1.50 flat buyer fee</b><span>You keep your full ticket price.</span></p>" +
+      '<figure class=preview id=preview><img src="assets/promoter-preview.webp" width="960" height="560" alt="Sample of a show page, a phone ticket with a QR code, and the door check-in screen" decoding="async">' +
+      "<figcaption>Sample show. Your page, their ticket, your door.</figcaption></figure>" +
+      "<ul class=pts><li>Your own ticket page, built for you.</li><li>Your brand on the page, not ours.</li><li>No passwords.</li></ul>" +
       "<p class=lead>Type your email. We send a button that signs you in and opens your show.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
       '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
