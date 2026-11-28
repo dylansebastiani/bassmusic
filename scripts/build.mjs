@@ -375,7 +375,7 @@ async function directoryPages() {
     let list = '<p class="loading">Loading.</p>';
     if (shows && c.n === 0) {
       const links = withShows.map(([p, o]) => `<a class="chip" href="/shows/${p}">${esc(o.city)}, ${esc(o.state)} <b>${o.n}</b></a>`).join("");
-      list = `<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">Nothing <em>up yet.</em></p><p>No shows listed in ${esc(c.city)} right now.</p><div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>${links ? `<p class="fine">Cities with shows</p><nav class="chips" aria-label="Cities with shows">${links}</nav>` : ""}</div>`;
+      list = `<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">Nothing <em>up yet.</em></p><p>No shows listed in ${esc(c.city)} right now.</p>${links ? `<p class="fine">Cities with shows</p><nav class="chips" aria-label="Cities with shows">${links}</nav>` : ""}<div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div></div>`;
     }
     let html = baseHtml
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
@@ -384,6 +384,7 @@ async function directoryPages() {
       .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where)}</p>`)
       .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(c.city)} <em>shows.</em></h1>`)
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", esc(desc))
+      .replace("Bass shows across the Midwest. Tickets here,", `Bass shows in ${esc(c.city)}. Tickets here,`)
       .replaceAll("https://subduction.art/shows", pageUrl)
       .replace(/<div id="list" class="wall">[\s\S]*?<!--LIST--><\/div>/, () => `<div id="list" class="wall">${list}</div>`)
       .replace(SHOWS_TAG, `<script>window.__SHOWS_CITY=${jsonInline(path)};window.__SHOWS_CITY_NAME=${jsonInline(`${c.city}, ${c.state}`)};</script>\n$1`);

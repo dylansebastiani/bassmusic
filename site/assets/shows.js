@@ -145,6 +145,8 @@
   }
   function paintCities() {
     var list = cityList();
+    // Search and date only help once there is a list to dig through.
+    $("filters").querySelector(".fbar").hidden = all.length < 6;
     var html = '<a class="chip' + (locked ? "" : " on") + '" href="/shows"' + (locked ? "" : ' aria-current="page"') + ">All cities <b>" + all.length + "</b></a>";
     var seen = false;
     list.forEach(function (c) {
@@ -167,7 +169,7 @@
       return '<a class="chip" href="/shows/' + esc(c.path) + '">' + esc(c.name) + " <b>" + c.n + "</b></a>";
     }).join("") + "</nav>" : "";
     return quiet("Nothing <em>up yet.</em>", "No shows listed here right now.",
-      '<div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>' + links);
+      links + '<div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>');
   }
   function chosen() {
     return { q: $("q").value.trim().toLowerCase(), when: $("when").value, on: $("on").value };
