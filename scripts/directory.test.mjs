@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { jsonInline } from "./cities.mjs";
 import {
   alertRecipients, canReplyTo, chicagoYmd, cityPath, dateOk, externalCard, honeypotFilled,
   isFresh, leadMail, matches, normTicketUrl, publicCard, splitPlace, subductionCard, ticketLink, TOFTU_SHARE_IMAGE,
@@ -208,3 +209,16 @@ assert.match(showsJs, /Send in a show/);
 assert.match(showsJs, /Sell tickets on Subduction/);
 assert.match(showsJs, /loading="lazy"/);
 assert.doesNotMatch(showsJs, /\b(few left|selling fast|almost gone|sold out soon)\b/i);
+
+// A city name can come from a public submission. It must never close the inline script that carries it.
+{
+  const evil = "Peoria</script><script>alert(1)</script>, IL";
+  const out = jsonInline(evil);
+  assert.equal(out.includes("</script"), false);
+  assert.equal(out.includes("<"), false);
+  assert.equal(JSON.parse(out), evil);
+  const page = `<script>window.__SHOWS_CITY_NAME=${out};</script>`;
+  assert.equal((page.match(/<\/script>/g) || []).length, 1);
+}
+const buildSrc = readFileSync(new URL("./build.mjs", import.meta.url), "utf8");
+assert.equal(/<script>[^\n]*\$\{JSON\.stringify\(/.test(buildSrc), false, "inline scripts in build.mjs must use jsonInline");

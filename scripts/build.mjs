@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { refsProblem } from "./refs-check.mjs";
 import vm from "node:vm";
-import { KNOWN_CITIES } from "./cities.mjs";
+import { KNOWN_CITIES, jsonInline } from "./cities.mjs";
 import { cityPath } from "../supabase/functions/directory/listing.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -82,7 +82,7 @@ gtag("event","purchase",{value:v,currency:"USD"})};
 const TAG_SCRIPT = "https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com";
 const TAG_IMG = "https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com";
 const TAG_CONNECT = "https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com";
-const inject = `<script>window.STACK=${JSON.stringify({ ...cfg, ...pub })};</script>`;
+const inject = `<script>window.STACK=${jsonInline({ ...cfg, ...pub })};</script>`;
 const PLAYER = '<script src="/assets/player.js" defer></script>';
 const rawT = readFileSync(join(out, "t.html"), "utf8");
 for (const f of readdirSync(out)) {
@@ -131,7 +131,7 @@ for (const [dir, to] of stubs) {
   mkdirSync(join(out, dir), { recursive: true });
   writeFileSync(join(out, dir, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${JSON.stringify(to)} + location.search + location.hash);</script></head>
+<meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${jsonInline(to)} + location.search + location.hash);</script></head>
 <body style="background:#050505;color:#F4F1EE;font:16px Arial,sans-serif;text-align:center;padding:40px"><a href="${to}" style="color:#F4F1EE">Continue</a></body></html>`);
 }
 // Pretty routes and the short links used in emails (/c/<token>, /u/<token>).
@@ -254,7 +254,7 @@ async function goPages() {
     mkdirSync(join(out, "go", r), { recursive: true });
     writeFileSync(join(out, "go", r, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">${tags}
-<meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${JSON.stringify(to)});</script></head>
+<meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${jsonInline(to)});</script></head>
 <body style="background:#050505;color:#fff;font:16px Arial,sans-serif;text-align:center;padding:40px"><a href="${to}" style="color:#F2C14E">Get tickets</a></body></html>`);
     n++;
   }
@@ -296,7 +296,7 @@ async function trackPages() {
       .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${esc(desc)}">`)
       .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${esc(image)}">`)
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
-      .replace("<!--CONFIG-->", `<script>window.__QR=${JSON.stringify(t.code)};</script>` + inject + PLAYER + trackingSnippet("subduction"));
+      .replace("<!--CONFIG-->", `<script>window.__QR=${jsonInline(t.code)};</script>` + inject + PLAYER + trackingSnippet("subduction"));
     mkdirSync(join(out, "t", t.code), { recursive: true });
     writeFileSync(join(out, "t", t.code, "index.html"), html);
     n++;
@@ -344,7 +344,7 @@ async function directoryPages() {
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", esc(desc))
       .replaceAll("https://subduction.art/shows", pageUrl)
       .replace(/<div id="list" class="wall">[\s\S]*?<!--LIST--><\/div>/, () => `<div id="list" class="wall">${list}</div>`)
-      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};window.__SHOWS_CITY_NAME=${JSON.stringify(`${c.city}, ${c.state}`)};</script>\n$1`);
+      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${jsonInline(path)};window.__SHOWS_CITY_NAME=${jsonInline(`${c.city}, ${c.state}`)};</script>\n$1`);
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
     if (html.includes("${")) throw new Error(`build: city page ${path} contains a literal "\${"`);
     mkdirSync(join(out, "shows", path), { recursive: true });

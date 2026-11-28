@@ -11,3 +11,6 @@ export const KNOWN_CITIES = [
   ["Columbus", "OH"], ["Cleveland", "OH"], ["Cincinnati", "OH"],
   ["Milwaukee", "WI"], ["Madison", "WI"],
 ];
+
+// JSON for an inline <script>: "<" is escaped so data like "</script>" can never close the tag.
+export const jsonInline = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
