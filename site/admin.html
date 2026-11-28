@@ -9,12 +9,14 @@
 <link rel="stylesheet" href="assets/fonts.css">
 <link rel="stylesheet" href="assets/app.css">
 <link rel="stylesheet" href="assets/admin.css">
+<link rel="stylesheet" href="assets/staffnav.css">
 <!--CONFIG-->
 <title>Staff</title>
 </head>
 <body class="adminbody">
+<nav class="snav" aria-label="Staff pages"><a class="m" href="admin.html" aria-label="Staff home"><img src="assets/logo-64.webp" alt="" width="20" height="20"></a><a class="l" href="admin.html" aria-current="page">Staff</a><a class="l" href="people.html">People</a><a class="l" href="studio.html">Page studio</a><a class="l" href="shows-review.html">Listings</a></nav>
 <main class="wrap admin">
-  <div class="top"><img src="assets/logo.png" alt=""><span class="mono">Staff</span><a href="people.html" style="flex:none;color:#b6ff00;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;border:1px solid #b6ff00;padding:6px 10px">People</a><span class="who mono" id="who"></span><button type="button" id="signout" hidden>Sign out</button></div>
+  <div class="top"><img src="assets/logo.png" alt=""><span class="mono">Staff</span><span class="who mono" id="who"></span><button type="button" id="signout" hidden>Sign out</button></div>
 
   <section id="login">
     <h1 class="disp">Staff <em>sign in</em></h1>
