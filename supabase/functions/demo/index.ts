@@ -113,14 +113,14 @@ async function sendTicket(l: Record<string, any>) {
   const k = hex(24);
   await db.from("demo_leads").update({ claim_hash: await sha256(k) }).eq("id", l.id);
   const F = "font-family:Arial,Helvetica,sans-serif", url = ticketUrl(l.token) + "&k=" + k;
-  const subject = "Your tickets: Demo Night";
+  const subject = "Your tickets: Fault Line";
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${subject}</title></head>
 <body style="margin:0;background:#0a0a0a"><div style="display:none;max-height:0;overflow:hidden;opacity:0">This is what your buyers get the second they pay.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
 <tr><td style="padding:14px 24px;background:#b6ff00;${F};font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#000;font-weight:bold">Test ticket · not a real show</td></tr>
 <tr><td style="padding:26px 24px 6px;${F};font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#9a958f">${esc(by)}</td></tr>
-<tr><td style="padding:0 24px;${F};font-size:28px;line-height:1.15;font-weight:bold;color:#f4f1ee">Demo Night</td></tr>
+<tr><td style="padding:0 24px;${F};font-size:28px;line-height:1.15;font-weight:bold;color:#f4f1ee">Fault Line</td></tr>
 <tr><td style="padding:14px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Hi ${esc(first)}, you're in. This is the email your buyers get the second they pay, with your crew's name on it instead of ours.</td></tr>
 <tr><td style="padding:20px 24px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #2b2927;background:#0a0a0a"><tr>
 <td width="132" style="padding:12px"><a href="${url}"><img src="${FN}?a=qr&t=${l.token}" width="120" height="120" alt="QR code for test ticket ${esc(l.code)}" style="display:block;border:0;background:#ffffff"></a></td>
@@ -129,7 +129,7 @@ async function sendTicket(l: Record<string, any>) {
 <tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:15px;font-weight:bold;text-align:center;text-decoration:none;padding:15px 12px;text-transform:uppercase;letter-spacing:1px">Open the ticket and scan it</a></td></tr>
 <tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">You asked for this test ticket at subduction.art/demo. Don't want to hear from us again? Just reply and say so.<br>Subduction · ${esc(await setting("mailing_address", "PO Box TBD, Bloomington, IL 61701"))}</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = [`Test ticket (not a real show): Demo Night, ${by}`, "", `Hi ${first}, you're in. This is the email your buyers get the second they pay, with your crew's name on it.`, "",
+  const text = [`Test ticket (not a real show): Fault Line, ${by}`, "", `Hi ${first}, you're in. This is the email your buyers get the second they pay, with your crew's name on it.`, "",
     `General Admission · ${l.full_name || ""}`, `Code ${l.code}`, "", "Open the ticket and scan it:", url, "",
     `You asked for this test ticket at subduction.art/demo. Don't want to hear from us again? Just reply and say so.`, "Subduction"].join("\n");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },

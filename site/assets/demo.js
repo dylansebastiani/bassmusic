@@ -6,13 +6,6 @@
   var KEY = "sub_demo", lead = null, claimKey = "";
   var time = function (iso) { return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); };
 
-  // The light-burst that stands in for a show's art.
-  (function () {
-    var L = "", i, x;
-    for (i = 0; i <= 40; i++) { x = (i / 40 * 800).toFixed(0); L += '<line x1="400" y1="210" x2="' + x + '" y2="0" stroke="#b6ff00"/><line x1="400" y1="210" x2="' + x + '" y2="420" stroke="#f4f1ee"/>'; }
-    $("burst").innerHTML = '<svg viewBox="0 0 800 420" aria-hidden="true" style="background:#000"><g stroke-width="1" opacity=".45">' + L + "</g></svg>";
-  })();
-
   // The bars up top are buttons: tap any step you've already reached to go back (or forward again).
   var reached = 1;
   function go(n) {
