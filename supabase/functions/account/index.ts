@@ -190,11 +190,11 @@ async function home(m: { id: string; email: string; first_name: string | null; l
     db.from("company_staff").select("company_id,role").eq("subscriber_id", m.id),
   ]);
   const orderIds = (orders || []).map((o) => o.id);
-  const { data: tix } = orderIds.length ? await db.from("tickets").select("order_id,event_id,type_id,code,token,status").in("order_id", orderIds).eq("status", "valid") : { data: [] };
+  const { data: tix } = orderIds.length ? await db.from("tickets").select("id,order_id,event_id,type_id,code,token,status").in("order_id", orderIds).eq("status", "valid") : { data: [] };
   const eventIds = [...new Set([...(tix || []).map((t) => t.event_id), ...(invites || []).map((i) => i.event_id)])];
   const companyIds = [...new Set((staff || []).map((s) => s.company_id))];
   const [{ data: evs }, { data: types }, { data: cos }] = await Promise.all([
-    eventIds.length ? db.from("events").select("id,slug,name,city,company_id").in("id", eventIds) : Promise.resolve({ data: [] as any[] }),
+    eventIds.length ? db.from("events").select("id,slug,name,city,company_id,location_secret,poster_url,share_url,hub_image").in("id", eventIds) : Promise.resolve({ data: [] as any[] }),
     (tix || []).length ? db.from("ticket_types").select("id,name").in("id", [...new Set((tix || []).map((t) => t.type_id))]) : Promise.resolve({ data: [] as any[] }),
     companyIds.length ? db.from("companies").select("id,slug,name,legacy_stripe,brand,stripe_charges_enabled").in("id", companyIds) : Promise.resolve({ data: [] as any[] }),
   ]);
@@ -215,8 +215,19 @@ async function home(m: { id: string; email: string; first_name: string | null; l
     const kind = o?.artist_invite_id && (!o.comp_list || o.comp_list === "Artist") ? "artist" : o?.status === "comp" ? "guest" : "ticket";
     (ticketsByEvent[t.event_id] ||= []).push({ type: kind === "artist" ? "Artist pass" : (tyMap[t.type_id] || "Ticket") + (kind === "guest" ? " · guest list" : ""), kind, code: t.code, url: `${SITE}/${page}.html?t=${t.token}` });
   }
-  let tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
-    .sort((a, b) => String(a.when).localeCompare(String(b.when)));
+  // Read-only: which of their tickets were scanned in at the door, so a past show can say "You were there".
+  const tixIds = (tix || []).map((t: any) => t.id), wentIds = new Set<string>();
+  for (let k = 0; k < tixIds.length; k += 200) ((await db.from("ticket_scans").select("ticket_id").in("ticket_id", tixIds.slice(k, k + 200))).data || []).forEach((x: any) => wentIds.add(x.ticket_id));
+  const wentEv = new Set((tix || []).filter((t: any) => wentIds.has(t.id)).map((t: any) => t.event_id));
+  const lastNight = (id: string) => { const n = nights[id] || []; return n.length ? n[n.length - 1].starts_at : null; };
+  // Public facts only for the fan's show card: the public page link, the flyer, and the night times. Never the venue.
+  const showLink = (ev: any) => legacyCo.has(ev.company_id) ? (ev.slug === "underground" ? `${SITE}/underground/` : `${SITE}/tickets.html?e=${ev.slug}`) : `${SITE}/${ev.slug}`;
+  let tickets = Object.keys(ticketsByEvent).map((id) => {
+    const ev = evMap[id], end = lastNight(id);
+    return { show: ev.name, city: ev.city, when: firstNight(id), ends: end, nights: (nights[id] || []).map((n) => n.label),
+      starts: (nights[id] || []).map((n) => n.starts_at), link: showLink(ev), image: ev.poster_url || ev.share_url || ev.hub_image || null, secret: !!ev.location_secret,
+      past: !!end && new Date(end).getTime() + 12 * 3600e3 < Date.now(), went: wentEv.has(id), tickets: ticketsByEvent[id] };
+  }).sort((a, b) => String(a.when).localeCompare(String(b.when)));
   // Every show they're booked on, each with its own sell link and how many tickets it has moved.
   // A booked artist with no link yet gets one the same way their pass page does: by asking artist-sales, which
   // makes the tag and code. Nothing here touches checkout, tickets or the webhook.
