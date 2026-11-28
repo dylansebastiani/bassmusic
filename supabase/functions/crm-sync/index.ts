@@ -140,9 +140,18 @@ Deno.serve(async (req) => {
     for (const r of invAll.data || []) { const e = String(r.email || "").trim().toLowerCase(); if (e) artistEmails.add(e); }
     for (const r of memAll.data || []) { const e = String(r.email || "").trim().toLowerCase(); if (e) artistEmails.add(e); }
   }
-  const leads = await db.from("promoter_leads").select("id,email,source,utm_source").is("crm_synced_at", null).limit(100);
+  const leads = await db.from("promoter_leads").select("id,email,source,utm_source").is("crm_synced_at", null).order("created_at", { ascending: false }).limit(300);
   if (leads.error) console.error("crm-sync: promoter leads", leads.error.message);
-  for (const l of leads.data || []) {
+  // A lead is just an address someone typed. It goes to Brevo only once it has an active subscriber row
+  // (the inbox was proven at sign-in). Others are left alone and checked again next run.
+  const activeLeads = new Set<string>();
+  const leadAddrs = (leads.data || []).map((l) => String(l.email || "").trim().toLowerCase()).filter(Boolean);
+  if (leadAddrs.length) {
+    const act = await db.from("subscribers").select("email").eq("status", "active").in("email", leadAddrs);
+    if (act.error) console.error("crm-sync: lead check", act.error.message);
+    for (const r of act.data || []) activeLeads.add(String(r.email || "").trim().toLowerCase());
+  }
+  for (const l of (leads.data || []).filter((x) => activeLeads.has(String(x.email || "").trim().toLowerCase())).slice(0, 100)) {
     const addr = String(l.email || "").trim().toLowerCase();
     if (!artistKnown) { failed++; continue; }
     if (artistEmails.has(addr)) { await db.from("promoter_leads").update({ crm_synced_at: now }).eq("id", l.id); continue; }
@@ -158,7 +167,7 @@ Deno.serve(async (req) => {
       if (ok) { synced++; await db.from("subscribers").update({ crm_role: "Promoter" }).eq("id", s.id); } else failed++;
     }
   };
-  const bySource = await db.from("subscribers").select("id,email,first_name,phone,source").eq("status", "active").eq("source", "promoter").not("crm_synced_at", "is", null).or(roleFilter).limit(50);
+  const bySource = await db.from("subscribers").select("id,email,first_name,phone,source").eq("status", "active").in("source", ["promoter", "promoter-open"]).not("crm_synced_at", "is", null).or(roleFilter).limit(50);
   if (bySource.error) console.error("crm-sync promoters", bySource.error.message);
   else await correct(bySource.data);
   if (staffIds.size) {
