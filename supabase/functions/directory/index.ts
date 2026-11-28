@@ -10,6 +10,9 @@
 //   POST {a:approve|reject, k}  the buttons on that page. A GET never approves anything.
 //   GET  ?a=pending             the waiting list, staff session only (the same token /admin already stores)
 //   POST {a:approve|reject, id} staff session
+//   POST a=alert {email, city, city_name}  a fan's email for one city (Turnstile). One welcome email, then one email per new show there
+//   POST a=unalert {k} or ?a=unalert&k=     stop city alerts (the link in every alert email, and one-click List-Unsubscribe)
+//   Every GET sweeps the list for shows it hasn't seen and emails that city's alert list once per new show.
 // The existing `shows` function is the build list of published pages. This function does not replace it.
 import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { clientIp, verifyTurnstile } from "../_shared/util.ts";
@@ -23,6 +26,7 @@ import {
   UNSUB_HEADER, NEUTRAL_SUBMIT, canonicalEmail, emailPattern, expiry, hashToken, linkCapReached, linkMail, mayMailLink, newLinkMail, newToken, ownerView, parseEvent,
   publicFlyerPath, readShow, redeemLink, reviewExtras, sessionFor, ticketSite,
 } from "./submit.mjs";
+import { PATH_RE, TOKEN_RE as ALERT_TOKEN_RE, alertMail, cityFrom, showKey, unsubHeaders, welcomeMail } from "./alerts.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -285,6 +289,64 @@ async function decide(row: { id: string; status: string }, status: "approved" | 
   return json({ ok: true, status });
 }
 
+// ---- city show alerts ----
+const FN_URL = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "") + "/functions/v1/directory";
+async function sendAlertMail(to: string, mail: { subject: string; html: string; text: string }, token: string, tag: string) {
+  const key = Deno.env.get("BREVO_API_KEY");
+  if (!key) { console.error("directory: alert mail skipped, BREVO_API_KEY not set"); return false; }
+  try {
+    const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ sender: { name: "Subduction", email: Deno.env.get("FROM_EMAIL") || CONTACT }, to: [{ email: to }], subject: mail.subject,
+        htmlContent: mail.html, textContent: mail.text, headers: unsubHeaders(`${FN_URL}?a=unalert&k=${token}`), tags: [tag] }),
+    });
+    if (!r.ok) { console.error("directory: alert mail failed", r.status, (await r.text().catch(() => "")).slice(0, 200)); return false; }
+    return true;
+  } catch (e) { console.error("directory: alert mail failed", (e as Error).message); return false; }
+}
+const unsubPage = (token: string) => `${SITE}/shows?unalert=${token}`;
+
+async function unalert(token: string) {
+  if (!ALERT_TOKEN_RE.test(token)) return no("That link doesn't work anymore.", 404);
+  const { data, error } = await db.from("show_alerts").update({ unsubscribed_at: new Date().toISOString() }).eq("unsub_token", token).select("city_name");
+  if (error) { console.error("directory: unalert", error.message); return no("Couldn't save that. Try again.", 500); }
+  if (!data || !data.length) return no("That link doesn't work anymore.", 404);
+  return json({ ok: true, city: data[0].city_name });
+}
+
+// Finds shows on the list it hasn't seen before. The insert is the lock: only the request that inserts a show emails for it.
+// On the very first sweep everything already listed is recorded as baseline and nobody is emailed.
+async function sweepAlerts(cards: any[]) {
+  const keyed = cards.map((c) => ({ c, key: showKey(c) })).filter((x) => x.key && PATH_RE.test(x.c.path || ""));
+  if (!keyed.length) return;
+  const { data: seen, error } = await db.from("show_alert_shows").select("show_key").in("show_key", keyed.map((x) => x.key));
+  if (error) { console.error("directory: alert sweep", error.message); return; }
+  const known = new Set((seen || []).map((r) => r.show_key));
+  const fresh = keyed.filter((x) => !known.has(x.key));
+  if (!fresh.length) return;
+  const { count } = await db.from("show_alert_shows").select("show_key", { count: "exact", head: true });
+  const baseline = (count ?? 0) === 0, now = new Date().toISOString();
+  const { data: ins, error: insErr } = await db.from("show_alert_shows").upsert(fresh.map((x) => ({ show_key: x.key, city_path: x.c.path, name: String(x.c.name).slice(0, 200),
+    first_date: (x.c.dates || [])[0] || null, baseline, sent_at: baseline ? now : null })), { onConflict: "show_key", ignoreDuplicates: true }).select("show_key");
+  if (insErr) { console.error("directory: alert sweep insert", insErr.message); return; }
+  if (baseline) return;
+  const mine = new Set((ins || []).map((r) => r.show_key));
+  const byCity: Record<string, any[]> = {};
+  for (const x of fresh) if (mine.has(x.key)) (byCity[x.c.path] ||= []).push(x);
+  const address = await mailingAddress();
+  for (const path of Object.keys(byCity)) {
+    const list = byCity[path];
+    const { data: subs } = await db.from("show_alerts").select("id,email,unsub_token,city_name").eq("city_path", path).is("unsubscribed_at", null).limit(2000);
+    let sent = 0;
+    for (const sub of subs || []) {
+      const ok = await sendAlertMail(sub.email, alertMail({ cityName: sub.city_name, cityPath: path, shows: list.map((x) => x.c), unsubUrl: unsubPage(sub.unsub_token), address, site: SITE }), sub.unsub_token, "show-alert");
+      if (ok) { sent++; await db.from("show_alerts").update({ last_sent_at: new Date().toISOString() }).eq("id", sub.id); }
+    }
+    await db.from("show_alert_shows").update({ sent_at: new Date().toISOString(), sent_count: sent }).in("show_key", list.map((x) => x.key));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const url = new URL(req.url);
@@ -307,10 +369,14 @@ Deno.serve(async (req) => {
     }
     const [own, listed] = await Promise.all([subductionShows(today), listingShows(today)]);
     const shows = [...own, ...listed].sort((x, y) => (x.dates[0] || "").localeCompare(y.dates[0] || "") || x.name.localeCompare(y.name));
+    // Alert emails go out after the answer, so the list never waits on them.
+    const sweep = sweepAlerts(shows).catch((e) => console.error("directory: alert sweep", (e as Error).message));
+    try { (globalThis as any).EdgeRuntime.waitUntil(sweep); } catch { await sweep; }
     return json({ shows }, 200, "public, max-age=60, stale-while-revalidate=300");
   }
 
   if (req.method !== "POST") return no("Not allowed", 405);
+  if (url.searchParams.get("a") === "unalert") return unalert(url.searchParams.get("k") || "");
   const ctype = req.headers.get("content-type") || "";
   let fields: Record<string, string> = {};
   let flyer: Uint8Array | null = null;
@@ -328,6 +394,34 @@ Deno.serve(async (req) => {
     if (!fields || typeof fields !== "object") return no("Bad request");
   }
   const a = fields.a || "";
+
+  if (a === "unalert") {
+    if (await limited(req, "unalert", 20)) return no("Too many tries. Wait a minute.", 429);
+    return unalert(cleanText(fields.k, 80));
+  }
+  if (a === "alert") {
+    if (honeypotFilled(fields)) return json({ ok: true });
+    if (await limited(req, "alert", 6)) return no("Too many tries. Wait a minute.", 429);
+    if (!(await botCheck(req, fields))) return no("Bot check failed. Refresh and try again.", 403);
+    const email = cleanText(fields.email, 254).toLowerCase();
+    if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
+    const city = cityFrom(fields.city, fields.city_name, cityPath);
+    if (!city) return no("Pick a city.");
+    const { data: had } = await db.from("show_alerts").select("id,unsub_token,unsubscribed_at").eq("email", email).eq("city_path", city.path).maybeSingle();
+    let token = had?.unsub_token || "";
+    if (had && !had.unsubscribed_at) return json({ ok: true, city: city.name });   // already on the list: no second email
+    if (had) {
+      const { error } = await db.from("show_alerts").update({ unsubscribed_at: null, city_name: city.name }).eq("id", had.id);
+      if (error) { console.error("directory: alert", error.message); return no("Couldn't save that. Try again.", 500); }
+    } else {
+      token = hex(32);
+      const { error } = await db.from("show_alerts").insert({ email, city_path: city.path, city_name: city.name, unsub_token: token, ip_hash: await ipHash(req) });
+      if (error && !(error.code === "23505")) { console.error("directory: alert", error.message); return no("Couldn't save that. Try again.", 500); }
+      if (error) return json({ ok: true, city: city.name });
+    }
+    await sendAlertMail(email, welcomeMail({ cityName: city.name, cityPath: city.path, unsubUrl: unsubPage(token), address: await mailingAddress(), site: SITE }), token, "show-alert-welcome");
+    return json({ ok: true, city: city.name });
+  }
 
   if (a === "approve" || a === "reject") {
     const status = a === "approve" ? "approved" : "rejected";
