@@ -90,7 +90,7 @@ for (const f of readdirSync(out)) {
   const p = join(out, f);
   // The music bar rides along on every public page. Staff pages (door, admin, people) stay quiet.
   // The homepage is promoter-first, so it stays quiet too, except for fans arriving from a show QR or friend link.
-  const bar = /^(door|admin|studio|promoter|demo|pass|people|fees|artists|shows-review)\.html$/.test(f) ? ""
+  const bar = /^(door|admin|studio|promoter|demo|pass|people|fees|artists|shows-review|shows-send)\.html$/.test(f) ? ""
     : f === "index.html" ? '<script>if(/[?&](e|r|src)=/.test(location.search)){var s=document.createElement("script");s.src="/assets/player.js";s.defer=true;document.head.appendChild(s);}</script>'
     : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
@@ -150,6 +150,7 @@ writeFileSync(join(out, "_redirects"), [
   "/ticket /ticket.html 200",
   "/door /door.html 200",
   "/shows/review /shows-review.html 200",
+  "/shows-send /shows-send.html 200",
   "/shows /shows.html 200",
   "/shows/ /shows.html 200",
   "/fees /fees.html 200",
@@ -333,7 +334,7 @@ async function directoryPages() {
     let list = '<p class="loading">Loading.</p>';
     if (shows && c.n === 0) {
       const links = withShows.map(([p, o]) => `<a class="chip" href="/shows/${p}">${esc(o.city)}, ${esc(o.state)} <b>${o.n}</b></a>`).join("");
-      list = `<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">Nothing <em>up yet.</em></p><p>No shows listed in ${esc(c.city)} right now.</p><div class="actions"><a class="btn" href="#add" data-send>Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>${links ? `<p class="fine">Cities with shows</p><nav class="chips" aria-label="Cities with shows">${links}</nav>` : ""}</div>`;
+      list = `<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">Nothing <em>up yet.</em></p><p>No shows listed in ${esc(c.city)} right now.</p><div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>${links ? `<p class="fine">Cities with shows</p><nav class="chips" aria-label="Cities with shows">${links}</nav>` : ""}</div>`;
     }
     let html = baseHtml
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)

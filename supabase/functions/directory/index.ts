@@ -1,18 +1,27 @@
 // Public Midwest show directory (subduction.art/shows).
-// Self-contained on purpose (no shared imports) so deploying it cannot disturb ticketing.
+// Reads no ticketing code. Its only shared imports are the client-IP helper and the bot check. It is on the safe deploy list.
 //   GET                         upcoming approved listings plus approved Subduction shows that are on sale
-//   POST form/json a=submit     a visitor files an external show. It stays pending. No mail goes to them.
+//   POST form/json a=submit     a promoter files an external show (Turnstile). It stays pending. They get a one-time edit link.
+//   POST a=parse                reads a Posh, Eventbrite, DICE or RA page for prefill. Fails quietly.
+//   POST a=link                 asks for a new edit link. Same answer whether or not the email is known.
+//   POST a=open {k}             trades a one-time link (7 days) for a 2 hour edit session
+//   POST a=mine|edit {s}        the owner's own view and edits. Edits to a live show go back to the queue.
 //   GET  ?a=review&k=token      the one listing in Dylan's email link
 //   POST {a:approve|reject, k}  the buttons on that page. A GET never approves anything.
 //   GET  ?a=pending             the waiting list, staff session only (the same token /admin already stores)
 //   POST {a:approve|reject, id} staff session
 // The existing `shows` function is the build list of published pages. This function does not replace it.
 import { ipFromHeaders } from "../_shared/client_ip.mjs";
+import { clientIp, verifyTurnstile } from "../_shared/util.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   MIDWEST, alertRecipients, canReplyTo, chicagoYmd, cleanText, dateOk, externalCard, formatDay,
-  honeypotFilled, leadMail, listingPlace, normTicketUrl, publicCard, subductionCard,
+  cityPath, honeypotFilled, leadMail, listingPlace, normTicketUrl, publicCard, subductionCard,
 } from "./listing.mjs";
+import {
+  UNSUB_HEADER, expiry, hashToken, linkMail, newLinkMail, newToken, ownerView, parseEvent, readShow,
+  redeemLink, reviewExtras, sessionFor, ticketSite,
+} from "./submit.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -112,12 +121,12 @@ async function subductionShows(today: string) {
 
 async function listingShows(today: string) {
   const { data, error } = await db.from("directory_listings")
-    .select("name,show_date,venue_secret,city,state,ticket_url,flyer_path,status,reviewed_at")
+    .select("name,show_date,venue_secret,secret_reveal_at,city,state,ticket_url,flyer_path,public_flyer_path,status,reviewed_at")
     .eq("status", "approved").gte("show_date", today).order("show_date").limit(200);
   if (error) { console.error("directory: listings", error.message); return []; }
   const cards = [];
   for (const row of data || []) {
-    const card = externalCard({ ...row, flyer_url: flyerUrl(row.flyer_path) }, today, new Date());
+    const card = externalCard({ ...row, flyer_url: flyerUrl(row.public_flyer_path || row.flyer_path) }, today, new Date());
     if (card) cards.push(publicCard(card));
   }
   return cards;
@@ -136,16 +145,18 @@ function reviewView(row: Record<string, unknown>) {
     ticket_url: row.ticket_url,
     flyer: flyerUrl(row.flyer_path as string | null),
     email: row.submitter_email,
-    status: row.status,
+    ...reviewExtras(row as never),
   };
 }
+const REVIEW_COLS = "id,name,show_date,venue,venue_secret,secret_reveal_at,city,state,ticket_url,flyer_path,public_flyer_path,submitter_email,status,was_live,lineup,price,sounds,artist_socials,promoter_ig,age,source";
 
-// Same Brevo send the promoter lead uses. Straight to Dylan. The daily mail runner never sees it.
-async function tellDylan(mail: ReturnType<typeof leadMail>, to: string[], replyTo: string) {
+// Brevo send (the same one the promoter lead uses). The daily mail runner never sees it.
+type Mail = { subject: string; text: string; fromName: string; tag: string };
+async function sendMail(mail: Mail, to: string[], replyTo: string, unsub = false) {
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key || !to.length) { console.error("directory: mail skipped", !key ? "BREVO_API_KEY not set" : "no recipient"); return; }
   const addr = String(await setting("mailing_address", ""));
-  const text = mail.text + (addr && !/TBD/i.test(addr) ? "\n\nSubduction\n" + addr : "");
+  const text = mail.text + (addr && !/TBD/i.test(addr) && !mail.text.includes(addr) ? "\n\nSubduction\n" + addr : "");
   try {
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -157,12 +168,87 @@ async function tellDylan(mail: ReturnType<typeof leadMail>, to: string[], replyT
         subject: mail.subject,
         textContent: text,
         htmlContent: "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>",
+        headers: unsub ? { "List-Unsubscribe": UNSUB_HEADER } : undefined,
         tags: [mail.tag],
       }),
     });
     if (!r.ok) console.error("directory: mail failed", r.status, (await r.text().catch(() => "")).slice(0, 200));
   } catch (e) { console.error("directory: mail failed", (e as Error).message); }
 }
+const tellDylan = (mail: Mail, to: string[], replyTo: string) => sendMail(mail, to, replyTo);
+
+// Links and sessions live in directory_links, found only by the hash of the token.
+const linkStore = {
+  async find(hash: string) {
+    const { data } = await db.from("directory_links").select("id,listing_id,kind,expires_at,used_at").eq("token_hash", hash).maybeSingle();
+    return data;
+  },
+  async markUsed(id: string, iso: string) {
+    const { data } = await db.from("directory_links").update({ used_at: iso }).eq("id", id).is("used_at", null).select("id");
+    return !!(data && data.length);
+  },
+};
+async function issue(listingId: string, kind: "link" | "session") {
+  const token = newToken();
+  const { error } = await db.from("directory_links").insert({ listing_id: listingId, kind, token_hash: await hashToken(token), expires_at: expiry(kind, new Date()).toISOString() });
+  if (error) { console.error("directory: link", error.message); return ""; }
+  return token;
+}
+
+// Reads a public ticket page for prefill. Only the four known sites, https only, redirects re-checked, 6s and 600KB caps.
+async function fetchPage(start: string): Promise<string> {
+  let u = start;
+  for (let hop = 0; hop < 4; hop++) {
+    if (!ticketSite(u)) return "";
+    const r = await fetch(u, { redirect: "manual", signal: AbortSignal.timeout(6000), headers: { Accept: "text/html", "User-Agent": "SubductionShowCheck/1.0 (+https://subduction.art)" } });
+    if (r.status >= 300 && r.status < 400) {
+      const loc = r.headers.get("location");
+      if (!loc) return "";
+      try { u = new URL(loc, u).toString(); } catch { return ""; }
+      continue;
+    }
+    if (!r.ok || !/text\/html/i.test(r.headers.get("content-type") || "") || !r.body) return "";
+    const reader = r.body.getReader();
+    const parts: Uint8Array[] = [];
+    let total = 0;
+    while (total < 600000) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      parts.push(value); total += value.length;
+    }
+    await reader.cancel().catch(() => {});
+    const all = new Uint8Array(total);
+    let at = 0;
+    for (const p of parts) { all.set(p, at); at += p.length; }
+    return new TextDecoder().decode(all);
+  }
+  return "";
+}
+
+type Img = { bytes: Uint8Array; mime: string };
+const IMG_ERR = "Add a flyer. JPEG, PNG or WebP, under 1.5 MB.";
+function checkImage(bytes: Uint8Array | null): { img?: Img; error?: string } | null {
+  if (!bytes || !bytes.length) return null;
+  if (bytes.length > 1572864) return { error: "That flyer is too big. Keep it under 1.5 MB." };
+  const mime = sniff(bytes);
+  return mime ? { img: { bytes, mime } } : { error: IMG_ERR };
+}
+async function saveImage(id: string, img: Img) {
+  const ext = img.mime === "image/png" ? "png" : img.mime === "image/webp" ? "webp" : "jpg";
+  const path = `${id}-${hex(4)}.${ext}`;
+  const { error } = await db.storage.from("directory").upload(path, new Blob([img.bytes], { type: img.mime }), { contentType: img.mime, upsert: false });
+  if (error) { console.error("directory: upload", error.message); return ""; }
+  return path;
+}
+async function limited(req: Request, bucket: string, max: number) {
+  const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await sha256((await ipHash(req)) + "|" + bucket) });
+  return (n ?? 0) > max;
+}
+async function botCheck(req: Request, f: Record<string, string>) {
+  return verifyTurnstile(cleanText(f.turnstile, 4000) || null, clientIp(req), cleanText(f.ts_err, 20) || null);
+}
+const OWNER_COLS = "id,name,show_date,venue,venue_secret,secret_reveal_at,city,state,ticket_url,flyer_path,public_flyer_path,submitter_email,status,was_live,lineup,price,sounds,artist_socials,promoter_ig,age,source";
+const mine = (row: Record<string, unknown>) => ownerView(row as never, flyerUrl, SITE, cityPath);
 
 async function decide(row: { id: string; status: string }, status: "approved" | "rejected") {
   if (row.status !== "pending") return json({ ok: true, status: row.status });
@@ -181,13 +267,13 @@ Deno.serve(async (req) => {
     if (a === "review") {
       const k = url.searchParams.get("k") || "";
       if (!TOKEN_RE.test(k)) return no("Not found", 404);
-      const { data: row } = await db.from("directory_listings").select("id,name,show_date,venue,venue_secret,city,state,ticket_url,flyer_path,submitter_email,status").eq("review_token_hash", await sha256(k)).maybeSingle();
+      const { data: row } = await db.from("directory_listings").select(REVIEW_COLS).eq("review_token_hash", await sha256(k)).maybeSingle();
       if (!row) return no("Not found", 404);
       return json({ show: reviewView(row) });
     }
     if (a === "pending") {
       if (!await staff(req)) return no("Sign in again.", 401);
-      const { data, error } = await db.from("directory_listings").select("id,name,show_date,venue,venue_secret,city,state,ticket_url,flyer_path,submitter_email,status,created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await db.from("directory_listings").select(REVIEW_COLS + ",created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
       if (error) return no("Couldn't load that. Try again.", 500);
       return json({ pending: (data || []).map(reviewView) });
     }
@@ -200,14 +286,18 @@ Deno.serve(async (req) => {
   const ctype = req.headers.get("content-type") || "";
   let fields: Record<string, string> = {};
   let flyer: Uint8Array | null = null;
+  let pub: Uint8Array | null = null;
   if (ctype.includes("multipart/form-data")) {
     let form: FormData;
     try { form = await req.formData(); } catch { return no("Bad request"); }
     form.forEach((v, k) => { if (typeof v === "string") fields[k] = v; });
-    const file = form.get("flyer");
-    if (file && typeof file !== "string") flyer = new Uint8Array(await file.arrayBuffer());
+    for (const [key, slot] of [["flyer", "flyer"], ["public_flyer", "pub"]] as const) {
+      const file = form.get(key);
+      if (file && typeof file !== "string") { const b = new Uint8Array(await file.arrayBuffer()); if (slot === "flyer") flyer = b; else pub = b; }
+    }
   } else {
     try { fields = await req.json(); } catch { return no("Bad request"); }
+    if (!fields || typeof fields !== "object") return no("Bad request");
   }
   const a = fields.a || "";
 
@@ -226,52 +316,136 @@ Deno.serve(async (req) => {
     return decide(row, status);
   }
 
+  if (a === "parse") {
+    if (await limited(req, "parse", 12)) return no("Too many tries. Wait a minute.", 429);
+    const link = normTicketUrl(fields.url);
+    if (!link || !ticketSite(link)) return json({ ok: true, fields: {}, from: {}, site: "" });
+    try { return json({ ok: true, ...parseEvent(await fetchPage(link), link) }); }
+    catch (e) { console.error("directory: parse", (e as Error).message); return json({ ok: true, fields: {}, from: {}, site: "" }); }
+  }
+
+  if (a === "open") {
+    if (await limited(req, "open", 20)) return no("Too many tries. Wait a minute.", 429);
+    const res = await redeemLink(linkStore, cleanText(fields.k, 80), new Date());
+    if (!res.ok) return json({ ok: false, reason: res.reason }, 410);
+    const { data: row } = await db.from("directory_listings").select(OWNER_COLS).eq("id", res.listing_id).maybeSingle();
+    const session = row ? await issue(res.listing_id, "session") : "";
+    if (!row || !session) return json({ ok: false, reason: "missing" }, 410);
+    return json({ ok: true, session, show: mine(row) });
+  }
+
+  if (a === "mine" || a === "edit") {
+    if (await limited(req, "mine", 60)) return no("Too many tries. Wait a minute.", 429);
+    const listingId = await sessionFor(linkStore, cleanText(fields.s, 80), new Date());
+    if (!listingId) return no("That link has run out. Ask for a new one.", 401);
+    const { data: row } = await db.from("directory_listings").select(OWNER_COLS).eq("id", listingId).maybeSingle();
+    if (!row) return no("Not found", 404);
+    if (a === "mine") return json({ ok: true, show: mine(row) });
+
+    const parsed = readShow(fields, today);
+    if (!parsed.data) return no(parsed.error || "Check the form.");
+    const f1 = checkImage(flyer), f2 = checkImage(pub);
+    if (f1?.error || f2?.error) return no(f1?.error || f2?.error || IMG_ERR);
+    const { data: dup } = await db.from("directory_listings").select("id").eq("ticket_url", parsed.data.ticket_url).neq("id", row.id).in("status", ["pending", "approved"]).maybeSingle();
+    if (dup) return no("That show is already in.");
+    const patch: Record<string, unknown> = { ...parsed.data, updated_at: new Date().toISOString() };
+    const old: string[] = [];
+    if (f1?.img) { const p = await saveImage(row.id, f1.img); if (!p) return no("Couldn't save that flyer. Try again.", 500); if (row.flyer_path) old.push(row.flyer_path); patch.flyer_path = p; }
+    if (f2?.img) { const p = await saveImage(row.id, f2.img); if (!p) return no("Couldn't save that flyer. Try again.", 500); if (row.public_flyer_path) old.push(row.public_flyer_path); patch.public_flyer_path = p; }
+    // Free while it waits. A live (or turned-down) show goes back to the queue and Dylan gets a fresh link.
+    const requeue = row.status !== "pending";
+    let reviewToken = "";
+    if (requeue) {
+      reviewToken = hex(32);
+      Object.assign(patch, { status: "pending", reviewed_at: null, review_token_hash: await sha256(reviewToken), was_live: row.status === "approved" || row.was_live });
+    }
+    const { data: saved, error } = await db.from("directory_listings").update(patch).eq("id", row.id).select(OWNER_COLS).maybeSingle();
+    if (error || !saved) {
+      if (error && (error.code === "23505" || /duplicate key/i.test(error.message || ""))) return no("That show is already in.");
+      console.error("directory: edit", error?.message);
+      return no("Couldn't save that. Try again.", 500);
+    }
+    if (old.length) await db.storage.from("directory").remove(old);
+    if (requeue) {
+      const list = await admins();
+      const email = String(row.submitter_email || "");
+      const flags = new Map<string, boolean | null>();
+      for (const addr of [...list, email]) if (!flags.has(addr)) flags.set(addr, await artistContact(addr));
+      const artistOf = (addr: string) => flags.get(addr) ?? null;
+      const p = parsed.data;
+      const mail = leadMail({
+        name: p.name, when: formatDay(p.show_date), venue: p.venue, venue_secret: p.venue_secret, city: p.city, state: p.state,
+        ticket_url: p.ticket_url, from: email, subjectTag: row.status === "approved" ? "Live show edited" : "Show edited",
+        extra: ["Edited after review. It is back in the waiting list."],
+        review_url: `${SITE}/shows-review.html?k=${reviewToken}`,
+      });
+      await tellDylan(mail, alertRecipients(list, email, artistOf), canReplyTo(email, artistOf) ? email : "");
+    }
+    return json({ ok: true, requeued: requeue, show: mine(saved) });
+  }
+
+  if (a === "link") {
+    if (honeypotFilled(fields)) return json({ ok: true });
+    if (await limited(req, "link", 5)) return no("Too many tries. Wait a minute.", 429);
+    if (!(await botCheck(req, fields))) return no("Bot check failed. Refresh and try again.", 403);
+    const email = cleanText(fields.email, 254).toLowerCase();
+    if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
+    // The answer is the same whether or not this address has a show. The work runs after the reply.
+    const work = (async () => {
+      const { data: rows } = await db.from("directory_listings").select("id,name").eq("submitter_email", email).order("created_at", { ascending: false }).limit(3);
+      if (!rows || !rows.length) return;
+      const since = new Date(Date.now() - 3600000).toISOString();
+      const { count } = await db.from("directory_links").select("id", { count: "exact", head: true }).eq("kind", "link").in("listing_id", rows.map((r) => r.id)).gte("created_at", since);
+      if ((count ?? 0) >= 6) return;
+      const shows = [];
+      for (const r of rows) { const token = await issue(r.id, "link"); if (token) shows.push({ name: r.name, token }); }
+      if (shows.length) await sendMail(newLinkMail({ shows, base: `${SITE}/shows-send` }), [email], "", true);
+    })().catch((e) => console.error("directory: link", (e as Error).message));
+    const rt = (globalThis as unknown as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(work); else await work;
+    return json({ ok: true });
+  }
+
   if (a !== "submit") return no("Bad request");
   if (honeypotFilled(fields)) return json({ ok: true });
 
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req) });
   if ((n ?? 0) > 8) return no("Too many tries. Wait a minute.", 429);
+  if (!(await botCheck(req, fields))) return no("Bot check failed. Refresh and try again.", 403);
 
-  const name = cleanText(fields.name, 120);
-  const when = cleanText(fields.date, 10);
-  const venue = cleanText(fields.venue, 120);
-  const venueSecret = ["1", "true", "on", "yes"].includes(cleanText(fields.venue_secret, 8).toLowerCase());
-  const place = listingPlace(fields.city, fields.state);
-  const ticket = normTicketUrl(fields.ticket_url);
   const email = cleanText(fields.email, 254).toLowerCase();
-  if (!name) return no("Add the show name.");
-  if (!dateOk(when, today)) return no("Add a date that is today or later.");
-  if (!venue) return no("Add the venue.");
-  if (!place.city) return no("Add the city.");
-  if (!MIDWEST.includes(place.state)) return no("Pick a Midwest state.");
-  if (!ticket) return no("Add a ticket link that starts with https.");
+  const parsed = readShow(fields, today);
+  if (!parsed.data) return no(parsed.error || "Check the form.");
   if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
-  if (!flyer || !flyer.length) return no("Add a flyer. JPEG, PNG or WebP, under 1.5 MB.");
-  if (flyer.length > 1572864) return no("That flyer is too big. Keep it under 1.5 MB.");
-  const mime = sniff(flyer);
-  if (!mime) return no("Add a flyer. JPEG, PNG or WebP, under 1.5 MB.");
+  const f1 = checkImage(flyer), f2 = checkImage(pub);
+  if (f1?.error || f2?.error) return no(f1?.error || f2?.error || IMG_ERR);
+  const d = parsed.data;
 
-  const { data: dup } = await db.from("directory_listings").select("id").eq("ticket_url", ticket).in("status", ["pending", "approved"]).maybeSingle();
+  const { data: dup } = await db.from("directory_listings").select("id").eq("ticket_url", d.ticket_url).in("status", ["pending", "approved"]).maybeSingle();
   if (dup) return no("That show is already in.");
 
   const id = crypto.randomUUID();
   const token = hex(32);
-  const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
-  const path = `${id}.${ext}`;
-  const { error: upErr } = await db.storage.from("directory").upload(path, new Blob([flyer], { type: mime }), { contentType: mime, upsert: false });
-  if (upErr) { console.error("directory: upload", upErr.message); return no("Couldn't save that flyer. Try again.", 500); }
+  const paths: string[] = [];
+  let flyerPath = "", pubPath = "";
+  if (f1?.img) { flyerPath = await saveImage(id, f1.img); if (!flyerPath) return no("Couldn't save that flyer. Try again.", 500); paths.push(flyerPath); }
+  if (f2?.img) { pubPath = await saveImage(id, f2.img); if (!pubPath) { if (paths.length) await db.storage.from("directory").remove(paths); return no("Couldn't save that flyer. Try again.", 500); } paths.push(pubPath); }
 
   const { error } = await db.from("directory_listings").insert({
-    id, name, show_date: when, venue, venue_secret: venueSecret, city: place.city, state: place.state, ticket_url: ticket,
-    flyer_path: path, submitter_email: email, status: "pending", review_token_hash: await sha256(token),
-    ip_hash: await ipHash(req),
+    id, ...d, flyer_path: flyerPath || null, public_flyer_path: pubPath || null,
+    submitter_email: email, status: "pending", review_token_hash: await sha256(token), ip_hash: await ipHash(req),
   });
   if (error) {
-    await db.storage.from("directory").remove([path]);
+    if (paths.length) await db.storage.from("directory").remove(paths);
     if (error.code === "23505" || /duplicate key/i.test(error.message || "")) return no("That show is already in.");
     console.error("directory: insert", error.message);
     return no("Couldn't save that. Try again.", 500);
   }
+
+  // Their own one-time link, then the note to Dylan. The artist-contact rule only applies to Dylan's note.
+  const linkToken = await issue(id, "link");
+  const session = await issue(id, "session");
+  if (linkToken) await sendMail(linkMail({ name: d.name, url: `${SITE}/shows-send?k=${linkToken}` }), [email], "", true);
 
   const flags = new Map<string, boolean | null>();
   const list = await admins();
@@ -280,9 +454,13 @@ Deno.serve(async (req) => {
   }
   const artistOf = (addr: string) => flags.get(addr) ?? null;
   const mail = leadMail({
-    name, when: formatDay(when), venue, venue_secret: venueSecret, city: place.city, state: place.state, ticket_url: ticket, from: email,
+    name: d.name, when: formatDay(d.show_date), venue: d.venue, venue_secret: d.venue_secret, city: d.city, state: d.state, ticket_url: d.ticket_url, from: email,
+    extra: [
+      "Sounds: " + (d.sounds.join(", ") || "-"), "Price: " + (d.price || "-"), "Lineup: " + (d.lineup || "-"),
+      "Flyer: " + (flyerPath ? "yes" : "none yet") + "   Source: " + d.source,
+    ],
     review_url: `${SITE}/shows-review.html?k=${token}`,
   });
   await tellDylan(mail, alertRecipients(list, email, artistOf), canReplyTo(email, artistOf) ? email : "");
-  return json({ ok: true });
+  return json({ ok: true, session });
 });

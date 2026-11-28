@@ -21,10 +21,22 @@
     var buttons = s.status === "pending"
       ? '<div class="row"><button type="button" class="btn" data-act="approve"' + extra + '>Put it on the list</button><button type="button" class="btn ghost" data-act="reject"' + extra + ">Leave it off</button></div>"
       : "<p class=\"fine\">" + (s.status === "approved" ? "It's on the list." : "Left off.") + "</p>";
-    return '<article class="review"><h2>' + esc(s.name) + "</h2>" + img +
+    var more = [];
+    if (s.was_live) more.push("Edited after it went live");
+    if (s.lineup) more.push("Lineup: " + s.lineup);
+    if (s.price) more.push("Price: " + s.price);
+    if (s.sounds && s.sounds.length) more.push("Sound: " + s.sounds.join(", "));
+    if (s.age) more.push("Age: " + s.age);
+    if (s.artist_socials) more.push("Artist socials: " + s.artist_socials);
+    if (s.promoter_ig) more.push("Promoter IG: @" + s.promoter_ig);
+    if (s.venue_secret && s.secret_reveal_at) more.push("Reveal: " + s.secret_reveal_at);
+    if (!s.flyer) more.push("No flyer yet");
+    var details = more.map(function (t) { return '<p class="fine">' + esc(t) + "</p>"; }).join("");
+    var tag = '<p class="fine">Status: ' + esc(s.status === "pending" ? "In review" : s.status === "approved" ? "Live" : "Left off") + "</p>";
+    return '<article class="review"><h2>' + esc(s.name) + "</h2>" + tag + img +
       "<p>" + esc(s.when || "") + "</p><p>" + esc(where) + "</p>" +
       (s.ticket_url ? '<p><a href="' + esc(s.ticket_url) + '" target="_blank" rel="noopener noreferrer">Ticket link</a></p>' : "") +
-      (s.email ? "<p class=\"fine\">" + esc(s.email) + "</p>" : "") + buttons + "</article>";
+      (s.email ? "<p class=\"fine\">" + esc(s.email) + "</p>" : "") + details + buttons + "</article>";
   }
   function post(body) {
     var headers = { "Content-Type": "application/json" };

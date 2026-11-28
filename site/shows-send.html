@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Send in a show</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/shows.css">
+<link rel="stylesheet" href="/assets/shows-send.css">
+<!--CONFIG-->
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<header class="bar">
+  <a class="brand" href="/" aria-label="Subduction home"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg><b>Subduction</b></a>
+</header>
+<main class="wrap">
+  <p class="kick">Your show</p>
+  <h1 class="disp">Send it <em>in.</em></h1>
+  <span class="laser" aria-hidden="true"></span>
+  <ol class="steps" id="steps" aria-label="Steps">
+    <li data-n="1">Link</li><li data-n="2">Check</li><li data-n="3">Promo</li><li data-n="4">Email</li><li data-n="5">Done</li>
+  </ol>
+
+  <section class="step" id="s1" data-step="1">
+    <h2 class="disp">Link or <em>flyer.</em></h2>
+    <form id="f1" novalidate>
+      <label for="link">Ticket link</label>
+      <input id="link" type="url" inputmode="url" maxlength="400" placeholder="https://" autocomplete="off" spellcheck="false">
+      <p class="fine">Posh, Eventbrite, DICE and RA links fill in the next step for you.</p>
+      <label class="drop small" for="flyer">
+        <img id="flyerprev" alt="" hidden>
+        <span id="flyercopy"><b>Or add a flyer</b><small>JPEG, PNG or WebP. Under 1.5 MB.</small></span>
+        <input class="file" id="flyer" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <button class="btn" id="go1" type="submit">Next</button>
+      <button class="btn ghost" id="typeit" type="button">I'll type it in</button>
+      <p class="msg" id="m1" role="status"></p>
+    </form>
+  </section>
+
+  <section class="step" id="s2" data-step="2" hidden>
+    <h2 class="disp">Check <em>it.</em></h2>
+    <form id="f2" novalidate>
+      <label for="name">Show name</label>
+      <input id="name" type="text" maxlength="120" autocomplete="off"><small class="from" data-from="name"></small>
+      <div class="pair">
+        <div><label for="date">Date</label><input id="date" type="date"><small class="from" data-from="date"></small></div>
+        <div><label for="state">State</label>
+          <select id="state">
+            <option value="" selected disabled>State</option>
+            <option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option>
+            <option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MO">Missouri</option><option value="NE">Nebraska</option>
+            <option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="SD">South Dakota</option><option value="WI">Wisconsin</option>
+          </select><small class="from" data-from="state"></small></div>
+      </div>
+      <label for="city">City</label>
+      <input id="city" type="text" maxlength="80" autocomplete="address-level2"><small class="from" data-from="city"></small>
+      <label for="venue">Venue</label>
+      <input id="venue" type="text" maxlength="120" autocomplete="off"><small class="from" data-from="venue"></small>
+      <label for="lineup">Lineup</label>
+      <input id="lineup" type="text" maxlength="600" autocomplete="off"><small class="from" data-from="lineup"></small>
+      <label for="price">Price</label>
+      <input id="price" type="text" maxlength="60" placeholder="$25" autocomplete="off"><small class="from" data-from="price"></small>
+      <label for="ticket">Ticket link</label>
+      <input id="ticket" type="url" inputmode="url" maxlength="400" placeholder="https://" autocomplete="off" spellcheck="false"><small class="from" data-from="ticket"></small>
+      <p class="fine">Lineup and venue stay with us. They are never on the public list.</p>
+      <button class="btn" type="submit">Looks right</button>
+      <button class="btn ghost" type="button" data-back="1">Back</button>
+      <p class="msg" id="m2" role="status"></p>
+    </form>
+  </section>
+
+  <section class="step" id="s3" data-step="3" hidden>
+    <h2 class="disp">Promo <em>details.</em></h2>
+    <form id="f3" novalidate>
+      <p class="fine">All optional. Each one helps us promote the show.</p>
+      <fieldset><legend>Sound (up to 3)</legend>
+        <div class="chipset" id="sounds"></div><small class="from">Helps us promote the show.</small></fieldset>
+      <label for="socials">Artist socials</label>
+      <input id="socials" type="text" maxlength="300" placeholder="@artist, @artist2" autocomplete="off"><small class="from">Helps us promote the show.</small>
+      <label for="pig">Promoter Instagram</label>
+      <input id="pig" type="text" maxlength="60" placeholder="@yourpage" autocomplete="off" autocapitalize="off"><small class="from">Helps us promote the show.</small>
+      <label for="age">Age</label>
+      <select id="age"><option value="">Not sure yet</option><option value="all">All ages</option><option value="18">18+</option><option value="21">21+</option></select><small class="from">Helps us promote the show.</small>
+      <label class="check" for="secret"><input id="secret" type="checkbox"> Secret location. The public list says Secret location until the reveal time.</label>
+      <div id="revealbox" hidden>
+        <label for="reveal">Reveal time (Chicago time)</label>
+        <input id="reveal" type="datetime-local"><small class="from">Helps us promote the show.</small>
+      </div>
+      <label class="drop small" for="pubflyer">
+        <img id="pubprev" alt="" hidden>
+        <span id="pubcopy"><b>Public flyer</b><small>Optional. If this one is different from the flyer you gave us. Helps us promote the show.</small></span>
+        <input class="file" id="pubflyer" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <p class="fine">This is exactly what the public card will show:</p>
+      <div id="card" class="card-preview" aria-live="polite"></div>
+      <button class="btn" id="go3" type="submit">Next</button>
+      <button class="btn ghost" type="button" data-back="2">Back</button>
+      <p class="msg" id="m3" role="status"></p>
+    </form>
+  </section>
+
+  <section class="step" id="s4" data-step="4" hidden>
+    <h2 class="disp">Your <em>email.</em></h2>
+    <form id="f4" novalidate>
+      <p class="lead">We send one link. It reopens this show so you can edit it. No account, no password.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
+      <input class="hp" type="text" id="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn" id="go4" type="submit">Send my link</button>
+      <button class="btn ghost" type="button" data-back="3">Back</button>
+      <p class="msg" id="m4" role="status"></p>
+      <p class="fine">The link works once and stops after 7 days. You can ask for a new one any time. <a href="/privacy">Privacy</a>.</p>
+    </form>
+  </section>
+
+  <section class="step" id="s5" data-step="5" hidden>
+    <h2 class="disp" id="t5">Got <em>it.</em></h2>
+    <ol class="track" id="track"></ol>
+    <p class="fine" id="mailnote"></p>
+    <div class="kit" id="kit"></div>
+    <div class="actions">
+      <button class="btn" type="button" id="editbtn">Edit my show</button>
+      <button class="btn ghost" type="button" id="another">Send another show</button>
+    </div>
+    <p class="msg" id="m5" role="status"></p>
+  </section>
+
+  <section class="step" id="sx" hidden>
+    <h2 class="disp" id="tx">That link <em>ran out.</em></h2>
+    <p class="lead" id="px">Links work once and stop after 7 days. Type your email and we'll send a new one.</p>
+    <form id="fx" novalidate>
+      <label for="emailx">Email</label>
+      <input id="emailx" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
+      <input class="hp" type="text" id="hp_x" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn" type="submit">Send me a new link</button>
+      <p class="msg" id="mx" role="status"></p>
+    </form>
+  </section>
+  <p class="fine" id="again" hidden><a href="#" id="relink">Lost your link? Get a new one.</a></p>
+</main>
+<footer class="foot">
+  <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg><b>Subduction</b></a>
+  <nav class="flinks"><a href="/shows">Shows</a><a href="/privacy">Privacy</a></nav>
+</footer>
+<script src="/assets/shows-send.js"></script>
+</body>
+</html>

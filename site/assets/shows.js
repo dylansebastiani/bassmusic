@@ -165,7 +165,7 @@
       return '<a class="chip" href="/shows/' + esc(c.path) + '">' + esc(c.name) + " <b>" + c.n + "</b></a>";
     }).join("") + "</nav>" : "";
     return quiet("Nothing <em>up yet.</em>", "No shows listed here right now.",
-      '<div class="actions"><a class="btn" href="#add" data-send>Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>' + links);
+      '<div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>' + links);
   }
   function chosen() {
     return { q: $("q").value.trim().toLowerCase(), when: $("when").value, on: $("on").value };
@@ -196,64 +196,12 @@
     if (!t) return;
     if (t.hasAttribute("data-cal")) download(Number(t.getAttribute("data-cal")));
     else if (t.hasAttribute("data-share")) share(Number(t.getAttribute("data-share")), t);
-    else if (t.hasAttribute("data-send")) openSend(true);
   });
   $("filters").addEventListener("submit", function (e) { e.preventDefault(); });
   ["q", "when", "on"].forEach(function (id) {
     $(id).addEventListener("input", function () {
       if (id === "when") { $("onbox").hidden = $("when").value !== "pick"; if ($("when").value === "pick") $("on").focus(); }
       apply();
-    });
-  });
-
-  function openSend(scroll) {
-    $("form").hidden = false;
-    $("opensend").setAttribute("aria-expanded", "true");
-    if (scroll) { $("add").scrollIntoView(); $("flyer").focus({ preventScroll: true }); }
-  }
-  $("opensend").addEventListener("click", function () { openSend(false); $("name").focus(); });
-  if (location.hash === "#add") openSend(false);
-  window.addEventListener("hashchange", function () { if (location.hash === "#add") openSend(false); });
-  $("flyer").addEventListener("change", function () {
-    var file = $("flyer").files && $("flyer").files[0];
-    var img = $("preview");
-    if (!file || !img) return;
-    var reader = new FileReader();
-    reader.onload = function () { img.src = reader.result; img.hidden = false; $("dropcopy").hidden = true; };
-    reader.readAsDataURL(file);
-  });
-
-  function say(t) { $("msg").textContent = t; }
-  function showDone() { $("form").hidden = true; $("done").hidden = false; }
-  $("form").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var trap = $("hp_field");
-    if (trap && trap.value) { showDone(); return; }
-    var name = $("name").value.trim(), when = $("date").value, venue = $("venue").value.trim();
-    var city = $("cityf").value.trim(), state = $("statef").value, link = $("tickets").value.trim(), email = $("email").value.trim();
-    var file = $("flyer").files && $("flyer").files[0];
-    var today = todayChicago();
-    if (!name) { say("Add the show name."); $("name").focus(); return; }
-    if (!when || (today && when < today)) { say("Add a date that is today or later."); $("date").focus(); return; }
-    if (!venue) { say("Add the venue."); $("venue").focus(); return; }
-    if (!city) { say("Add the city."); $("cityf").focus(); return; }
-    if (!state) { say("Pick a state."); $("statef").focus(); return; }
-    if (!/^https:\/\//i.test(link)) { say("Add a ticket link that starts with https."); $("tickets").focus(); return; }
-    if (!file) { say("Add a flyer. JPEG, PNG or WebP, under 1.5 MB."); $("flyer").focus(); return; }
-    if (file.size > 1572864) { say("That flyer is too big. Keep it under 1.5 MB."); $("flyer").focus(); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)) { say("That email doesn't look right."); $("email").focus(); return; }
-    var fd = new FormData();
-    fd.set("a", "submit");
-    fd.set("name", name); fd.set("date", when); fd.set("venue", venue); fd.set("city", city); fd.set("state", state);
-    fd.set("ticket_url", link); fd.set("email", email); fd.set("hp_field", trap ? trap.value : "");
-    fd.set("flyer", file);
-    fd.set("venue_secret", $("secretv").checked ? "1" : "");
-    $("go").disabled = true; say("Sending.");
-    fetch(FN, { method: "POST", body: fd }).then(function (r) {
-      return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't send that. Try again."); return j; });
-    }).then(function () { say(""); showDone(); }).catch(function (err) {
-      say(err.message || "Couldn't send that. Try again.");
-      $("go").disabled = false;
     });
   });
 
