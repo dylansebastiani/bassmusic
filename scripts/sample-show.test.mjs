@@ -15,12 +15,19 @@ for (const [n, s] of [["demo.html", demo], ["demo.js", read("dist/assets/demo.js
   if (/toftu|t\.o\.f\.t\.u|hangovers|\/underground\b|63b511f3/i.test(s)) fail(n + " references T.O.F.T.U.");
 }
 if (!/class="stag">Sample show</.test(demo)) fail("/demo.html sample show must be labeled as a sample");
+// Every step that shows the sample show name carries the tag: the show page (1), the email (2) and the ticket (3).
+for (const n of [1, 2, 3]) {
+  const sec = demo.slice(demo.indexOf('id="s' + n + '"'), demo.indexOf("</section>", demo.indexOf('id="s' + n + '"')));
+  if (!sec.includes("Fault Line")) fail("step " + n + " no longer shows the sample show");
+  if (!/class="stag(?: in)?">Sample show</.test(sec)) fail("step " + n + " shows Fault Line with no Sample show tag");
+}
 if (!/<div class="sflyer"><div class="burst" id="burst"><\/div>/.test(demo)) fail("/demo.html sample show lost its light-burst art");
 const djs = read("site/assets/demo.js");
 if (!/stroke="#00e5ff"/.test(djs) || !/stroke="#ff2bd6"/.test(djs)) fail("the sample show light-burst should be neon cyan and pink");
 
 const demoFn = read("supabase/functions/demo/index.ts");
 if (/Demo Night/.test(demoFn)) fail("the test ticket email still says Demo Night, it should match the page");
+if (!/const subject = "Test ticket: Fault Line";/.test(demoFn)) fail("the test ticket email subject should say Test ticket: Fault Line");
 
 const home = read("dist/index.html");
 const promo = home.slice(home.indexOf('id="promoters"'), home.indexOf('id="pricing"'));
