@@ -244,16 +244,30 @@ async function home(m: { id: string; email: string; first_name: string | null; l
     const nn = await nightsFor((shows || []).map((s) => s.id));
     // Tickets sold per show for the cards (paid only: no comps, no test tickets) and the night capacity.
     const ids = (shows || []).map((s) => s.id), soldBy: Record<string, number> = {};
+    // Read-only face-price breakdown for promoter crews: paid orders only, no comps, no test or artist types, each ticket's own unit_cents.
+    const byPrice: Record<string, Record<number, number>> = {};
     if (ids.length) {
       const [{ data: tt }, { data: sold }] = await Promise.all([
-        db.from("ticket_types").select("id").in("event_id", ids).eq("slug", "test"),
-        db.from("tickets").select("event_id,type_id").in("event_id", ids).eq("status", "valid").eq("is_comp", false),
+        db.from("ticket_types").select("id,slug").in("event_id", ids).in("slug", ["test", "artist"]),
+        db.from("tickets").select("order_id,event_id,type_id,unit_cents").in("event_id", ids).eq("status", "valid").eq("is_comp", false),
       ]);
-      const test = new Set((tt || []).map((t) => t.id));
+      const test = new Set((tt || []).filter((t) => t.slug === "test").map((t) => t.id));
+      const skip = new Set((tt || []).map((t) => t.id));
       (sold || []).forEach((x) => { if (!test.has(x.type_id)) soldBy[x.event_id] = (soldBy[x.event_id] || 0) + 1; });
+      if ((c.kind === "promoter" && c.role === "owner")) {
+        const rows = (sold || []).filter((x) => !skip.has(x.type_id));
+        const oids = [...new Set(rows.map((x) => x.order_id))] as string[], paidO = new Set<string>();
+        for (let i = 0; i < oids.length; i += 200) {
+          const { data: po } = await db.from("ticket_orders").select("id").in("id", oids.slice(i, i + 200)).eq("status", "paid");
+          (po || []).forEach((o) => paidO.add(o.id));
+        }
+        rows.forEach((x) => { if (!paidO.has(x.order_id)) return; const h = (byPrice[x.event_id] ||= {}), k = Math.max(0, Math.round(Number(x.unit_cents) || 0)); h[k] = (h[k] || 0) + 1; });
+      }
     }
+    const salesOf = (id: string) => { const by = Object.entries(byPrice[id] || {}).map(([k, n]) => [Number(k), n] as [number, number]);
+      return { count: by.reduce((t, [, n]) => t + n, 0), face_cents: by.reduce((t, [k, n]) => t + k * n, 0), by_price: by }; };
     (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, on_sale: !!s.sales_open, nights: (nn[s.id] || []).map((n) => n.label),
-      sold: soldBy[s.id] || 0, cap: Math.max(0, ...(nn[s.id] || []).map((n) => n.capacity || 0)) || null, ...lookFor(s, co) }));
+      sold: soldBy[s.id] || 0, ...((c.kind === "promoter" && c.role === "owner") ? { sales: salesOf(s.id) } : {}), cap: Math.max(0, ...(nn[s.id] || []).map((n) => n.capacity || 0)) || null, ...lookFor(s, co) }));
   }
   const isStaff = (await admins()).includes(email);
   // Creating and editing artist profiles isn't open to everyone yet: staff see it to test it.
