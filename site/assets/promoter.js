@@ -151,7 +151,7 @@
       (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (co.paid_ready ? '<div class=card><b>Your money</b><small>' + StackSavings.stripeNote() + "</small></div>" : "") +
-      (shows.some(function (x) { return x.sales && x.sales.count; }) ? "<h2>What you kept</h2>" + shows.map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "") +
+      (shows.some(function (x) { return x.sales && x.sales.count; }) ? "<h2>What you kept</h2>" + shows.filter(function (x) { return x.sales; }).map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "") +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
       (s ? '<button class=ghost type=button id=buyers>Download buyers</button>' : "") +

@@ -246,7 +246,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
       const test = new Set((tt || []).filter((t) => t.slug === "test").map((t) => t.id));
       const skip = new Set((tt || []).map((t) => t.id));
       (sold || []).forEach((x) => { if (!test.has(x.type_id)) soldBy[x.event_id] = (soldBy[x.event_id] || 0) + 1; });
-      if (c.kind === "promoter") {
+      if ((c.kind === "promoter" && c.role === "owner")) {
         const rows = (sold || []).filter((x) => !skip.has(x.type_id));
         const oids = [...new Set(rows.map((x) => x.order_id))] as string[], paidO = new Set<string>();
         for (let i = 0; i < oids.length; i += 200) {
@@ -259,7 +259,7 @@ async function home(m: { id: string; email: string; first_name: string | null })
     const salesOf = (id: string) => { const by = Object.entries(byPrice[id] || {}).map(([k, n]) => [Number(k), n] as [number, number]);
       return { count: by.reduce((t, [, n]) => t + n, 0), face_cents: by.reduce((t, [k, n]) => t + k * n, 0), by_price: by }; };
     (c as any).shows = (shows || []).map((s) => ({ slug: s.slug, name: s.name, on_sale: !!s.sales_open, nights: (nn[s.id] || []).map((n) => n.label),
-      sold: soldBy[s.id] || 0, ...(c.kind === "promoter" ? { sales: salesOf(s.id) } : {}), cap: Math.max(0, ...(nn[s.id] || []).map((n) => n.capacity || 0)) || null, ...lookFor(s, co) }));
+      sold: soldBy[s.id] || 0, ...((c.kind === "promoter" && c.role === "owner") ? { sales: salesOf(s.id) } : {}), cap: Math.max(0, ...(nn[s.id] || []).map((n) => n.capacity || 0)) || null, ...lookFor(s, co) }));
   }
   const isStaff = (await admins()).includes(email);
   // Creating and editing artist profiles isn't open to everyone yet: staff see it to test it.
