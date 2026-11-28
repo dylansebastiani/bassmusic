@@ -97,6 +97,8 @@
     return '<a class="flyer' + (wide ? " wide" : "") + (img ? "" : " blank") + '" ' + link(s) + ' tabindex="-1" aria-hidden="true">' + img + "</a>";
   }
   function fee(s) { return s.source === "subduction" && !isToftu(s) && feeNote() ? '<small class="fee">' + feeNote() + "</small>" : ""; }
+  // Only outside listings get the pitch. Subduction checkout shows and T.O.F.T.U. never do.
+  function sell(s) { return s.source === "listing" && !isToftu(s) ? '<p class="soft sell">Selling tickets for this? <a href="/demo">Run it on Subduction</a></p>' : ""; }
   function card(s, i) {
     var tools = isToftu(s) ? "" :
       '<div class="tools"><button type="button" class="tool" data-cal="' + i + '">Add to calendar</button>' +
@@ -104,7 +106,7 @@
     return '<article class="cell">' + flyer(s, false) + '<div class="meta"><p class="when">' + esc(s.when || "") + "</p>" +
       "<h3>" + esc(s.name) + '</h3><p class="city">' + esc(place(s)) + "</p>" +
       '<ul class="tags">' + tags(s) + "</ul>" +
-      '<a class="tix" ' + link(s) + ">Tickets</a>" + fee(s) + "</div>" + tools + "</article>";
+      '<a class="tix" ' + link(s) + ">Tickets</a>" + fee(s) + sell(s) + "</div>" + tools + "</article>";
   }
   function featuredCard(s) {
     return '<section class="feat" aria-label="Featured show">' + flyer(s, true) + '<div class="meta"><p class="kick">Up next on Subduction</p>' +
@@ -259,11 +261,30 @@
 
   if (window.Stack) Stack.pageview(location.pathname || "/shows");
   locked = pathCity();
-  fetch(FN).then(function (r) { return r.json(); }).then(function (j) {
-    all = (j && j.shows) || [];
+  // Paint from the list the build wrote into the page, then check the live list in the background.
+  var seed = window.__SHOWS_DATA;
+  var seeded = Array.isArray(seed);
+  if (seeded) { all = seed; paintCities(); apply(); }
+  var STALE_MS = 12 * 3600 * 1000;
+  fetch(FN).then(function (r) {
+    if (!r.ok) throw new Error("bad status");
+    return r.json();
+  }).then(function (j) {
+    // A bad body keeps the seed on screen.
+    if (!Array.isArray(j && j.shows)) throw new Error("bad body");
+    var live = j.shows;
+    if (seeded && JSON.stringify(live) === JSON.stringify(all)) return;
+    all = live;
     paintCities();
     apply();
   }).catch(function () {
-    if (!$("list").querySelector(".cell") && !$("list").querySelector(".quiet")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
+    // Live fetch failed: an old build may still show a pulled listing, so drop listings, keep Subduction events.
+    var built = Number(window.__SHOWS_BUILT);
+    if (seeded && built && Date.now() - built > STALE_MS) {
+      all = all.filter(function (s) { return s.source !== "listing"; });
+      paintCities();
+      apply();
+    }
+    if (!seeded && !$("list").querySelector(".cell") && !$("list").querySelector(".quiet")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
   });
 })();
