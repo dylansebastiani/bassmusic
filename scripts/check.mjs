@@ -61,5 +61,6 @@ execSync("node scripts/artists-copy.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/promoter-start.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/sample-show.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/page-art.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/door-offline.test.mjs", { cwd: root, stdio: "inherit" });
 if (bad) { console.error(`${bad} problem(s)`); process.exit(1); }
 console.log("check passed");
