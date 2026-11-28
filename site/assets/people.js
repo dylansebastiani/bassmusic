@@ -167,13 +167,8 @@
   $("t").addEventListener("click", function (e) { if (e.target.closest("a")) return; var tr = e.target.closest("tr[data-i]"); if (tr) open(tab, shown[+tr.getAttribute("data-i")]); });
   $("t").addEventListener("keydown", function (e) { if (e.key === "Enter") { var tr = e.target.closest("tr[data-i]"); if (tr) open(tab, shown[+tr.getAttribute("data-i")]); } });
   var SITE = (C.siteUrl || "https://subduction.art").replace(/\/$/, "");
-  var sheet = document.createElement("div"); sheet.className = "sheet"; sheet.hidden = true; sheet.setAttribute("role", "dialog"); sheet.setAttribute("aria-modal", "true");
-  sheet.innerHTML = '<div class="sh-in"><button type="button" class="sh-x" data-x aria-label="Close">Close ✕</button><div id="shBody"></div></div>';
-  document.body.appendChild(sheet);
-  var cur = null;
-  function close() { sheet.hidden = true; document.body.classList.remove("locked"); cur = null; }
-  sheet.addEventListener("click", function (e) { if (e.target === sheet || e.target.closest("[data-x]")) close(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !sheet.hidden) close(); });
+  var sheet = null, cur = null;
+  function close() { if (!sheet) return; sheet.hidden = true; document.body.classList.remove("locked"); cur = null; }
   var first = function (r) { return r.full_name ? String(r.full_name).split(" ")[0] : (r.name || "there"); };
   var stat = function (v, l) { return "<div><b>" + v + "</b><span>" + esc(l) + "</span></div>"; };
   var btn = function (label, attrs, cls) { return '<button type="button" class="act' + (cls ? " " + cls : "") + '" ' + attrs + ">" + esc(label) + "</button>"; };
@@ -207,7 +202,7 @@
       (stop ? '<span class="sh-dim">They asked for no email.</span>' : "");
   }
   function head(kick, name, sub) { return '<p class="sh-k">' + esc(kick) + '</p><h2 class="sh-n">' + esc(name) + "</h2>" + (sub ? '<p class="sh-s">' + sub + "</p>" : ""); }
-  function contactLine(r) { var t = telOf(r.phone); return [r.email ? '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + "</a>" : "", r.phone ? (t ? '<a href="tel:' + esc(t) + '">' + esc(r.phone) + "</a>" : esc(r.phone)) : ""].filter(Boolean).join(" · "); }
+  function contactLine(r) { return [r.email ? mail(r.email) : "", r.phone ? call(r.phone) : ""].filter(Boolean).join(" · "); }
   function ordersOf(email) { var e = String(email || "").toLowerCase(); return (data.buyers || []).filter(function (b) { return String(b.email || "").toLowerCase() === e; }); }
   function chart(s) {
     // Tickets sold per day, last 30 days. One series, bone bars, value on hover.
@@ -274,8 +269,38 @@
       '<h3 class="sh-h">Tickets</h3>' + (os.length ? '<div class="mini">' + os.map(function (o) { return "<div><b>" + esc(o.show || "") + "</b><span>" + esc(o.kind) + " · " + o.tickets + (o.paid ? " · " + money(o.paid) : "") + " · " + esc(day(o.when)) + "</span></div>"; }).join("") + "</div>" : '<p class="sh-dim">No tickets yet.</p>') +
       timeline(r);
   }
+  // The sheet is built on first use, so nothing touches the page until a row is opened.
+  function ensureSheet() {
+    if (sheet) return;
+    sheet = document.createElement("div"); sheet.className = "sheet"; sheet.hidden = true; sheet.setAttribute("role", "dialog"); sheet.setAttribute("aria-modal", "true");
+    sheet.innerHTML = '<div class="sh-in"><button type="button" class="sh-x" data-x aria-label="Close">Close ✕</button><div id="shBody"></div></div>';
+    document.body.appendChild(sheet);
+    sheet.addEventListener("click", function (e) { if (e.target === sheet || e.target.closest("[data-x]")) close(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !sheet.hidden) close(); });
+    $("shBody").addEventListener("click", function (e) {
+      var m = e.target.closest("[data-mail]"); if (m) return compose(m.getAttribute("data-mail"));
+      var sh = e.target.closest("[data-show]"); if (sh) return openShow(sh.getAttribute("data-show"));
+      var lg = e.target.closest("[data-log]");
+      if (lg) {
+        var k = lg.getAttribute("data-log"), r = cur.r;
+        if (k === "stop" && !confirm("Mark " + r.email + " as not wanting email? Sending from here stops for them.")) return;
+        lg.disabled = true;
+        act({ a: "log", to: r.email, kind: k }).then(function () { remember(r.email, { type: k, text: null }); open(cur.kind, r); flash(ACT_LABEL[k] + "."); })
+          .catch(function (err) { lg.disabled = false; flash(err.message); });
+        return;
+      }
+      if (e.target.closest("[data-note]")) { var f = $("shBody").querySelector(".noteform"); f.hidden = false; f.querySelector("textarea").focus(); }
+    });
+    $("shBody").addEventListener("submit", function (e) {
+      var f = e.target.closest(".noteform"); if (!f) return; e.preventDefault();
+      var r = cur.r, t = f.querySelector("textarea").value.trim(); if (!t) return;
+      act({ a: "log", to: r.email, kind: "note", text: t }).then(function () { remember(r.email, { type: "note", text: t }); open(cur.kind, r); flash("Note saved."); }).catch(function (err) { flash(err.message); });
+    });
+    $("shBody").addEventListener("mouseover", function (e) { var b = e.target.closest("[data-tip]"); var tip = $("shBody").querySelector(".chart-ax .tip"); if (b && tip) tip.textContent = b.getAttribute("data-tip"); });
+  }
   function open(kind, r) {
     if (!r || !VIEW[kind]) return;
+    ensureSheet();
     cur = { kind: kind, r: r };
     $("shBody").innerHTML = VIEW[kind](r);
     sheet.hidden = false; document.body.classList.add("locked"); sheet.querySelector(".sh-in").scrollTop = 0;
@@ -314,26 +339,6 @@
     (data.activity[k] = data.activity[k] || []).unshift(x);
   }
   function flash(t) { var f = document.createElement("p"); f.className = "flash"; f.textContent = t; $("shBody").prepend(f); setTimeout(function () { f.remove(); }, 4000); }
-  $("shBody").addEventListener("click", function (e) {
-    var m = e.target.closest("[data-mail]"); if (m) return compose(m.getAttribute("data-mail"));
-    var sh = e.target.closest("[data-show]"); if (sh) return openShow(sh.getAttribute("data-show"));
-    var lg = e.target.closest("[data-log]");
-    if (lg) {
-      var k = lg.getAttribute("data-log"), r = cur.r;
-      if (k === "stop" && !confirm("Mark " + r.email + " as not wanting email? Sending from here stops for them.")) return;
-      lg.disabled = true;
-      act({ a: "log", to: r.email, kind: k }).then(function () { remember(r.email, { type: k, text: null }); open(cur.kind, r); flash(ACT_LABEL[k] + "."); })
-        .catch(function (err) { lg.disabled = false; flash(err.message); });
-      return;
-    }
-    if (e.target.closest("[data-note]")) { var f = $("shBody").querySelector(".noteform"); f.hidden = false; f.querySelector("textarea").focus(); }
-  });
-  $("shBody").addEventListener("submit", function (e) {
-    var f = e.target.closest(".noteform"); if (!f) return; e.preventDefault();
-    var r = cur.r, t = f.querySelector("textarea").value.trim(); if (!t) return;
-    act({ a: "log", to: r.email, kind: "note", text: t }).then(function () { remember(r.email, { type: "note", text: t }); open(cur.kind, r); flash("Note saved."); }).catch(function (err) { flash(err.message); });
-  });
-  $("shBody").addEventListener("mouseover", function (e) { var b = e.target.closest("[data-tip]"); var tip = $("shBody").querySelector(".chart-ax .tip"); if (b && tip) tip.textContent = b.getAttribute("data-tip"); });
   $("today").addEventListener("click", function (e) { var a = e.target.closest("a.show[data-slug]"); if (a) { e.preventDefault(); openShow(a.getAttribute("data-slug")); } });
 
   function signIn() { $("msg").innerHTML = 'Sign in on the <a href="admin.html">Staff page</a> first, then come back here.'; }
