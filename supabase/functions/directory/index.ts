@@ -67,14 +67,20 @@ function flyerUrl(path: string | null) {
 }
 
 // true = this address is on an artist pass. null = the lookup failed, so send nothing to it.
-async function artistContact(email: string): Promise<boolean | null> {
-  const same = (e: string | null) => String(e || "").trim().toLowerCase() === email;
-  const [a, m] = await Promise.all([
-    db.from("artist_invites").select("email").ilike("email", email).limit(8),
-    db.from("artist_members").select("email").ilike("email", email).limit(8),
-  ]);
-  if (a.error || m.error) return null;
-  return (a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email));
+async function artistContact(raw: string): Promise<boolean | null> {
+  // Plus-addressing (artist+x@host) counts as the base address too.
+  const at = raw.lastIndexOf("@");
+  const base = at > 0 ? raw.slice(0, at).split("+")[0] + raw.slice(at) : raw;
+  for (const email of [...new Set([raw, base])]) {
+    const same = (e: string | null) => String(e || "").trim().toLowerCase() === email;
+    const [a, m] = await Promise.all([
+      db.from("artist_invites").select("email").ilike("email", email).limit(8),
+      db.from("artist_members").select("email").ilike("email", email).limit(8),
+    ]);
+    if (a.error || m.error) return null;
+    if ((a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email))) return true;
+  }
+  return false;
 }
 
 // At most 6 link emails an hour per address, across all its shows. A failed lookup counts as capped.
@@ -291,7 +297,7 @@ Deno.serve(async (req) => {
       if (!await staff(req)) return no("Sign in again.", 401);
       const { data, error } = await db.from("directory_listings").select(REVIEW_COLS + ",created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
       if (error) return no("Couldn't load that. Try again.", 500);
-      return json({ pending: ((data || []) as Record<string, unknown>[]).map(reviewView) });
+      return json({ pending: ((data || []) as unknown as Record<string, unknown>[]).map(reviewView) });
     }
     const [own, listed] = await Promise.all([subductionShows(today), listingShows(today)]);
     const shows = [...own, ...listed].sort((x, y) => (x.dates[0] || "").localeCompare(y.dates[0] || "") || x.name.localeCompare(y.name));

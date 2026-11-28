@@ -87,7 +87,7 @@ assert.match(fn, /verifyTurnstile/, "Turnstile on submit");
 assert.match(fn.slice(fn.indexOf('if (a !== "submit")')), /botCheck/);
 assert.match(fn, /a === "link"[\s\S]*botCheck/);
 assert.match(fn, /limited\(req, "link"/);
-assert.match(fn, /\(count \?\? 0\) >= 6/, "per-email link cap");
+assert.match(fn, /linkCapReached\(count\)/, "per-email link cap");
 assert.match(fn, /redirect: "manual"/, "page fetch re-checks every redirect");
 assert.match(fn, /listing_id/);
 assert.doesNotMatch(fn, /\.insert\(\{[^}]*token:/, "raw tokens are never stored");
@@ -260,7 +260,9 @@ assert.match(build, /\/shows-send \/shows-send\.html 200/);
   // 4. Impersonation.
   const base = { name: "Bass Night", date: "2027-03-01", venue: "Hall", city: "Chicago", state: "IL", ticket_url: "https://posh.vip/e/x" };
   assert.ok(readShow(base, today).data);
-  for (const n of ["T.O.F.T.U. Afterparty", "tOfTu night", "Underground Rave", "The UNDERGROUND"]) assert.ok(readShow({ ...base, name: n }, today).error, n);
+  for (const n of ["T.O.F.T.U. Afterparty", "tOfTu night", "Underground Rave", "The UNDERGROUND", "T O F T U", "t-o-f-t-u", "Under ground", "ＴＯＦＴＵ"]) assert.ok(readShow({ ...base, name: n }, today).error, n);
+  assert.ok(readShow({ ...base, ticket_url: "https://subduction.art./x" }, today).error, "trailing-dot host");
+  assert.match(fn, /split\("\+"\)\[0\]/, "plus tag is stripped before the artist lookup");
   for (const u of ["https://subduction.art/tickets/x", "https://www.subduction.art/e/y", "https://tickets.subduction.art/z"]) assert.ok(readShow({ ...base, ticket_url: u }, today).error, u);
   assert.ok(readShow({ ...base, ticket_url: "https://notsubduction.art/x" }, today).data, "look-alike host is a normal link");
 

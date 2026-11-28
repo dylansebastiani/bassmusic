@@ -98,10 +98,11 @@ export function chicagoLocalToIso(raw) {
 }
 
 // Names and links that pose as T.O.F.T.U., the underground night, or a Subduction ticket page are refused.
-export const IMPERSONATION_RE = /t\.?o\.?f\.?t\.?u|underground/i;
+export const IMPERSONATION_RE = /\bt[\W_]*o[\W_]*f[\W_]*t[\W_]*u\b|under[\W_]*ground/i;
+export const impersonates = (name) => IMPERSONATION_RE.test(String(name || "").normalize("NFKC"));
 export function subductionLink(url) {
   try {
-    const host = new URL(url).hostname.toLowerCase();
+    const host = new URL(url).hostname.toLowerCase().replace(/\.+$/, "");
     return host === "subduction.art" || host.endsWith(".subduction.art");
   } catch { return false; }
 }
@@ -126,7 +127,7 @@ export function readShow(f, today) {
   const place = listingPlace(f.city, f.state);
   const ticket = normTicketUrl(f.ticket_url);
   if (!name) return { error: "Add the show name." };
-  if (IMPERSONATION_RE.test(name)) return { error: "That name can't be used here. Use your own show's name." };
+  if (impersonates(name)) return { error: "That name can't be used here. Use your own show's name." };
   if (!dateOk(when, today)) return { error: "Add a date that is today or later." };
   if (!place.city) return { error: "Add the city." };
   if (!MIDWEST.includes(place.state)) return { error: "Pick a Midwest state." };
