@@ -12,7 +12,7 @@ export function smsNumber(raw) {
 // A crew account is a promoter. Everyone else on the member list stays a member.
 // Artists, buyers and guests are ranked above this in crm-sync, so this never relabels them.
 export function subscriberRole(source, onCrew) {
-  return source === "promoter" || onCrew ? "Promoter" : "Member";
+  return source === "promoter" || source === "promoter-open" || onCrew ? "Promoter" : "Member";
 }
 
 // Contact attributes only. The returned object has no list and no mail fields.

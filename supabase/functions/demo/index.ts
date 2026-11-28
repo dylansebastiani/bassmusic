@@ -73,6 +73,11 @@ async function sendSigninLink(email: string): Promise<boolean> {
   if (recent?.length) return true;
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("demo: BREVO_API_KEY not set"); return false; }
+  // At most 10 sign-in emails a day per address, and a new one cancels every older live code.
+  const { count: sentToday } = await db.from("engagement_events").select("id", { count: "exact", head: true }).eq("subscriber_id", m.id).eq("type", "signin:sent").gte("created_at", new Date(Date.now() - 86400000).toISOString());
+  if ((sentToday ?? 0) >= 10) return true;
+  await db.from("engagement_events").insert({ subscriber_id: m.id, type: "signin:sent" });
+  await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("subscriber_id", m.id).is("used_at", null);
   const secret = hex(18);
   const hash = await sha256(`${m.id}|${secret}|${await setting("ip_salt", "unset")}`);
   const { data: row } = await db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: hash, expires_at: new Date(Date.now() + 20 * 60000).toISOString() }).select("id").single();
@@ -167,6 +172,10 @@ Deno.serve(async (req) => {
     if (!l) return no("Not found", 404);
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await sha256("claim|" + l.id) });
     if ((n ?? 0) > 10) return no("Too many tries. Wait a minute and try again.", 429);
+    // The key from the email link is the proof the inbox is theirs. Without it nothing is created and nobody is
+    // added to a crew: a stranger holding a ticket link can't open someone else's account.
+    const proven = !!k && !!l.claim_hash && (await sha256(k)) === l.claim_hash && !(await admins()).includes(String(l.email).toLowerCase());
+    if (!proven) { await sendSigninLink(String(l.email).toLowerCase()); return json({ link_sent: true, email: l.email }); }
     // Their member record and their crew, made once.
     let { data: m } = await db.from("subscribers").select("id,status").eq("email", l.email).maybeSingle();
     if (!m) m = (await db.from("subscribers").insert({ email: l.email, source: "promoter" }).select("id,status").single()).data;
@@ -185,9 +194,6 @@ Deno.serve(async (req) => {
     // Referral credit is a ledger row. A missing migration must not block the new account.
     const linked = await db.rpc("attach_promoter_referral", { p_company: companyId, p_email: String(l.email || ""), p_code: l.referral_code || null });
     if (linked.error) console.error("demo: referral", linked.error.message);
-    // Signed straight in only with the key from their own inbox, and never for a staff email.
-    const proven = !!k && !!l.claim_hash && (await sha256(k)) === l.claim_hash && !(await admins()).includes(String(l.email).toLowerCase());
-    if (!proven) { await sendSigninLink(String(l.email).toLowerCase()); return json({ link_sent: true, email: l.email }); }
     const session = hex(32);
     await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(session), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
     return json({ session });
@@ -221,17 +227,10 @@ Deno.serve(async (req) => {
   if (!phone) return no("Enter a phone number we can reach you at.");
 
   let { data: l } = await db.from("demo_leads").select("*").eq("email", email).maybeSingle();
-  if (l) {
-    const patch: Record<string, unknown> = { full_name: name, crew, phone };
-    if (referral_code && !l.referral_code) patch.referral_code = referral_code;
-    let upd = await db.from("demo_leads").update(patch).eq("id", l.id);
-    if (upd.error && patch.referral_code && /referral_code/.test(upd.error.message || "")) {
-      delete patch.referral_code;
-      upd = await db.from("demo_leads").update(patch).eq("id", l.id);
-    }
-    if (upd.error) console.error("demo: update failed", upd.error.message);
-    l = { ...l, full_name: name, crew, phone, referral_code: patch.referral_code || l.referral_code };
-  } else {
+  // An address already on file is left exactly as it is: no name, crew, phone or referral change, no new email,
+  // and no token in the answer. Anyone can type anyone's address here, so the answer must be the same for everyone.
+  if (l) return json({ sent: true });
+  {
     let ins = await db.from("demo_leads").insert({ email, full_name: name, crew, phone, token: hex(16), code: newCode(), ip_hash: ip, referral_code }).select("*").single();
     if (ins.error && /referral_code/.test(ins.error.message || "")) {
       ins = await db.from("demo_leads").insert({ email, full_name: name, crew, phone, token: hex(16), code: newCode(), ip_hash: ip }).select("*").single();
