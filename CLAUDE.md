@@ -1,5 +1,7 @@
 # Working on The Stack
 
+For any visual or copy work, read DESIGN.md first.
+
 Dylan does not write code. Describe what changed in plain words, in one or two sentences, and
 say where to look. Run `npm run check` before every push; a failing check means fix, not push.
 
@@ -20,7 +22,8 @@ say where to look. Run `npm run check` before every push; a failing check means 
 - SMS consent box is unchecked by default and the exact wording + timestamp are stored.
 - Every email carries List-Unsubscribe headers, a visible unsubscribe link and the mailing address.
 - A referral counts only after the referred member confirms (`confirm` function), never on signup.
-- Don't put prices, the real label name or anything from the Elite Energy CRM in here.
+- Subduction is a ticketing and artist platform, not a label. Never call it a label.
+- Don't put anything from the Elite Energy CRM in here, including prices from that CRM.
 
 ## Phases
 1 (this): capture + instant unlock + welcome email + unsubscribe + privacy.
