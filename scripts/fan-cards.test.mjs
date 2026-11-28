@@ -34,3 +34,9 @@ const acct = read("../supabase/functions/account/index.ts");
 const fanEv = acct.match(/db\.from\("events"\)\.select\("([^"]+)"\)\.in\("id", eventIds\)/)[1];
 assert.doesNotMatch(fanEv, /venue|address/);
 console.log("fan cards ok");
+// The vault: big player, artwork grid, unreleased vs downloads filter, and the wall still gates play and download.
+const colJs = read("../site/assets/collection.js");
+assert.ok(read("../site/collection.html").includes("assets/vault.css"), "collection loads the vault styles");
+for (const bit of ['id="vGrid"', 'data-f="free"', "nowCard(", 'class="btn dl v-dl"', "wallForm()"]) assert.ok(colJs.includes(bit), "vault keeps " + bit);
+assert.ok(/open \? player\(k\)/.test(colJs), "no player until the track is unlocked");
+console.log("vault ok");

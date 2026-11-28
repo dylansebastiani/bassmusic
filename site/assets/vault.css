@@ -1,0 +1,55 @@
+/* My collection as a music vault (assets/collection.js). Brand tokens only: black, bone, ash, line, acid green. */
+.v-head{margin:4px 0 18px}
+.v-kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot)}
+.v-title{font-size:clamp(68px,21vw,128px);line-height:.86;margin-top:6px}
+.v-title em{font-style:normal;color:var(--hot)}
+.v-stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:14px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.v-stats b{color:var(--fg);font-weight:400}
+.v-now{display:block;border:1px solid var(--line);background:#000;margin:0 0 22px;padding:0}
+.v-now.track{display:block}
+.v-cover{position:relative;aspect-ratio:1;background:#0b0b0b;border-bottom:1px solid var(--line);overflow:hidden}
+.v-cover img,.v-cover .v-blank{display:block;width:100%;height:100%;object-fit:cover}
+.v-blank{background:#000 url(/assets/art/fans-burst.webp) center/cover no-repeat}
+.v-tag,.v-tk{font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em}
+.v-tag{position:absolute;left:12px;top:12px;font-size:11px;background:var(--hot);color:#000;padding:5px 9px 4px}
+.v-tag.free{background:var(--fg)}
+.v-lock{position:absolute;inset:0;background:linear-gradient(transparent 35%,rgba(0,0,0,.82))}
+.v-lock svg{position:absolute;left:50%;top:50%;width:54px;height:64px;margin:-32px 0 0 -27px}
+.v-meta{padding:18px 16px 4px}
+.v-artist{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.v-now .v-name{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(46px,14vw,76px);line-height:.9;margin:6px 0 8px;color:var(--fg)}
+.v-when{font-size:13px;color:var(--mute)}
+.v-now .player{margin:12px 16px 0;grid-template-columns:56px 1fr auto;padding:8px 14px 8px 8px}
+.v-now .play{width:56px;height:56px}
+.v-now .play::before{left:22px;top:16px;border-left-width:17px;border-top-width:12px;border-bottom-width:12px}
+.v-now.playing .play::before,.v-now .playing .play::before{left:19px;top:17px;width:6px;height:22px;box-shadow:12px 0 0 #000}
+.v-now .v-dl{display:block;width:auto;margin:10px 16px 16px;border-top:0;color:#000;font-size:22px}
+.v-now .v-dl:hover{background:#fff;color:#000}
+.v-locked{color:#cfc9c5;font-size:15px;padding:8px 16px 16px;max-width:40ch}
+.v-now .player+.v-locked,.v-now:not(:has(.v-dl)) .player{margin-bottom:16px}
+.v-filter{display:flex;gap:6px;margin:6px 0 14px}
+.v-filter button{flex:1 1 auto;white-space:nowrap;background:transparent;border:1px solid var(--line);color:var(--fg);padding:11px 8px 10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:0}
+.v-filter button b{font-weight:400;color:var(--mute);margin-left:4px}
+.v-filter button[aria-pressed=true]{background:var(--hot);border-color:var(--hot);color:#000}
+.v-filter button[aria-pressed=true] b{color:#000}
+.v-h{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:6px 0 12px}
+.v-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 12px;margin-bottom:8px}
+@media (min-width:520px){.v-grid{grid-template-columns:repeat(3,1fr)}}
+.v-tile{display:flex;flex-direction:column;gap:3px;background:none;border:0;padding:0;text-align:left;color:var(--fg);cursor:pointer;font:inherit;min-width:0}
+.v-tc{position:relative;display:block;aspect-ratio:1;border:1px solid var(--line);background:#0b0b0b;overflow:hidden;margin-bottom:8px}
+.v-tc img,.v-tc .v-blank{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s}
+.v-tile:hover .v-tc img{transform:scale(1.04)}
+.v-tp{position:absolute;right:8px;bottom:8px;width:38px;height:38px;background:var(--hot)}
+.v-tp::before{content:"";position:absolute;left:14px;top:10px;border-left:12px solid #000;border-top:9px solid transparent;border-bottom:9px solid transparent}
+.v-tile.on .v-tc{border-color:var(--hot);box-shadow:0 0 0 1px var(--hot)}
+.v-tile b{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:21px;line-height:1;overflow-wrap:anywhere}
+.v-tile small{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-tk{font-style:normal;font-size:10px;color:var(--hot);margin-top:2px}
+.v-tk.free{color:#cfc9c5}
+.v-one{color:var(--mute);font-size:14px;border:1px dashed var(--line);padding:16px;margin-bottom:8px}
+.v-empty{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:18px}
+.v-empty img{width:100%;height:auto;border:1px solid var(--line)}
+.v-empty .disp{font-size:clamp(52px,15vw,84px)}
+.v-empty .disp em{font-style:normal;color:var(--hot)}
+.v-empty p:not(.disp){color:#cfc9c5;max-width:36ch}
+.v-empty .btn{border-top:0}
