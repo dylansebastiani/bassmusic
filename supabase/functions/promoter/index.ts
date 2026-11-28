@@ -133,9 +133,14 @@ async function mailButton(m: SigninMember) {
   const { data: row } = await db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await codeHash(m.id, secret), expires_at: new Date(Date.now() + 20 * 60000).toISOString() }).select("id").single();
   if (!row) return;
   await noteCodeEmail(m.id);
+  // Logged like the code email (_shared/signin.ts) so it counts toward the daily email budget. send_after is far enough
+  // out that the daily runner never picks it up; the mail below is sent right here.
+  const { data: q } = await db.from("email_queue").insert({ subscriber_id: m.id, template_key: "signin:" + Date.now(), priority: 0, send_after: new Date(Date.now() + 15 * 60000).toISOString() }).select("id").single();
   const r = promoterSignin(`${SITE_URL}/promoter#invite=${row.id}.${secret}`);
   const res = await brevo.send({ to: { email: m.email }, subject: r.subject, html: r.html, text: r.text, tags: ["signin"], fromName: "Subduction" });
   if (!res.ok) console.error("promoter: sign-in button failed", res.status, res.error);
+  // Sent: close the row. Failed: remove it so the runner never tries to resend a code mail that has no code.
+  if (q) await (res.ok ? db.from("email_queue").update({ status: "sent", sent_at: new Date().toISOString(), attempts: 1 }).eq("id", q.id) : db.from("email_queue").delete().eq("id", q.id));
 }
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(6))).map((b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -411,6 +416,8 @@ Deno.serve(async (req) => {
       // Artist pass mail is sent on its own. This screen never emails an artist contact.
       if (await artistContact(email) !== false) return;
       let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
+      // A deleted member gets nothing: no lead row, no email.
+      if (m && m.status === "deleted") return;
       // The lead row marks that this address asked for a promoter account. Nothing is made from it until the inbox is
       // proven by the button (see provision). Someone already on the list (a fan or a buyer) gets one too, so their
       // button opens a crew instead of an empty account. No referral code here: it comes from their own sign-in.
@@ -422,7 +429,7 @@ Deno.serve(async (req) => {
         m = (await db.from("subscribers").insert({ email, source: OPEN_SOURCE, status: "unsubscribed" }).select("id,status").single()).data
           || (await db.from("subscribers").select("id,status").eq("email", email).maybeSingle()).data;
       }
-      if (m && m.status !== "deleted") {
+      if (m) {
         const { data: full } = await db.from("subscribers").select(MEMBER_COLS).eq("id", m.id).maybeSingle();
         if (full) await mailButton(full as SigninMember);
       }
@@ -465,7 +472,9 @@ Deno.serve(async (req) => {
           const { error: le } = await db.from("promoter_leads").insert({ email: String(m0.email).toLowerCase(), source: "signed-in" });
           if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
         }
-        if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email, b.referral_code)) st = await staffAuth(req);
+        // Only the start tap makes a company. A fan's normal session on any other call must not, even if someone else
+        // typed their address on /promoter (redeem and verify provision on their own).
+        if (a === "start" && m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email, b.referral_code)) st = await staffAuth(req);
       }
     }
   }
