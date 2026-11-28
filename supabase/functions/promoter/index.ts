@@ -8,12 +8,17 @@ import { isLimitedSession } from "../_shared/session_trust.mjs";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
-import { SITE_URL } from "../_shared/config.ts";
+import { CONFIG, SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
 import { audience, cleanCrowd, postalAddress, sendCrowd, MAX_RECIPIENTS } from "../_shared/crowd.ts";
 import { paidSales } from "../_shared/paid_sales.ts";
 import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
+}
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
@@ -98,7 +103,7 @@ async function tellDylan(email: string, info: { source: string; utm_medium: stri
     if (info.referrer) lines.push("Referrer: " + info.referrer);
     if (info.referral) lines.push("Referral code: " + info.referral);
     lines.push("", "They typed it at " + SITE_URL + "/promoter");
-    const addr = String(await setting("mailing_address", ""));
+    const addr = await mailingAddress();
     if (addr && !/TBD/i.test(addr)) lines.push("", "Subduction", addr);
     const text = lines.join("\n"), html = "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>";
     for (const one of to) {
@@ -267,6 +272,17 @@ async function provision(subscriberId: string, email: string, referral?: unknown
   return true;
 }
 
+// Daily code-email allowance per hashed connection and address (see the login branch). Counted from the per-minute
+// rate_limits rows, which are pruned after a day, so no new table is needed. A failed count means send nothing.
+const CODE_EMAILS_PER_CONNECTION_PER_DAY = 5;
+async function codeDayLimited(req: Request, tag: string): Promise<boolean> {
+  const key = await ipHash(req, (await setting("ip_salt", "unset")) + "|" + tag);
+  await db.rpc("bump_rate_limit", { p_ip_hash: key });
+  const { data, error } = await db.from("rate_limits").select("count").eq("ip_hash", key).gte("window_start", new Date(Date.now() - 86400000).toISOString()).limit(2000);
+  if (error) return true;
+  return (data || []).reduce((t: number, r: { count: number }) => t + (r.count || 0), 0) > CODE_EMAILS_PER_CONNECTION_PER_DAY;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_P } }); }
   const ok = (body: unknown) => json(body, 200, { "Cache-Control": "no-store", ...CORS_P });
@@ -289,7 +305,12 @@ Deno.serve(async (req) => {
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
     if (a === "login" && await artistContact(email) !== false) return ok({ code_sent: true });
-    if (a === "login") { await mailCode(m as SigninMember); return ok({ code_sent: true }); }
+    if (a === "login") {
+      // One connection gets 5 code emails a day per address (half the cap), so nobody can use up someone else's 10 a day alone.
+      // Keyed on the hashed connection plus the address, so people sharing a phone network don't block each other.
+      if (await codeDayLimited(req, "promoter-code-day|" + email)) return ok({ code_sent: true });
+      await mailCode(m as SigninMember); return ok({ code_sent: true });
+    }
     // Wrong guesses are counted per person across all their codes, so a new code never resets the count.
     if (await guessesLocked(m!.id)) return no("Too many wrong codes today. Try again tomorrow.", 429);
     const code = (clean(b.code, 12) || "").replace(/\D/g, "");

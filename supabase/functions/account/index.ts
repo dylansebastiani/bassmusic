@@ -17,6 +17,7 @@
 //   GET  ?a=qr&e=<slug>             a QR code of the show's public link (public: it's the same link anyone can see)
 //   POST {a:"profile", ...}         save your one artist profile; copied onto every show you're booked on (preview only for now)
 import { ipFromHeaders } from "../_shared/client_ip.mjs";
+import { CONFIG } from "../_shared/config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -37,6 +38,11 @@ async function sha256(s: string) {
 async function setting<T>(key: string, fallback: T): Promise<T> {
   const { data } = await db.from("settings").select("value").eq("key", key).maybeSingle();
   return (data?.value as T) ?? fallback;
+}
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
 }
 async function ipHash(req: Request, tag: string) {
   const ip = ipFromHeaders((h: string) => req.headers.get(h));
@@ -98,6 +104,17 @@ async function countToday(subscriberId: string, type: string): Promise<number> {
     .eq("subscriber_id", subscriberId).eq("type", type).gte("created_at", new Date(Date.now() - 86400000).toISOString());
   return error ? Number.MAX_SAFE_INTEGER : (count ?? 0);
 }
+// One requester can't use up someone else's 10 code emails a day: each connection gets 5 a day per address (half the cap).
+// Keyed on the hashed connection plus the address, so people sharing a phone network don't block each other.
+// Counted from the per-minute rate_limits rows (pruned after a day), so no new table is needed. A failed count means send nothing.
+const MAX_CODE_REQUESTS_PER_IP_PER_DAY = 5;
+async function ipDayLimited(req: Request, tag: string) {
+  const h = await ipHash(req, tag);
+  await db.rpc("bump_rate_limit", { p_ip_hash: h });
+  const { data, error } = await db.from("rate_limits").select("count").eq("ip_hash", h).gte("window_start", new Date(Date.now() - 86400000).toISOString()).limit(2000);
+  if (error) return true;
+  return (data || []).reduce((t: number, r: { count: number }) => t + (r.count || 0), 0) > MAX_CODE_REQUESTS_PER_IP_PER_DAY;
+}
 const note = (subscriberId: string, type: string) => db.from("engagement_events").insert({ subscriber_id: subscriberId, type });
 async function sendSignin(email: string) {
   let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
@@ -126,7 +143,7 @@ async function sendSignin(email: string) {
   ]);
   if (!row) return;
   const url = `${SITE}/me.html#invite=${row.id}.${secret}`, F = "font-family:Arial,Helvetica,sans-serif";
-  const addr = String(await setting("mailing_address", "") || "");
+  const addr = await mailingAddress();
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Sign in</title></head>
 <body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
@@ -465,6 +482,8 @@ Deno.serve(async (req) => {
         if ((n2 ?? 0) > 3) return no("Too many tries. Wait a minute and try again.", 429);
         const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim();
         if (!(await botCheck(b.turnstile, ip))) return no("Bot check failed. Refresh and try again.", 403);
+        // Over this connection's daily allowance: same answer, nothing sent, nobody's cap used.
+        if (await ipDayLimited(req, "account-code-day|" + email)) return json({ sent: true });
         await sendSignin(email);
         return json({ sent: true });   // same answer either way, so this can't be used to find out who's here
       }

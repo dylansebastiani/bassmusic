@@ -128,7 +128,7 @@ try {
 writeFileSync(join(out, "404.html"), readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 // GitHub Pages ignores _redirects, so these folder addresses get a tiny stub that hands off to the real page,
 // keeping any ?query and #hash. A show named after one of these folders is skipped by the slug-clash check in showPages().
-const stubs = [["artists", "/artists.html"], ["promoter", "/promoter.html"], ["account", "/me.html"], ["login", "/me.html"], ["signin", "/me.html"]];
+const stubs = [["artists", "/artists.html"], ["promoter", "/promoter.html"], ["account", "/me.html"], ["login", "/me.html"], ["signin", "/me.html"], ["shows-send", "/shows-send.html"]];
 for (const [dir, to] of stubs) {
   mkdirSync(join(out, dir), { recursive: true });
   writeFileSync(join(out, dir, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -153,6 +153,7 @@ writeFileSync(join(out, "_redirects"), [
   "/door /door.html 200",
   "/shows/review /shows-review.html 200",
   "/shows-send /shows-send.html 200",
+  "/shows-send/ /shows-send 301",
   "/shows /shows.html 200",
   "/shows/ /shows.html 200",
   "/fees /fees.html 200",
@@ -229,14 +230,24 @@ async function showPages() {
 // then forwards to the show with ?ref=<tag>. Links made between builds still work through the 404 page.
 async function goPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
-  let refs = [], body = null;
-  try { body = await (await fetch(`${fn}/artist-sales?a=refs`, { headers: process.env.BUILD_REFS_KEY ? { "x-build-key": process.env.BUILD_REFS_KEY } : {}, signal: AbortSignal.timeout(15000) })).json(); refs = body.refs || []; }
-  catch (e) {
-    if (process.env.CI) throw new Error(`build: could not fetch artist links (${e.message}); refusing to ship without /go/ pages`);
-    console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", e.message); return;
+  // The pages build and the functions deploy start from the same push and can land in either order. If the function is
+  // still the old one (or mid-deploy), the list comes back short, empty or not at all. In CI, wait and ask again a few
+  // times before giving up; the held functions are never touched. Locally one try is enough.
+  const tries = process.env.CI ? Number(process.env.BUILD_REFS_TRIES || 5) : 1, waitMs = Number(process.env.BUILD_REFS_WAIT_MS || 20000);
+  let refs = [], body = null, problem = null, lastErr = null;
+  for (let i = 1; i <= tries; i++) {
+    lastErr = null; body = null;
+    try { body = await (await fetch(`${fn}/artist-sales?a=refs`, { headers: process.env.BUILD_REFS_KEY ? { "x-build-key": process.env.BUILD_REFS_KEY } : {}, signal: AbortSignal.timeout(15000) })).json(); refs = body.refs || []; }
+    catch (e) { lastErr = e; }
+    // Live /go/ links must never 404. In CI a missing key or an empty list fails the build instead of quietly building zero pages.
+    problem = lastErr ? null : refsProblem(body, { ci: !!process.env.CI, hasKey: !!process.env.BUILD_REFS_KEY });
+    if (!lastErr && !problem) break;
+    if (i < tries && (lastErr || process.env.BUILD_REFS_KEY)) { console.warn(`build: artist links not ready (${lastErr ? lastErr.message : problem}); retry ${i}/${tries - 1} in ${waitMs / 1000}s`); await new Promise((r) => setTimeout(r, waitMs)); }
   }
-  // Live /go/ links must never 404. In CI a missing key or an empty list fails the build instead of quietly building zero pages.
-  const problem = refsProblem(body, { ci: !!process.env.CI, hasKey: !!process.env.BUILD_REFS_KEY });
+  if (lastErr) {
+    if (process.env.CI) throw new Error(`build: could not fetch artist links (${lastErr.message}); refusing to ship without /go/ pages`);
+    console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", lastErr.message); return;
+  }
   if (problem) throw new Error(`build: ${problem}`);
   let n = 0;
   for (const r of refs) {

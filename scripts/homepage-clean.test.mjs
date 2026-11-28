@@ -25,7 +25,7 @@ const promo = src.slice(src.indexOf('id="promoters"'), src.indexOf('id="pricing"
 assert.deepEqual([...promo.matchAll(/class="(?:btn|ghost)" href="([^"]+)"/g)].map((m) => m[1]), ["promoter.html"]);
 assert.doesNotMatch(src, /<section[^>]+id="artists"/, "artists has no section of its own");
 const fans = src.slice(src.indexOf('id="fans"'));
-assert.ok(fans.indexOf('id="f"') < fans.indexOf('href="artists.html">join the waitlist'), "signup box comes before the artist line");
+assert.ok(fans.indexOf('id="f"') < fans.indexOf('href="artists.html">Join the waitlist'), "signup box comes before the artist line");
 // The checklist moved to /fees.html.
 assert.match(readFileSync(new URL("../site/fees.html", import.meta.url), "utf8"), /Every show gets[\s\S]*Your buyer list, yours to export/);
 console.log("homepage-clean ok");

@@ -81,3 +81,17 @@ form .fine{text-align:center;margin-top:6px}
   form{max-width:none}
   .done{max-width:none}
 }
+/* Value first, "coming soon" second, plus a preview of the artist page labeled as not live. */
+.soon{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.apv{width:100%;max-width:420px;margin:4px 0 8px;text-align:left}
+.apv figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
+.apv-card{border:1px solid var(--line);background:#151515;padding:16px;display:grid;gap:12px}
+.apv-head{display:flex;gap:12px;align-items:center}
+.apv-pic{width:56px;height:56px;flex:none;background:#1d2a00;border:1px solid var(--hot)}
+.apv-head b{display:block;font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:24px;line-height:1}
+.apv-head small,.apv-row small{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.apv-row{display:grid;gap:4px;border-top:1px solid var(--line);padding-top:10px}
+.apv-row div{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
+.apv-row i{font-style:normal;font-family:var(--disp);font-size:14px;letter-spacing:.08em;text-transform:uppercase;background:var(--hot);color:#000;padding:5px 9px 3px;white-space:nowrap}
+.apv-links{display:flex;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.apv-links span{border:1px solid var(--line);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#b5afab;padding:6px 8px}
