@@ -67,8 +67,13 @@ async function schemasFor(rows: Record<string, any>[]): Promise<Map<string, obje
   return out;
 }
 
+const TOFTU_ID = "63b511f3-d838-404f-9c2e-5d4b98fbf013";
 function publicShow(row: Record<string, any>, schema: object | null) {
-  return { id: row.id, slug: row.slug, name: row.name, share_url: row.share_url, review_status: row.review_status, schema };
+  const description = typeof row.description === "string" ? row.description.replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  const image = (typeof row.share_url === "string" && /^https:\/\//.test(row.share_url) && row.share_url)
+    || (typeof row.poster_url === "string" && /^https:\/\//.test(row.poster_url) && row.poster_url)
+    || null;
+  return { id: row.id, slug: row.slug, name: row.name, share_url: row.share_url, poster_url: row.poster_url || null, image, description, review_status: row.review_status, location_secret: !!row.location_secret, schema };
 }
 
 Deno.serve(async (req) => {
@@ -87,7 +92,9 @@ Deno.serve(async (req) => {
     }
     return new Response(JSON.stringify({ page: ev && ev.page_published_at ? ev.page ?? null : null, schema }), { headers: { ...headers, "Cache-Control": "public, max-age=60" } });
   }
-  const { data, error } = await db.from("events").select(COLS).eq("review_status", "approved").not("page_published_at", "is", null).not("company_id", "is", null).order("created_at", { ascending: false }).limit(500);
+  // Approved promoter shows, including ones whose page design is not published yet, so the site build
+  // can give each a real address and a preview image. T.O.F.T.U. stays off this list.
+  const { data, error } = await db.from("events").select(COLS).eq("review_status", "approved").eq("is_public", true).eq("is_active", true).not("company_id", "is", null).neq("slug", "underground").neq("id", TOFTU_ID).order("created_at", { ascending: false }).limit(500);
   if (error) { console.error("shows", error.message); return new Response(JSON.stringify({ shows: [] }), { status: 500, headers }); }
   let map = new Map<string, object>();
   try { map = await schemasFor(data || []); }
