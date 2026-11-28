@@ -100,22 +100,21 @@ function upcomingDates(values, today) {
   return out;
 }
 
-// Names already on the public lineup (ticket_nights.lineup, the same list the ticket page shows).
-// Acts marked tba or secret are left out. No new table, nothing from the held draft.
-export function lineupNames(nights) {
-  const out = [];
-  for (const n of nights || []) {
-    for (const a of (n && Array.isArray(n.lineup) ? n.lineup : [])) {
-      if (!a || a.tba || a.secret) continue;
-      const name = cleanText(a.name, 60);
-      if (name && !out.includes(name)) out.push(name);
-    }
-  }
-  return out.length > 12 ? [...out.slice(0, 12), "+ more"] : out;
+// "Jan 8-9" for a run of nights in one month, otherwise the usual label.
+export function rangeLabel(dates) {
+  const ds = (dates || []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  if (ds.length < 2) return whenLabel(ds);
+  const first = ds[0], last = ds[ds.length - 1];
+  if (first.slice(0, 7) !== last.slice(0, 7)) return whenLabel(ds);
+  const [, m, d1] = first.split("-").map(Number);
+  const mon = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short" }).format(new Date(Date.UTC(2000, m - 1, 15)));
+  return mon + " " + d1 + "-" + Number(last.slice(8, 10));
 }
 
+export const TOFTU_SHARE_IMAGE = "https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg";
+
 // An approved show that is actually on sale, or already has a public page.
-// Past nights drop off. A secret location never contributes a street or a venue name.
+// Past nights drop off. The public card never carries a venue, address, lineup or crew.
 export function subductionCard(ev, nights, today) {
   if (!ev || ev.review_status !== "approved") return null;
   if (ev.is_active === false || ev.is_public === false) return null;
@@ -127,26 +126,21 @@ export function subductionCard(ev, nights, today) {
   const place = splitPlace(ev.city);
   const secret = !!ev.location_secret || ev.slug === "underground";
   let flyer = "";
-  if (ev.slug === "underground") {
-    // The same uploaded flyer the /underground/ page uses now.
-    const n = (nights || []).find((x) => x && typeof x.flyer_url === "string" && /^https:\/\//.test(x.flyer_url));
-    flyer = n ? n.flyer_url : "";
-  }
+  // T.O.F.T.U. is a two-night show, so its card always uses the two-night share image (1200x630).
+  if (ev.slug === "underground") flyer = TOFTU_SHARE_IMAGE;
   else if (typeof ev.share_url === "string" && /^https:\/\//.test(ev.share_url)) flyer = ev.share_url;
   else if (typeof ev.poster_url === "string" && /^https:\/\//.test(ev.poster_url)) flyer = ev.poster_url;
   return {
     source: "subduction",
     slug: ev.slug,
-    name: cleanText(ev.name, 120) || "Show",
+    name: ev.slug === "underground" ? "T.O.F.T.U." : cleanText(ev.name, 120) || "Show",
     dates,
-    when: whenLabel(dates),
-    venue: secret ? "" : cleanText(ev.venue, 120),
+    when: ev.slug === "underground" ? rangeLabel(dates) : whenLabel(dates),
     secret,
     city: place.city,
     state: place.state,
     url: ticketLink(ev.slug),
     flyer,
-    lineup: ev.slug === "underground" ? [] : lineupNames(nights),
     fresh: false,
   };
 }
@@ -170,13 +164,11 @@ export function externalCard(row, today, now) {
     name: cleanText(row.name, 120) || "Show",
     dates,
     when: whenLabel(dates),
-    venue: row.venue_secret ? "" : cleanText(row.venue, 120),
     secret: !!row.venue_secret,
     city: cleanText(row.city, 80),
     state: cleanText(row.state, 2).toUpperCase(),
     url,
     flyer: typeof row.flyer_url === "string" && /^https:\/\//.test(row.flyer_url) ? row.flyer_url : "",
-    lineup: [],
     fresh: isFresh(row.reviewed_at, now),
   };
 }
@@ -188,13 +180,11 @@ export function publicCard(card) {
     name: card.name,
     when: card.when,
     dates: card.dates,
-    venue: card.venue,
     secret: card.secret,
     city: card.city,
     state: card.state,
     url: card.url,
     flyer: card.flyer || "",
-    lineup: card.lineup || [],
     fresh: !!card.fresh,
     path: cityPath(card.city, card.state),
   };
@@ -206,7 +196,7 @@ export function matches(show, q) {
   if (f.path && show.path !== f.path && cityPath(show.city, show.state) !== f.path) return false;
   if (f.date && !(show.dates || []).includes(f.date)) return false;
   if (f.q) {
-    const hay = (show.name + " " + show.venue + " " + show.city + " " + show.state).toLowerCase();
+    const hay = (show.name + " " + show.city + " " + show.state).toLowerCase();
     if (!hay.includes(String(f.q).toLowerCase().trim())) return false;
   }
   return true;

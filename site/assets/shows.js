@@ -1,7 +1,7 @@
 /* Public directory at /shows. Filters run in the browser on the list the directory function returns. */
 (function () {
   // Calendar file for one public card. Only public fields go in: name, dates, city, state, ticket link,
-  // and the venue name or the words "Secret location". Never a street address.
+  // and the words "Secret location" when the venue is secret. Never a venue name or address.
   function icsEsc(t) { return String(t == null ? "" : t).replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,"); }
   function icsFold(line) {
     var out = [], rest = line;
@@ -15,7 +15,7 @@
   }
   function buildIcs(s, origin) {
     var url = /^https:\/\//i.test(s.url || "") ? s.url : String(origin || "https://subduction.art").replace(/\/$/, "") + (s.url || "/shows");
-    var where = [s.secret ? "Secret location" : (s.venue || ""), s.city, s.state].filter(Boolean).join(", ");
+    var where = [s.secret ? "Secret location" : "", s.city, s.state].filter(Boolean).join(", ");
     var stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
     var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Subduction//Shows//EN", "CALSCALE:GREGORIAN"];
     (s.dates || []).forEach(function (ymd, i) {
@@ -36,6 +36,7 @@
   var STATES = { IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", MI: "Michigan", MN: "Minnesota", MO: "Missouri", NE: "Nebraska", ND: "North Dakota", OH: "Ohio", SD: "South Dakota", WI: "Wisconsin" };
   var all = [];
   var locked = "";
+  var shown = [];
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -51,79 +52,65 @@
     try { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
     catch (e) { return ""; }
   }
+  function addDays(ymd, n) {
+    var p = ymd.split("-").map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10);
+  }
+  // Inclusive [from, to] for the date filter, or null for "All upcoming".
+  function range(kind, today, picked) {
+    if (kind === "pick") return picked ? [picked, picked] : null;
+    if (!today) return null;
+    if (kind === "month") return [today, today.slice(0, 7) + "-31"];
+    if (kind === "weekend") {
+      var p = today.split("-").map(Number);
+      var dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay(); // 0 Sun .. 6 Sat
+      if (dow === 0) return [addDays(today, -2), today];
+      if (dow === 6) return [addDays(today, -1), addDays(today, 1)];
+      var fri = addDays(today, 5 - dow);
+      return [dow === 5 ? today : fri, addDays(fri, 2)];
+    }
+    return null;
+  }
   // All-in buyer fee, from the shared fee code (assets/fees.js), shown on a $25 ticket: "$2.61 in fees on a $25 ticket".
   function feeNote() {
     var F = window.SubductionFees;
     if (!F) return "";
     return "$" + (F.feeCents(2500) / 100).toFixed(2) + " in fees on a $25 ticket";
   }
-  function card(s, i) {
-    var own = s.source === "subduction";
+  function isToftu(s) { return s.slug === "underground"; }
+  // Tags come from real fields only: fresh, source, secret. T.O.F.T.U. shows only the secret tag.
+  function tags(s) {
+    var t = [];
+    if (s.fresh && !isToftu(s)) t.push("Just added");
+    if (s.source === "subduction" && !isToftu(s)) t.push("Tickets on Subduction");
+    if (s.secret) t.push("Secret location");
+    return t.map(function (x) { return '<li class="tag' + (x === "Just added" ? " new" : "") + '">' + x + "</li>"; }).join("");
+  }
+  function place(s) { return [s.city, s.state].filter(Boolean).join(", "); }
+  function link(s) {
     var ext = /^https:\/\//i.test(s.url || "");
-    var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="">' : "";
-    var label = own && s.slug !== "underground" ? 'Tickets here<small>' + feeNote() + "</small>" : "Tickets";
-    var tag = '<span class="tickets">' + label + "</span>";
-    var frame = img ? '<span class="frame">' + img + tag + "</span>" : '<span class="frame blank">' + tag + "</span>";
-    var venue = s.secret ? "Secret location" : (s.venue || "");
-    var city = [s.city, s.state].filter(Boolean).join(", ");
-    var names = (s.lineup || []).length ? '<span class="lineup">' + esc(s.lineup.join(", ")) + "</span>" : "";
-    var free = own && s.slug && s.slug !== "underground" ? '<span class="free" data-free="' + esc(s.slug) + '" hidden>Free tracks with a ticket</span>' : "";
-    var tools = (own && s.slug && s.slug !== "underground" ? '<button type="button" class="tool" data-listen="' + esc(s.slug) + '" hidden>Listen</button>' : "") +
-      '<button type="button" class="tool" data-cal="' + i + '">Add to calendar</button>';
-    return '<article class="cell"><a class="poster' + (img ? "" : " noart") + '" href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" +
-      frame + '<span class="meta"><span class="when">' + esc(s.when || "") + (s.fresh ? ' <span class="new">Just added</span>' : "") + "</span><h3>" + esc(s.name) + "</h3>" +
-      (venue ? '<span class="venue">' + esc(venue) + "</span>" : "") +
-      '<span class="city">' + esc(city) + "</span>" + names + free + '</span></a><div class="tools">' + tools + "</div></article>";
+    return 'href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "");
   }
-  var shown = [];
-  var lists = {};
-  var audio = null, playing = null;
-  function playlistFor(slug) {
-    if (!lists[slug]) {
-      lists[slug] = fetch((C.supabaseUrl || "") + "/functions/v1/playlist?show=" + encodeURIComponent(slug))
-        .then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
-        .then(function (j) { return (j.tracks || []).filter(function (t) { return t.audio_url && /^https:\/\//.test(t.audio_url); }); });
-    }
-    return lists[slug];
+  function flyer(s, eager) {
+    var wide = isToftu(s);
+    var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="Flyer for ' + esc(s.name) + '" width="' + (wide ? 1200 : 800) + '" height="' + (wide ? 630 : 1000) + '"' + (eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"') + ">" : "";
+    return '<a class="flyer' + (wide ? " wide" : "") + (img ? "" : " blank") + '" ' + link(s) + ' tabindex="-1" aria-hidden="true">' + img + "</a>";
   }
-  function reveal() {
-    var seen = {};
-    $("list").querySelectorAll("[data-listen]").forEach(function (b) {
-      var slug = b.getAttribute("data-listen");
-      if (seen[slug]) return;
-      seen[slug] = true;
-      playlistFor(slug).then(function (tracks) {
-        if (!tracks.length) return;
-        $("list").querySelectorAll('[data-listen="' + slug + '"]').forEach(function (x) { x.hidden = false; });
-        if (tracks.some(function (t) { return t.downloadable; })) {
-          $("list").querySelectorAll('[data-free="' + slug + '"]').forEach(function (x) { x.hidden = false; });
-        }
-      });
-    });
+  function fee(s) { return s.source === "subduction" && !isToftu(s) && feeNote() ? '<small class="fee">' + feeNote() + "</small>" : ""; }
+  function card(s, i) {
+    var tools = isToftu(s) ? "" :
+      '<div class="tools"><button type="button" class="tool" data-cal="' + i + '">Add to calendar</button>' +
+      '<button type="button" class="tool" data-share="' + i + '">Share</button></div>';
+    return '<article class="cell">' + flyer(s, false) + '<div class="meta"><p class="when">' + esc(s.when || "") + "</p>" +
+      "<h3>" + esc(s.name) + '</h3><p class="city">' + esc(place(s)) + "</p>" +
+      '<ul class="tags">' + tags(s) + "</ul>" +
+      '<a class="tix" ' + link(s) + ">Tickets</a>" + fee(s) + "</div>" + tools + "</article>";
   }
-  function stop() {
-    if (audio) { audio.pause(); audio = null; }
-    document.querySelectorAll("[data-listen]").forEach(function (b) { b.textContent = "Listen"; b.classList.remove("on"); });
-    playing = null;
-  }
-  function listen(btn) {
-    var slug = btn.getAttribute("data-listen");
-    if (playing === slug) { stop(); return; }
-    stop();
-    playlistFor(slug).then(function (tracks) {
-      if (!tracks.length) return;
-      document.querySelectorAll("audio").forEach(function (a) { try { a.pause(); } catch (e) {} });
-      var n = Math.floor(Math.random() * tracks.length);
-      var a = new Audio();
-      audio = a; playing = slug;
-      function go() {
-        var t = tracks[n % tracks.length];
-        a.src = t.audio_url; a.play().catch(function () { stop(); });
-        document.querySelectorAll('[data-listen="' + slug + '"]').forEach(function (b) { b.textContent = "Stop: " + (t.title || "track"); b.classList.add("on"); });
-      }
-      a.addEventListener("ended", function () { n++; go(); });
-      go();
-    });
+  function featuredCard(s) {
+    return '<section class="feat" aria-label="Featured show">' + flyer(s, true) + '<div class="meta"><p class="kick">Up next on Subduction</p>' +
+      '<h2 class="disp">' + esc(s.name) + '</h2><p class="when">' + esc(s.when || "") + '</p><p class="city">' + esc(place(s)) + "</p>" +
+      '<ul class="tags">' + (s.secret ? '<li class="tag">Secret location</li>' : "") + "</ul>" +
+      '<a class="btn" ' + link(s) + ">Get tickets</a>" + fee(s) + "</div></section>";
   }
   function download(i) {
     var s = shown[i];
@@ -135,81 +122,98 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
   }
-  function quiet(title, line) {
-    return '<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">' + title + "</p><p>" + line + "</p></div>";
+  function share(i, btn) {
+    var s = shown[i];
+    if (!s) return;
+    var url = /^https:\/\//i.test(s.url || "") ? s.url : location.origin + s.url;
+    var done = function (t) { var old = btn.textContent; btn.textContent = t; setTimeout(function () { btn.textContent = old; }, 1800); };
+    if (navigator.share) { navigator.share({ title: s.name, url: url }).catch(function () {}); return; }
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { done("Link copied"); }, function () { done("Copy failed"); });
+    else done("Copy failed");
   }
-  function paint(list) {
-    if (!list.length) { $("list").innerHTML = quiet("Nothing <em>up.</em>", "No shows match this search."); return; }
-    shown = list;
-    $("list").innerHTML = list.map(card).join("");
-    reveal();
+
+  function cityList() {
+    var by = {}, order = [];
+    all.forEach(function (s) {
+      if (!s.path) return;
+      if (!by[s.path]) { by[s.path] = { path: s.path, name: place(s), n: 0 }; order.push(s.path); }
+      by[s.path].n++;
+    });
+    return order.map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+  }
+  function paintCities() {
+    var list = cityList();
+    var html = '<a class="chip' + (locked ? "" : " on") + '" href="/shows"' + (locked ? "" : ' aria-current="page"') + ">All cities <b>" + all.length + "</b></a>";
+    var seen = false;
+    list.forEach(function (c) {
+      var on = c.path === locked; if (on) seen = true;
+      html += '<a class="chip' + (on ? " on" : "") + '" href="/shows/' + esc(c.path) + '"' + (on ? ' aria-current="page"' : "") + ">" + esc(c.name) + " <b>" + c.n + "</b></a>";
+    });
+    if (locked && !seen) {
+      var label = window.__SHOWS_CITY_NAME || locked;
+      html += '<a class="chip on" href="/shows/' + esc(locked) + '" aria-current="page">' + esc(label) + " <b>0</b></a>";
+    }
+    $("cities").innerHTML = html;
+  }
+
+  function quiet(title, line, extra) {
+    return '<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">' + title + "</p><p>" + line + "</p>" + (extra || "") + "</div>";
+  }
+  function empty() {
+    var others = cityList().filter(function (c) { return c.path !== locked; });
+    var links = others.length ? '<p class="fine">Cities with shows</p><nav class="chips" aria-label="Cities with shows">' + others.map(function (c) {
+      return '<a class="chip" href="/shows/' + esc(c.path) + '">' + esc(c.name) + " <b>" + c.n + "</b></a>";
+    }).join("") + "</nav>" : "";
+    return quiet("Nothing <em>up yet.</em>", "No shows listed here right now.",
+      '<div class="actions"><a class="btn" href="#add" data-send>Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>' + links);
   }
   function chosen() {
-    return { q: $("q").value.trim().toLowerCase(), state: $("state").value, city: $("city").value, date: $("on").value };
+    return { q: $("q").value.trim().toLowerCase(), when: $("when").value, on: $("on").value };
   }
   function apply() {
     var f = chosen();
-    paint(all.filter(function (s) {
-      if (f.state && s.state !== f.state) return false;
-      if (f.city && s.path !== f.city) return false;
-      if (f.date && (s.dates || []).indexOf(f.date) === -1) return false;
-      if (f.q && (s.name + " " + s.venue + " " + s.city + " " + s.state).toLowerCase().indexOf(f.q) === -1) return false;
+    var today = todayChicago();
+    var r = range(f.when, today, f.on);
+    var scope = all.filter(function (s) { return !locked || s.path === locked; });
+    var plain = !f.q && !r;
+    var feat = null;
+    scope.forEach(function (s) { if (!feat && s.source === "subduction") feat = s; });
+    $("featured").innerHTML = feat && plain ? featuredCard(feat) : "";
+    var list = scope.filter(function (s) {
+      if (plain && s === feat) return false;
+      if (r && !(s.dates || []).some(function (d) { return d >= r[0] && d <= r[1]; })) return false;
+      if (f.q && (s.name + " " + s.city + " " + s.state).toLowerCase().indexOf(f.q) === -1) return false;
       return true;
-    }));
-  }
-  function cityOptions(state) {
-    var seen = {};
-    var html = '<option value="">All cities</option>';
-    all.forEach(function (s) {
-      if (!s.path || seen[s.path]) return;
-      if (state && s.state !== state) return;
-      seen[s.path] = true;
-      html += '<option value="' + esc(s.path) + '">' + esc([s.city, s.state].filter(Boolean).join(", ")) + "</option>";
     });
-    var keep = $("city").value || locked;
-    $("city").innerHTML = html;
-    if (keep && $("city").querySelector('option[value="' + keep.replace(/"/g, "") + '"]')) $("city").value = keep;
-  }
-  function fillFilters() {
-    var seen = {};
-    var html = '<option value="">All states</option>';
-    all.forEach(function (s) {
-      if (!s.state || seen[s.state]) return;
-      seen[s.state] = true;
-      html += '<option value="' + esc(s.state) + '">' + esc(STATES[s.state] || s.state) + "</option>";
-    });
-    $("state").innerHTML = html;
-    if (locked) {
-      all.forEach(function (s) { if (s.path === locked) $("state").value = s.state; });
-    }
-    cityOptions($("state").value);
-    if (locked) $("city").value = locked;
-    var hit = null;
-    all.forEach(function (s) { if (s.path === locked) hit = s; });
-    if (hit && $("title")) {
-      $("kick").textContent = [hit.city, STATES[hit.state] || hit.state].filter(Boolean).join(", ");
-      $("title").innerHTML = esc(hit.city) + " <em>shows.</em>";
-    }
+    shown = list;
+    if (!scope.length) $("list").innerHTML = empty();
+    else if (!list.length && !(plain && feat)) $("list").innerHTML = quiet("Nothing <em>matches.</em>", "Try another date or search.");
+    else $("list").innerHTML = list.map(card).join("");
   }
 
   $("list").addEventListener("click", function (e) {
-    var t = e.target.closest ? e.target.closest("button") : null;
+    var t = e.target.closest ? e.target.closest("button, a[data-send]") : null;
     if (!t) return;
     if (t.hasAttribute("data-cal")) download(Number(t.getAttribute("data-cal")));
-    else if (t.hasAttribute("data-listen")) listen(t);
+    else if (t.hasAttribute("data-share")) share(Number(t.getAttribute("data-share")), t);
+    else if (t.hasAttribute("data-send")) openSend(true);
   });
   $("filters").addEventListener("submit", function (e) { e.preventDefault(); });
-  ["q", "state", "city", "on"].forEach(function (id) {
+  ["q", "when", "on"].forEach(function (id) {
     $(id).addEventListener("input", function () {
-      if (id === "state") cityOptions($("state").value);
-      apply();
-    });
-    $(id).addEventListener("change", function () {
-      if (id === "state") cityOptions($("state").value);
+      if (id === "when") { $("onbox").hidden = $("when").value !== "pick"; if ($("when").value === "pick") $("on").focus(); }
       apply();
     });
   });
-  $("clear").addEventListener("click", function () { $("on").value = ""; apply(); });
+
+  function openSend(scroll) {
+    $("form").hidden = false;
+    $("opensend").setAttribute("aria-expanded", "true");
+    if (scroll) { $("add").scrollIntoView(); $("flyer").focus({ preventScroll: true }); }
+  }
+  $("opensend").addEventListener("click", function () { openSend(false); $("name").focus(); });
+  if (location.hash === "#add") openSend(false);
+  window.addEventListener("hashchange", function () { if (location.hash === "#add") openSend(false); });
   $("flyer").addEventListener("change", function () {
     var file = $("flyer").files && $("flyer").files[0];
     var img = $("preview");
@@ -257,9 +261,9 @@
   locked = pathCity();
   fetch(FN).then(function (r) { return r.json(); }).then(function (j) {
     all = (j && j.shows) || [];
-    fillFilters();
+    paintCities();
     apply();
   }).catch(function () {
-    if (!$("list").querySelector(".poster")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
+    if (!$("list").querySelector(".cell") && !$("list").querySelector(".quiet")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
   });
 })();

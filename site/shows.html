@@ -35,23 +35,28 @@
   <span class="laser" aria-hidden="true"></span>
   <p class="lead">Bass shows across the Midwest. Tickets here, or on the promoter's own link.</p>
 
-  <form class="filters" id="filters">
-    <div class="wide">
-      <label for="q">Search</label>
-      <input id="q" type="search" autocomplete="off" placeholder="Show, city or venue">
-    </div>
-    <div>
-      <label for="state">State</label>
-      <select id="state"><option value="">All states</option></select>
-    </div>
-    <div>
-      <label for="city">City</label>
-      <select id="city"><option value="">All cities</option></select>
-    </div>
-    <div class="datef">
-      <label for="on">Date</label>
-      <input id="on" type="date">
-      <button type="button" class="text" id="clear">Any date</button>
+  <div id="featured"></div>
+
+  <form class="filters" id="filters" role="search">
+    <nav class="cities" id="cities" aria-label="Cities"><a class="chip on" href="/shows">All cities</a></nav>
+    <div class="fbar">
+      <div class="wide">
+        <label for="q">Search</label>
+        <input id="q" type="search" autocomplete="off" placeholder="Show or city">
+      </div>
+      <div>
+        <label for="when">Date</label>
+        <select id="when">
+          <option value="all">All upcoming</option>
+          <option value="weekend">This weekend</option>
+          <option value="month">This month</option>
+          <option value="pick">Pick a date</option>
+        </select>
+      </div>
+      <div id="onbox" hidden>
+        <label for="on">Day</label>
+        <input id="on" type="date">
+      </div>
     </div>
   </form>
 
@@ -64,8 +69,9 @@
       <p class="kick">Your show</p>
       <h2 class="disp">Send it <em>in.</em></h2>
       <p class="lead">It goes up after a look. Your email stays with the listing.</p>
+      <button class="btn" type="button" id="opensend" aria-expanded="false" aria-controls="form">Send it in</button>
     </div>
-    <form id="form" novalidate>
+    <form id="form" novalidate hidden>
       <label class="drop" for="flyer">
         <img id="preview" alt="" hidden>
         <span id="dropcopy"><b>Flyer</b><small>JPEG, PNG or WebP. Under 1.5 MB.</small></span>
@@ -107,7 +113,7 @@
       <label for="email">Your email</label>
       <input id="email" name="email" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
       <input class="hp" type="text" id="hp_field" name="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button class="btn" id="go" type="submit">Send it in</button>
+      <button class="btn" id="go" type="submit">Send</button>
       <p class="msg" id="msg" role="status"></p>
       <p class="fine">Your email stays with the listing. <a href="/privacy">Privacy</a>.</p>
     </form>
@@ -120,7 +126,7 @@
 </main>
 <footer class="foot">
   <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 44h48v10H8zM12 28h40v10H12zM16 12h32v10H16z"/></svg><b>Subduction</b></a>
-  <nav class="flinks"><a href="/">Home</a><a href="/privacy">Privacy</a><a href="/demo">Sell tickets</a></nav>
+  <nav class="flinks"><a href="/">Home</a><a href="/privacy">Privacy</a><a href="/promoter">Sell tickets</a></nav>
 </footer>
 <script src="/assets/stack.js"></script>
 <script src="/assets/fees.js"></script>
