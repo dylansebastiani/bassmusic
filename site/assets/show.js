@@ -268,6 +268,7 @@
       }).then(function (c) {
         if (!c) return;
         checkout = c; $("buy").hidden = true; $("types").hidden = true; $("payWrap").hidden = false; $("bmsg").textContent = "";
+        if (window.Trk && Trk.checkout) Trk.checkout();
         c.mount("#checkout"); $("payWrap").scrollIntoView({ behavior: "smooth" });
       }).catch(function (err) {
         $("bmsg").textContent = err.message; $("go").disabled = false;
@@ -284,7 +285,7 @@
   function showDone(sid) {
     $("shop").hidden = true; $("done").hidden = false;
     $("done").innerHTML = '<div class="done card"><h2>Almost...</h2><p class="lead">Confirming your payment.</p></div>';
-    var tries = 0;
+    var tries = 0, paidSent = false;
     (function poll() {
       fetch(FN + "?a=order&s=" + encodeURIComponent(sid)).then(function (r) { return r.json(); }).then(function (o) {
         if (o.status === "paid" && o.tickets && o.tickets.length) {
@@ -292,6 +293,8 @@
           $("done").innerHTML = '<div class="done card"><h2>You\'re in.</h2><p class="lead">Tickets sent to ' + esc(o.email) + '. Save them now, or open them from the email at the door.</p>' +
             '<div class="tlinks">' + o.tickets.map(function (t) { return '<a href="' + (o.lane === 2 ? "pass" : "ticket") + '.html?t=' + esc(t.token) + '"><span>' + esc(t.type) + "</span><b>" + esc(t.code) + "</b></a>"; }).join("") + "</div></div>";
           try { history.replaceState(null, "", location.pathname + "?e=" + slug); } catch (e) {}
+          // Value and currency only. No order, email or ticket detail goes to the ad tools.
+          if (window.Trk && Trk.pix && !paidSent) { paidSent = true; Trk.pix(); Trk.purchase(o.total_cents); }
         } else if (++tries < 30) setTimeout(poll, 2000);
         else $("done").innerHTML = '<div class="done card"><h2>Payment received?</h2><p class="lead">Your tickets are on their way by email. If nothing arrives in 10 minutes, reply to any of our emails and we\'ll sort it.</p></div>';
       }).catch(function () { if (++tries < 30) setTimeout(poll, 2000); });
@@ -358,7 +361,7 @@
     // A brand-new show in the studio: wait for the studio to send its first draft.
     if (!d.page && PREVIEW) { $("page").innerHTML = '<p class="msg">Waiting for the studio…</p>'; return; }
     var wantSchema = d.lane === 2 && !d.preview && !PREVIEW && !schemaHeld();
-    var go = function () { render(); var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid); };
+    var go = function () { render(); if (!PREVIEW && !data.preview && window.Trk && Trk.view) Trk.view(); var sid = q.get("s"); if (sid && /^cs_/.test(sid)) showDone(sid); };
     if (d.page) { if (wantSchema) pullSchema(); return go(); }
     // Every other show: its published design if it has one, otherwise a plain page with no one else's look on it.
     return fetch((C.supabaseUrl || "") + "/functions/v1/shows?e=" + slug).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })

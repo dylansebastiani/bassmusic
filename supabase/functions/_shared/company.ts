@@ -4,6 +4,7 @@
 import { db, setting } from "./db.ts";
 import { sha256 } from "./util.ts";
 import { isAdminEmail } from "./admin.ts";
+import { isLimitedSession } from "./session_trust.mjs";
 
 export interface Company {
   id: string; slug: string; name: string; status: "pending" | "active" | "suspended";
@@ -25,8 +26,10 @@ export interface Staff { id: string; email: string; owner: boolean; companies: {
 export async function staffAuth(req: Request): Promise<Staff | null> {
   const token = (req.headers.get("x-admin-token") || "").trim();
   if (!/^[0-9a-f]{64}$/.test(token)) return null;
-  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(token)).maybeSingle();
+  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at,created_at").eq("token_hash", await sha256(token)).maybeSingle();
   if (!s || new Date(s.expires_at).getTime() < Date.now()) return null;
+  // Member-key sessions (from fan email links) are lower trust: never staff, owner or promoter.
+  if (isLimitedSession(s.created_at, s.expires_at)) return null;
   const { data: m } = await db.from("subscribers").select("id,email,status").eq("id", s.subscriber_id).maybeSingle();
   if (!m || m.status === "deleted") return null;
   const owner = await isAdminEmail(m.email);

@@ -92,3 +92,5 @@ body.pro{min-height:100vh;background:#000}
 .pro .card.ptrack label{display:block;margin-top:12px}
 .pro .card.ptrack input[type=text]{display:block;width:100%;box-sizing:border-box}
 .pro .streetcode{display:block;font-family:var(--mono,ui-monospace,monospace);font-size:13px;line-height:1.4;word-break:break-all}
+.save{display:block;margin-top:6px}.save em{font-style:normal;font-size:12px;color:var(--mute);border:1px solid var(--line);padding:1px 6px;margin-left:4px}.save small{display:block;color:var(--mute);margin-top:4px}.save.none{color:var(--mute);font-size:14px}
+.note a,.card small a{color:inherit;text-decoration:underline}
