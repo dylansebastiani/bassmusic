@@ -37,7 +37,7 @@
 .sx-ghost{color:#F4F1EE;border:1px solid #6C6567}
 .sx-ghost:hover,.sx-ghost:focus-visible{border-color:#F4F1EE}
 .sx-links{display:flex;flex-wrap:wrap;gap:12px 22px;padding-top:24px;border-top:1px solid #2A2627}
-.sx-links a{color:#F4F1EE;font-size:15px;text-decoration:none;white-space:nowrap}
+.sx-links a{color:#F4F1EE;font-size:15px;font-weight:400;letter-spacing:0;text-transform:none;text-decoration:none;white-space:nowrap}
 .sx-links a:hover,.sx-legal a:hover,.sx-foot .fsocial a:hover{color:#B6FF00}
 .sx-base{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
 .sx-legal,.sx-foot .fsocial{display:flex;gap:18px;flex-wrap:wrap}
