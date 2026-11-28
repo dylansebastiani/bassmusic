@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import vm from "node:vm";
 
 const root = new URL("..", import.meta.url).pathname;
 const cfg = JSON.parse(readFileSync(join(root, "config/stack.json"), "utf8"));
@@ -239,12 +240,20 @@ async function trackPages() {
 // One page per city that already has an upcoming show, so a link like /shows/peoria-il
 // has its own title. If the directory function is not up yet, the main /shows page still works.
 const DIR_STATE = { IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", MI: "Michigan", MN: "Minnesota", MO: "Missouri", NE: "Nebraska", ND: "North Dakota", OH: "Ohio", SD: "South Dakota", WI: "Wisconsin" };
+// Same all-in fee note shows.js prints, taken from the shared fee code so the two never drift.
+function feeNote() {
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(readFileSync(join(root, "site/assets/fees.js"), "utf8"), ctx);
+  return "$" + (ctx.SubductionFees.feeCents(2500) / 100).toFixed(2) + " in fees on a $25 ticket";
+}
 async function directoryPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
   let shows = [];
   try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
   catch (e) { console.warn("build: could not fetch the show directory, city pages wait for the next build:", e.message); return; }
   const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
+  const feeNoteText = feeNote();
   const by = {};
   for (const s of shows) {
     if (!/^[a-z0-9-]{1,48}$/.test(s.path || "") || s.path === "review") continue;
@@ -264,7 +273,7 @@ async function directoryPages() {
       const own = s.source === "subduction";
       const ext = /^https:\/\//.test(s.url || "");
       const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
-      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>$1.50 fee</small>" : "Tickets"}</span>`;
+      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>${feeNoteText}</small>" : "Tickets"}</span>`;
       const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
       // A secret location never prints the venue name, here or anywhere else on the page.
       const venue = s.secret ? "Secret location" : (s.venue || "");

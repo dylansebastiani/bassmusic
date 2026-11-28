@@ -5,9 +5,13 @@ export const TOFTU_ID = "63b511f3-d838-404f-9c2e-5d4b98fbf013";
 
 export const isToftu = (ev) => !!ev && (ev.slug === TOFTU_SLUG || ev.id === TOFTU_ID);
 
-// A show is due only when it is secret, its reveal time has passed, nothing was sent yet, and it isn't T.O.F.T.U.
+// Same rule as handsOff() in _shared/street.ts: legacy_stripe and quantum companies are never touched.
+// A show with no company row attached is skipped too (fail closed).
+export const isHandsOff = (ev) => !ev?.company || ev.company.slug === "quantum" || ev.company.legacy_stripe === true;
+
+// A show is due only when it is secret, its reveal time has passed, nothing was sent yet, and it isn't T.O.F.T.U. or hands-off.
 export function isDue(ev, now = new Date()) {
-  if (!ev || isToftu(ev)) return false;
+  if (!ev || isToftu(ev) || isHandsOff(ev)) return false;
   if (!ev.location_secret || ev.reveal_sent_at) return false;
   if (!ev.address_reveal_at) return false;
   const at = Date.parse(ev.address_reveal_at);
@@ -21,7 +25,7 @@ export function place(ev) {
   return address ? { venue, address } : null;
 }
 
-// deps: { events(): rows, orders(eventId): [{id,...}], send(ev, order, place): bool, claim(orderId): bool,
+// deps: { events(): rows (each with company: {slug, legacy_stripe}), orders(eventId): [{id,...}], send(ev, order, place): bool, claim(orderId): bool,
 //         unclaim(orderId), done(eventId): void }
 export async function runReveal(deps, now = new Date()) {
   const out = { shows: 0, sent: 0, failed: 0, skipped: 0 };
@@ -31,11 +35,19 @@ export async function runReveal(deps, now = new Date()) {
     if (!where) { out.skipped++; continue; }
     out.shows++;
     let failed = 0;
-    for (const o of await deps.orders(ev.id)) {
-      if (!(await deps.claim(o.id))) continue;            // someone else already sent this order
-      let ok = false;
-      try { ok = isToftu(ev) ? false : await deps.send(ev, o, where); } catch { ok = false; }
-      if (ok) out.sent++; else { failed++; out.failed++; await deps.unclaim(o.id); }
+    // orders() returns one batch of unsent orders. Keep asking until it comes back empty; an order whose send
+    // failed is released and would reappear, so each id is tried once per run.
+    const seen = new Set();
+    for (;;) {
+      const batch = (await deps.orders(ev.id)).filter((o) => !seen.has(o.id));
+      if (!batch.length) break;
+      for (const o of batch) {
+        seen.add(o.id);
+        if (!(await deps.claim(o.id))) continue;          // someone else already sent this order
+        let ok = false;
+        try { ok = isToftu(ev) ? false : await deps.send(ev, o, where); } catch { ok = false; }
+        if (ok) out.sent++; else { failed++; out.failed++; await deps.unclaim(o.id); }
+      }
     }
     if (!failed) await deps.done(ev.id);                    // only a clean run closes the show
   }

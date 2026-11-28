@@ -63,13 +63,13 @@ Deno.serve(async (req) => {
   if (!sameSecret(req.headers.get("x-runner-secret") || "", secret)) return json({ error: "Not allowed" }, 401);
   const now = new Date();
   const res = await runReveal({
-    // The query already leaves T.O.F.T.U. out; core.mjs and sendOne check again.
+    // The query already leaves T.O.F.T.U. out; core.mjs (also the handsOff rule) and sendOne check again.
     events: async () => (await db.from("events")
-      .select("id,slug,name,company_id,venue,address,venue_full,address_full,location_secret,address_reveal_at,reveal_sent_at")
+      .select("id,slug,name,company_id,venue,address,venue_full,address_full,location_secret,address_reveal_at,reveal_sent_at,company:companies(slug,legacy_stripe)")
       .eq("location_secret", true).is("reveal_sent_at", null).not("address_reveal_at", "is", null).lte("address_reveal_at", now.toISOString())
       .neq("slug", TOFTU_SLUG).neq("id", TOFTU_ID).limit(50)).data || [],
     orders: async (eventId: string) => (await db.from("ticket_orders").select("id,email,name").eq("event_id", eventId)
-      .eq("status", "paid").not("email", "is", null).is("location_sent_at", null).limit(500)).data || [],
+      .in("status", ["paid", "comp"]).not("email", "is", null).is("location_sent_at", null).limit(500)).data || [],
     claim: async (id: string) => !!(await db.from("ticket_orders").update({ location_sent_at: new Date().toISOString() }).eq("id", id).is("location_sent_at", null).select("id").maybeSingle()).data,
     unclaim: async (id: string) => { await db.from("ticket_orders").update({ location_sent_at: null }).eq("id", id); },
     send: sendOne,
