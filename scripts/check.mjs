@@ -40,6 +40,7 @@ execSync("node scripts/directory.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/referrals.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/session-trust.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/street-links.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/reveal.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/fees.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/sales-access.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/event-schema.test.mjs", { cwd: root, stdio: "inherit" });
