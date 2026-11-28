@@ -273,7 +273,7 @@ async function directoryPages() {
       const own = s.source === "subduction";
       const ext = /^https:\/\//.test(s.url || "");
       const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
-      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>${feeNoteText}</small>" : "Tickets"}</span>`;
+      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>" + feeNoteText + "</small>" : "Tickets"}</span>`;
       const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
       // A secret location never prints the venue name, here or anywhere else on the page.
       const venue = s.secret ? "Secret location" : (s.venue || "");
@@ -292,6 +292,7 @@ async function directoryPages() {
       .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, () => `<div id="list" class="wall">${cards}</div>`)
       .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
+    if (html.includes("${")) throw new Error(`build: city page ${path} contains a literal "\${"`);
     mkdirSync(join(out, "shows", path), { recursive: true });
     writeFileSync(join(out, "shows", path, "index.html"), html);
     n++;
