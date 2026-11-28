@@ -48,8 +48,8 @@
 .night-row,.tier-row{border:1px solid var(--line);padding:12px;margin-top:10px}
 html,body{background:#000}
 body.pro{min-height:100vh;background:#000}
-.pro .top .brand{display:flex;line-height:0}
-.pro .top .brand img{width:28px;height:auto;display:block}
+.pro .top .brand{display:flex;align-items:center;gap:10px;line-height:1}
+.pro .top .brand img{width:26px;height:26px;display:block}
 .pro .note a{color:var(--hot);text-underline-offset:3px}
 .pro .note a:hover{color:#fff}
 .row3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
@@ -129,3 +129,9 @@ body.pro{min-height:100vh;background:#000}
 .pro .steps li.done .n{background:none;border-color:var(--hot);color:var(--hot)}
 .pro .feeline span a{color:inherit;text-decoration:underline}
 .pro #preview{margin-top:28px}
+/* Signed-out start screen on desktop: pitch and form on the left, the sample rows on the right. */
+@media (min-width:900px){
+  .pro:not(.in) #app{max-width:1080px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:56px;align-items:start}
+  .pro:not(.in) #app>*{grid-column:1}
+  .pro:not(.in) #app>#preview{grid-column:2;grid-row:1/span 12;margin-top:18px}
+}

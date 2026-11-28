@@ -36,7 +36,7 @@
   function homeHref() { return me && me.owner ? "#co/" + coId : "#"; }
   function top(back) {
     // Signed out, the shared site header already carries the logo (promoter.html), so the screen skips its own.
-    var home = tok ? '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>' : "";
+    var home = tok ? '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo-64.webp" width="26" height="26" alt=""><b>Subduction</b></a>' : "";
     return '<div class="top">' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : home) + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>";
   }
   // Setup is one straight line, the same four steps on every screen: 1 Your show, 2 Your flyer, 3 Get paid, 4 Send it.
