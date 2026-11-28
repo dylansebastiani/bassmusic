@@ -3,6 +3,7 @@ import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, sha256, clientIp, ve
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
+import { isLimitedSession } from "../_shared/session_trust.mjs";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
@@ -388,8 +389,9 @@ Deno.serve(async (req) => {
     // A signed-in address that asked for a promoter account but has no crew yet gets it now.
     const tk0 = (req.headers.get("x-admin-token") || "").trim();
     if (/^[0-9a-f]{64}$/.test(tk0)) {
-      const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tk0)).maybeSingle();
-      if (s0 && new Date(s0.expires_at).getTime() > Date.now()) {
+      const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at,created_at").eq("token_hash", await sha256(tk0)).maybeSingle();
+      // Member-key sessions are limited and never start a promoter crew.
+      if (s0 && new Date(s0.expires_at).getTime() > Date.now() && !isLimitedSession(s0.created_at, s0.expires_at)) {
         const { data: m0 } = await db.from("subscribers").select("email,status").eq("id", s0.subscriber_id).maybeSingle();
         if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email, b.referral_code)) st = await staffAuth(req);
       }
