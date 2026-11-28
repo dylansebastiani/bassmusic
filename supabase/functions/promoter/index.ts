@@ -1,6 +1,7 @@
 import { db, setting } from "../_shared/db.ts";
 import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, sha256, clientIp, verifyTurnstile } from "../_shared/util.ts";
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
+import { guessesLocked, noteGuessFail, codeEmailAllowed, noteCodeEmail } from "../_shared/signin_guard.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
 import { isLimitedSession } from "../_shared/session_trust.mjs";
@@ -10,6 +11,7 @@ import { brevo } from "../_shared/email/brevo.ts";
 import { SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
+import { audience, cleanCrowd, postalAddress, sendCrowd, MAX_RECIPIENTS } from "../_shared/crowd.ts";
 import { paidSales } from "../_shared/paid_sales.ts";
 import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
 
@@ -30,8 +32,12 @@ import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
 //   POST {a:"referral-settle", credit}                    Dylan only: mark a referral credit paid. Sends no money.
 //   GET  ?a=street&show=                                  named links for one show, with tickets and revenue
 //   POST {a:"street-save", show, label, code?, payout?}   add or update a link. A payout is what the promoter owes.
+//   POST {a:"crowd-count", show}                          how many of this show's paid, still-subscribed buyers. A number only. Sends nothing.
+//   POST {a:"crowd-send", show, subject, body, next_date?} the Send button on the review screen. One send per company per day.
 const CORS_P = { "Access-Control-Allow-Headers": "content-type, x-admin-token" };
 const CONTACT = "hello@subduction.art";
+// Marks the placeholder subscriber row `open` saves before the inbox is proven. provision() reactivates only these.
+const OPEN_SOURCE = "promoter-open";
 const HOSTS = (() => { try { return [new URL(Deno.env.get("SUPABASE_URL") || "").host]; } catch { return []; } })();
 const TZ = "America/Chicago";   // show times are entered as local Central time for now
 // Live show. show-save returns before any write when the show is this one.
@@ -100,6 +106,12 @@ async function tellDylan(email: string, info: { source: string; utm_medium: stri
       if (!res.ok) console.error("promoter: lead email failed", res.status, res.error);
     }
   } catch (e) { console.error("promoter: lead email failed", (e as Error).message); }
+}
+// One sign-in code email: at most 10 a day per address, and a new code cancels every older live one (sendSignin does that).
+async function mailCode(m: SigninMember) {
+  if (!(await codeEmailAllowed(m.id))) return;
+  const r = await sendSignin(m);
+  if (r !== "recent") await noteCodeEmail(m.id);
 }
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(6))).map((b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -233,15 +245,18 @@ async function provision(subscriberId: string, email: string, referral?: unknown
     const { error: re } = await db.from("promoter_leads").update({ referral_code: ref }).eq("id", lead.id).is("referral_code", null);
     if (!re) lead.referral_code = ref;
   }
-  // The bare subscriber row from `open` was saved unsubscribed. The inbox is proven now, so turn it on.
-  await db.from("subscribers").update({ status: "active" }).eq("id", subscriberId).eq("status", "unsubscribed").eq("source", "promoter");
+  // The bare subscriber row from `open` was saved unsubscribed (source "promoter-open"). The inbox is proven now, so turn it on.
+  // Only those rows: someone who really unsubscribed keeps their choice.
+  await db.from("subscribers").update({ status: "active" }).eq("id", subscriberId).eq("status", "unsubscribed").eq("source", OPEN_SOURCE);
   const local = email.split("@")[0].replace(/[^a-z0-9]+/gi, " ").trim().slice(0, 40) || "My crew";
   const name = local.replace(/\b\w/g, (ch) => ch.toUpperCase());
-  let slug = slugify(name) || "crew";
-  if ((await db.from("companies").select("id").eq("slug", slug).maybeSingle()).data) slug = `${slug}-${rand().slice(0, 4)}`;
-  const { data: co, error } = await db.from("companies").insert({ slug, name, status: "active", contact_email: email }).select("id").single();
-  if (error || !co) { console.error("promoter: provision", error?.message); return false; }
-  if (!(await ownerFor(co.id, email))) return false;
+  const slug = slugify(name) || "crew";
+  // One database call makes the company and the owner row, and only if this person has no crew yet. Two calls at
+  // the same moment queue up in the database, so the second finds the first one's crew and returns null.
+  const { data: coId, error } = await db.rpc("provision_promoter_company", { p_subscriber: subscriberId, p_email: email, p_name: name, p_slug: slug });
+  if (error) { console.error("promoter: provision", error.message); return false; }
+  if (!coId) return false;
+  await attachReferral(coId as string, email);
   const source = String(lead.source || "direct");
   if (await syncLead(email, lead.utm_source || source)) await db.from("promoter_leads").update({ crm_synced_at: new Date().toISOString() }).eq("email", email);
   await tellDylan(email, { source, utm_medium: lead.utm_medium || null, utm_campaign: lead.utm_campaign || null, referrer: lead.referrer || null, referral: lead.referral_code || null });
@@ -270,11 +285,13 @@ Deno.serve(async (req) => {
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
     if (a === "login" && await artistContact(email) !== false) return ok({ code_sent: true });
-    if (a === "login") { await sendSignin(m as SigninMember); return ok({ code_sent: true }); }
+    if (a === "login") { await mailCode(m as SigninMember); return ok({ code_sent: true }); }
+    // Wrong guesses are counted per person across all their codes, so a new code never resets the count.
+    if (await guessesLocked(m!.id)) return no("Too many wrong codes today. Try again tomorrow.", 429);
     const code = (clean(b.code, 12) || "").replace(/\D/g, "");
     const { data: c } = await db.from("signin_codes").select("id,code_hash,expires_at,attempts").eq("subscriber_id", m!.id).is("used_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (!c || new Date(c.expires_at).getTime() < Date.now() || c.attempts >= 5) return no("That code expired. Send a new one.");
-    if (c.code_hash !== await codeHash(m!.id, code)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); return no("That code didn't match."); }
+    if (c.code_hash !== await codeHash(m!.id, code)) { await db.from("signin_codes").update({ attempts: c.attempts + 1 }).eq("id", c.id); await noteGuessFail(m!.id); return no("That code didn't match."); }
     await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", c.id);
     await provision(m!.id, email, b.referral_code);
     return ok({ token: await newSession(m!.id), email });
@@ -357,12 +374,12 @@ Deno.serve(async (req) => {
         if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
         // The sign-in code needs a subscriber row to hang on. It is saved unsubscribed (no mail, no Brevo) and turned
         // on in provision() once the inbox is proven. It has no company and no crew until then.
-        m = (await db.from("subscribers").insert({ email, source: "promoter", status: "unsubscribed" }).select("id,status").single()).data
+        m = (await db.from("subscribers").insert({ email, source: OPEN_SOURCE, status: "unsubscribed" }).select("id,status").single()).data
           || (await db.from("subscribers").select("id,status").eq("email", email).maybeSingle()).data;
       }
       if (m && m.status !== "deleted") {
         const { data: full } = await db.from("subscribers").select(MEMBER_COLS).eq("id", m.id).maybeSingle();
-        if (full) await sendSignin(full as SigninMember);
+        if (full) await mailCode(full as SigninMember);
       }
     })().catch((e) => console.error("promoter: open", String(e?.message || e)));
     const rt = (globalThis as any).EdgeRuntime;
@@ -445,6 +462,7 @@ Deno.serve(async (req) => {
     const { data: show } = await db.from("events").select("id,slug,name,company_id").eq("id", id).maybeSingle();
     const co = show ? await loadCompany(show.company_id) : null;
     if (!show || !co || !canSee(st, show.company_id)) return no("Not found", 404);
+    if (a === "street-save" && !canManage(st, show.company_id)) return no("Only the company's owner can change street links.", 403);
     if (handsOff(show, co)) return no("This show can't be changed here.", 409);
     if (a === "street-save") {
       const saved = await saveStreetLink(show, { label: b.label, code: b.code, payout: b.payout }, SITE_URL);
@@ -618,7 +636,38 @@ Deno.serve(async (req) => {
 
   if (!show) return no("Pick a show.");
 
+  if (a === "crowd-count" || a === "crowd-send") {
+    // Owner only, same as the brand kit. Other staff can see buyers but must not email them.
+    if (!canManage(st, show.company_id)) return no("Only the company's owner can message the crowd.", 403);
+    if (handsOff(show as any, co)) return no("This show can't be messaged from here.", 409);
+    let n: Awaited<ReturnType<typeof audience>>;
+    try { n = await audience(show as any); } catch (e) { console.error("promoter: crowd", (e as Error).message); return no("Couldn't count your crowd. Try again.", 500); }
+    if (a === "crowd-count") return ok({ count: n.length, max: MAX_RECIPIENTS });
+    const c = cleanCrowd(b);
+    if ("error" in c) return no(c.error);
+    if (!postalAddress()) return no("Email can't go out until Subduction adds a mailing address.", 409);
+    if (!n.length) return no("Nobody to send to for this show.", 409);
+    if (n.length > MAX_RECIPIENTS) return no("That crowd is over " + MAX_RECIPIENTS + " people. Message Subduction and we'll send it with you.", 409);
+    // Claim today's send first. The unique key (company, day) lets only one request through.
+    const { data: claim, error: ce } = await db.from("crowd_sends").insert({ company_id: companyId, event_id: show.id, sent_by: st.id, subject: c.subject, next_date: c.nextDate || null, recipients: n.length }).select("id").single();
+    if (ce || !claim) {
+      if (ce && (ce.code === "23505" || /duplicate key/i.test(ce.message || ""))) return no("You already messaged your crowd today. Try again tomorrow.", 429);
+      console.error("promoter: crowd claim", ce?.message);
+      return no("Sending isn't ready yet. Try again later.", 503);
+    }
+    const out = await sendCrowd(c, co.name, String(show.name || "the show"), n);
+    if (out.sent === 0) await db.from("crowd_sends").delete().eq("id", claim.id);   // nothing went out, so it doesn't use up today
+    else await db.from("crowd_sends").update({ sent: out.sent, status: out.stopped ? "stopped" : "sent" }).eq("id", claim.id);
+    await db.from("engagement_events").insert({ subscriber_id: st.id, type: "promoter:crowd", meta: { show: show.slug, company: co.slug, sent: out.sent } });
+    if (out.stopped) return ok({ sent: out.sent, total: out.total, stopped: true });
+    if (out.sent === 0) return no("The email service didn't take it. Nothing was sent. Try again later.", 502);
+    return ok({ sent: out.sent, total: out.total, stopped: false });
+  }
+
   if (a === "kit-save") {
+    if (!canManage(st, companyId)) return no("Only the company's owner can change the event kit.", 403);
+    if (handsOffShow(String(show.slug || ""), co.slug, !!co.legacy_stripe) || show.slug === "underground" || show.id === UNDERGROUND_EVENT_ID) return no("This show can't be changed here.", 409);
+    if (show.review_status === "approved") return no("This show is already approved. Message us to change it.", 409);
     const kit = cleanKit(b.kit, HOSTS);
     // The pixel id has its own save (pixel-save). The kit form doesn't carry it, so keep what's stored.
     if (show.kit?.pixel) kit.pixel = show.kit.pixel;
@@ -627,6 +676,9 @@ Deno.serve(async (req) => {
   }
 
   if (a === "submit") {
+    if (!canManage(st, companyId)) return no("Only the company's owner can submit a show.", 403);
+    // Refuse before any write.
+    if (handsOffShow(String(show.slug || ""), co.slug, !!co.legacy_stripe) || show.slug === "underground" || show.id === UNDERGROUND_EVENT_ID) return no("This show can't be changed here.", 409);
     const { count: nNights } = await db.from("ticket_nights").select("id", { count: "exact", head: true }).eq("event_id", show.id);
     if (!nNights) return no("Answer the show questions first.");
     const upd: Record<string, unknown> = { review_status: show.review_status === "approved" ? "approved" : "submitted" };

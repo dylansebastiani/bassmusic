@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import vm from "node:vm";
 
 const root = new URL("..", import.meta.url).pathname;
 const cfg = JSON.parse(readFileSync(join(root, "config/stack.json"), "utf8"));
@@ -20,6 +21,64 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 cpSync(join(root, "site"), out, { recursive: true });
 
+
+// ---- Ad and analytics tags (Meta Pixel, Google Analytics, TikTok Pixel) ----
+// Two separate sets of IDs. Only pages on the lists below get a snippet; every other page gets nothing.
+const TAGS = {
+  subduction: { full: true, meta: "2127463657899244", ga: "G-X6VM4P4QXW", tt: "DC4UH0RC77U703IGPCMG" },
+  toftu: { full: false, meta: "1459347406264279", ga: "G-1062B0ZQEK", tt: "DC4UIFRC77U0A5LSPRQG" },
+};
+const TAG_PAGES = { "index.html": "subduction", "artists.html": "subduction", "fees.html": "subduction", "privacy.html": "subduction",
+  "terms.html": "subduction", "show.html": "subduction", "t.html": "subduction", "tickets.html": "toftu" };
+function trackingSnippet(kind) {
+  const P = TAGS[kind];
+  if (!P) return "";
+  const cfg = JSON.stringify({ m: P.meta, g: P.ga, t: P.tt });
+  const src = String.raw`(function(){
+var P=__CFG__,FULL=__FULL__,T=window.Trk={};
+try{if(localStorage.getItem("stack_admin"))return}catch(e){}
+var q=new URLSearchParams(location.search),first=location.pathname.split("/")[1]||"";
+if(q.get("preview")==="1"||q.get("test")==="1")return;
+if(FULL&&(first==="underground"||q.get("e")==="underground"))return;
+var OK={e:1,ref:1,src:1,utm_source:1,utm_medium:1,utm_campaign:1,utm_content:1,utm_term:1,fbclid:1,gclid:1,ttclid:1};
+function bad(k,v){return !OK[k]||/@|cs_/i.test(v)}
+function isClean(){var ok=true;q.forEach(function(v,k){if(bad(k,v))ok=false});
+if(/[=@]/.test(location.hash))ok=false;
+if(document.referrer.indexOf(location.origin)===0&&/[?#]/.test(document.referrer))ok=false;return ok}
+function cleanUrl(){var u=new URLSearchParams();q.forEach(function(v,k){if(!bad(k,v))u.append(k,v)});var s=u.toString();return location.origin+location.pathname+(s?"?"+s:"")}
+var ref=document.referrer;if(ref.indexOf(location.origin)===0)ref=location.origin+ref.slice(location.origin.length).split(/[?#]/)[0];
+var slug=(first&&!/\./.test(first)?first:q.get("e")||"").replace(/[^a-z0-9-]/gi,"").toLowerCase()||"show";
+var gOn=false,pOn=false;
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
+gtag("js",new Date());
+gtag("config",P.g,{send_page_view:false,allow_ad_personalization_signals:false});
+gtag("event","page_view",{page_location:cleanUrl(),page_referrer:ref,page_title:document.title});
+var gs=document.createElement("script");gs.async=true;gs.src="https://www.googletagmanager.com/gtag/js?id="+P.g;document.head.appendChild(gs);gOn=true;
+T.pix=function(){
+if(pOn||!isClean())return;pOn=true;
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");
+fbq("set","autoConfig",false,P.m);fbq("init",P.m);fbq("track","PageView");
+!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var s=d.createElement("script");s.type="text/javascript";s.async=!0;s.src=r+"?sdkid="+e+"&lib="+t;var x=d.getElementsByTagName("script")[0];x.parentNode.insertBefore(s,x)};ttq.load(P.t);ttq.page()}(window,document,"ttq");
+};
+T.pix();
+if(FULL){
+T.view=function(){if(!pOn){gtag("event","view_item",{items:[{item_id:slug,item_name:slug}]});return}
+fbq("track","ViewContent",{content_type:"product",content_ids:[slug],content_name:slug});
+ttq.track("ViewContent",{content_type:"product",content_id:slug,content_name:slug});
+gtag("event","view_item",{items:[{item_id:slug,item_name:slug}]})};
+T.checkout=function(){if(pOn){fbq("track","InitiateCheckout",{content_type:"product",content_ids:[slug]});ttq.track("InitiateCheckout",{content_type:"product",content_id:slug})}
+gtag("event","begin_checkout",{items:[{item_id:slug,item_name:slug}]})};
+T.purchase=function(cents){var v=Math.round(Number(cents)||0)/100;
+if(pOn){fbq("track","Purchase",{value:v,currency:"USD"});ttq.track("CompletePayment",{value:v,currency:"USD"})}
+gtag("event","purchase",{value:v,currency:"USD"})};
+}
+})();`.replace("__CFG__", cfg).replace("__FULL__", String(P.full));
+  return `<script>${src}</script>`;
+}
+
+const TAG_SCRIPT = "https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com";
+const TAG_IMG = "https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com";
+const TAG_CONNECT = "https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com";
 const inject = `<script>window.STACK=${JSON.stringify({ ...cfg, ...pub })};</script>`;
 const PLAYER = '<script src="/assets/player.js" defer></script>';
 const rawT = readFileSync(join(out, "t.html"), "utf8");
@@ -33,7 +92,7 @@ for (const f of readdirSync(out)) {
     : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
   // (otherwise a phone can pair a fresh page with a cached old script and the form breaks).
-  const html = readFileSync(p, "utf8").replace("<!--CONFIG-->", inject + bar)
+  const html = readFileSync(p, "utf8").replace("<!--CONFIG-->", () => inject + bar + trackingSnippet(TAG_PAGES[f]))
     .replace(/(src|href)="(\/?assets\/[^"?#]+\.(?:js|css))"/g, (m, attr, path) => {
       try { return `${attr}="${path}?v=${createHash("sha256").update(readFileSync(join(out, path.replace(/^\//, "")))).digest("hex").slice(0, 10)}"`; }
       catch { return m; }
@@ -102,7 +161,7 @@ writeFileSync(join(out, "_headers"), [
   "  X-Frame-Options: DENY",
   "  Referrer-Policy: strict-origin-when-cross-origin",
   "  Permissions-Policy: camera=(self), microphone=(), geolocation=()",
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com ${TAG_SCRIPT}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co ${TAG_IMG}; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com ${TAG_CONNECT}; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
   "",
 ].join("\n"));
 // One page per live track at /t/<CODE>/: the same sticker page, with the song, the artist and
@@ -229,7 +288,7 @@ async function trackPages() {
       .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${esc(desc)}">`)
       .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${esc(image)}">`)
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
-      .replace("<!--CONFIG-->", `<script>window.__QR=${JSON.stringify(t.code)};</script>` + inject + PLAYER);
+      .replace("<!--CONFIG-->", `<script>window.__QR=${JSON.stringify(t.code)};</script>` + inject + PLAYER + trackingSnippet("subduction"));
     mkdirSync(join(out, "t", t.code), { recursive: true });
     writeFileSync(join(out, "t", t.code, "index.html"), html);
     n++;
@@ -239,12 +298,20 @@ async function trackPages() {
 // One page per city that already has an upcoming show, so a link like /shows/peoria-il
 // has its own title. If the directory function is not up yet, the main /shows page still works.
 const DIR_STATE = { IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", MI: "Michigan", MN: "Minnesota", MO: "Missouri", NE: "Nebraska", ND: "North Dakota", OH: "Ohio", SD: "South Dakota", WI: "Wisconsin" };
+// Same all-in fee note shows.js prints, taken from the shared fee code so the two never drift.
+function feeNote() {
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(readFileSync(join(root, "site/assets/fees.js"), "utf8"), ctx);
+  return "$" + (ctx.SubductionFees.feeCents(2500) / 100).toFixed(2) + " in fees on a $25 ticket";
+}
 async function directoryPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
   let shows = [];
   try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
   catch (e) { console.warn("build: could not fetch the show directory, city pages wait for the next build:", e.message); return; }
   const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
+  const feeNoteText = feeNote();
   const by = {};
   for (const s of shows) {
     if (!/^[a-z0-9-]{1,48}$/.test(s.path || "") || s.path === "review") continue;
@@ -264,7 +331,7 @@ async function directoryPages() {
       const own = s.source === "subduction";
       const ext = /^https:\/\//.test(s.url || "");
       const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
-      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>$1.50 fee</small>" : "Tickets"}</span>`;
+      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>" + feeNoteText + "</small>" : "Tickets"}</span>`;
       const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
       // A secret location never prints the venue name, here or anywhere else on the page.
       const venue = s.secret ? "Secret location" : (s.venue || "");
@@ -283,6 +350,7 @@ async function directoryPages() {
       .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, () => `<div id="list" class="wall">${cards}</div>`)
       .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
+    if (html.includes("${")) throw new Error(`build: city page ${path} contains a literal "\${"`);
     mkdirSync(join(out, "shows", path), { recursive: true });
     writeFileSync(join(out, "shows", path, "index.html"), html);
     n++;

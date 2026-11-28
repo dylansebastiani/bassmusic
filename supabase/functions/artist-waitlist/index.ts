@@ -120,29 +120,18 @@ Deno.serve(async (req) => {
     ip_hash: ip,
   };
 
-  // Same email updates the name and phone. The form still says they are on the list either way.
-  const { data: existing, error: readErr } = await db.from("artist_waitlist").select("id,alerted_at").eq("email", email).maybeSingle();
+  // Insert only. An email already on the list is never changed: anyone can type anyone's address here, so they
+  // must not be able to overwrite the stored name or phone (which sync to Brevo). The form still says "you're on the list".
+  const { data: existing, error: readErr } = await db.from("artist_waitlist").select("id").eq("email", email).maybeSingle();
   if (readErr) { console.error("artist_waitlist", readErr.message); return json({ error: "Couldn't save that. Try again." }, 500); }
-
-  let id = existing?.id as string | undefined;
-  if (existing) {
-    const { error } = await db.from("artist_waitlist").update(fields).eq("id", existing.id);
-    if (error) { console.error("artist_waitlist", error.message); return json({ error: "Couldn't save that. Try again." }, 500); }
-  } else {
-    const ins = await db.from("artist_waitlist").insert(fields).select("id").single();
-    if (ins.error?.code === "23505") {
-      const again = await db.from("artist_waitlist").select("id").eq("email", email).maybeSingle();
-      id = again.data?.id;
-      if (!id) return json({ error: "Couldn't save that. Try again." }, 500);
-      const { error } = await db.from("artist_waitlist").update(fields).eq("id", id);
-      if (error) { console.error("artist_waitlist", error.message); return json({ error: "Couldn't save that. Try again." }, 500); }
-    } else if (ins.error || !ins.data) {
-      console.error("artist_waitlist", ins.error?.message);
-      return json({ error: "Couldn't save that. Try again." }, 500);
-    } else {
-      id = ins.data.id;
-    }
+  if (existing) return json({ ok: true });
+  const ins = await db.from("artist_waitlist").insert(fields).select("id").single();
+  if (ins.error?.code === "23505") return json({ ok: true });   // someone saved it a moment ago
+  if (ins.error || !ins.data) {
+    console.error("artist_waitlist", ins.error?.message);
+    return json({ error: "Couldn't save that. Try again." }, 500);
   }
+  const id = ins.data.id as string;
 
   if (!id) return json({ error: "Couldn't save that. Try again." }, 500);
   if (await syncContact(fields)) await db.from("artist_waitlist").update({ crm_synced_at: new Date().toISOString() }).eq("id", id);
