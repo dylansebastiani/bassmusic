@@ -22,7 +22,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
 async function ipHash(req: Request) {
-  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
   const { data } = await db.from("settings").select("value").eq("key", "ip_salt").maybeSingle();
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip + "|" + String(data?.value ?? "unset")));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");

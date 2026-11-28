@@ -6,7 +6,7 @@
 //   GET  ?k=<artist token>              the artist's own link, code and count (their pass page)
 //   GET  ?a=qr&k=<artist token>         a QR code of their short link
 //   GET  ?a=alerts-off&k=<token>        turn off "you sold one" emails (link in every alert)
-//   GET  ?a=refs                        every live short-link tag, so the site build can give each a real page
+//   GET  ?a=refs                        short-link tags, so the site build can give each a real page. The build sends x-build-key (BUILD_REFS_KEY) and gets all of them; anyone else only gets approved, non-hands-off shows, no secret acts
 //   GET  ?a=staff&e=<show slug>         every artist on the show with numbers (x-admin-token)
 //                                       plus the show's tracked links (flyers, posters) with scans + sales
 //   POST ?a=link {e, label}             staff: make a tracked link (subduction.art/go/<tag>) for a flyer etc.
@@ -15,6 +15,7 @@
 // Milestones are staff-only. Nothing about them is ever shown or sent to an artist.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
+import { publicRefs } from "./refs.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -330,7 +331,7 @@ Deno.serve(async (req) => {
     const go = (u.searchParams.get("go") || "").toLowerCase();
     if (go) {
       if (!TAG.test(go)) return Response.redirect(SITE, 302);
-      const ipRaw = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+      const ipRaw = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
       const ua = req.headers.get("user-agent") || "";
       // Link-preview robots (iMessage, Instagram, Facebook...) open links too; they don't count as taps.
       const human = !/bot|crawl|spider|preview|facebookexternalhit|slackbot|whatsapp|telegram|discord|twitterbot|linkedin|embedly|curl|wget/i.test(ua);
@@ -350,10 +351,25 @@ Deno.serve(async (req) => {
       return new Response(null, { status: 302, headers: { Location: linkFor(await showUrl(ev as Ev), tl.tag), "Cache-Control": "no-store" } });
     }
 
+    // The site build sends BUILD_REFS_KEY and gets every tag, exactly as before, so every existing /go/ page still builds.
+    // Anyone else gets only tags for approved, non-hands-off shows, with secret acts left out.
     if (a === "refs") {
-      const { data } = await db.from("artist_invites").select("sell_ref").is("revoked_at", null).not("sell_ref", "is", null);
-      const { data: tls } = await db.from("track_links").select("tag").is("revoked_at", null);
-      return json({ refs: [...(data || []).map((r) => r.sell_ref), ...(tls || []).map((r) => r.tag)].filter((r) => TAG.test(r)) });
+      const { data } = await db.from("artist_invites").select("sell_ref,name,event_id").is("revoked_at", null).not("sell_ref", "is", null);
+      const { data: tls } = await db.from("track_links").select("tag,event_id").is("revoked_at", null);
+      const key = Deno.env.get("BUILD_REFS_KEY") || "";
+      const sent = req.headers.get("x-build-key") || "";
+      if (key && sent.length === key.length && [...key].every((ch, i) => ch === sent[i])) {
+        return json({ refs: [...(data || []).map((r) => r.sell_ref), ...(tls || []).map((r) => r.tag)].filter((r) => TAG.test(r)) });
+      }
+      const ids = [...new Set([...(data || []), ...(tls || [])].map((r) => r.event_id).filter(Boolean))];
+      const { data: evs } = ids.length ? await db.from("events").select("id,slug,review_status,company_id").in("id", ids) : { data: [] };
+      const cids = [...new Set((evs || []).map((e) => e.company_id).filter(Boolean))];
+      const { data: cos } = cids.length ? await db.from("companies").select("id,slug,legacy_stripe").in("id", cids) : { data: [] };
+      const { data: lns } = ids.length ? await db.from("ticket_nights").select("event_id,lineup_full").in("event_id", ids) : { data: [] };
+      const secretActs: Record<string, string[]> = {};
+      for (const n of lns || []) for (const act of Array.isArray(n.lineup_full) ? n.lineup_full : []) if (act?.secret) (secretActs[n.event_id] ||= []).push(String(act.name || "").trim().toLowerCase());
+      return json({ refs: publicRefs({ invites: data || [], links: tls || [], events: Object.fromEntries((evs || []).map((e) => [e.id, e])),
+        companies: Object.fromEntries((cos || []).map((c) => [c.id, c])), secretActs }) });
     }
 
     if (a === "staff") {

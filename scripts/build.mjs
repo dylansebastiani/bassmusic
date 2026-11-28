@@ -166,7 +166,7 @@ async function showPages() {
 async function goPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
   let refs = [];
-  try { refs = (await (await fetch(`${fn}/artist-sales?a=refs`, { signal: AbortSignal.timeout(15000) })).json()).refs || []; }
+  try { refs = (await (await fetch(`${fn}/artist-sales?a=refs`, { headers: process.env.BUILD_REFS_KEY ? { "x-build-key": process.env.BUILD_REFS_KEY } : {}, signal: AbortSignal.timeout(15000) })).json()).refs || []; }
   catch (e) { console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", e.message); return; }
   let n = 0;
   for (const r of refs) {
