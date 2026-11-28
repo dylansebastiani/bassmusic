@@ -27,6 +27,7 @@
 //   GET  ?a=dl&id=<track>&t=<member key>       (older) a download link for members
 // Staff:
 //   GET  ?a=downloads&e=<slug>                 everyone who downloaded an artist's track at this show
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -168,7 +169,7 @@ Deno.serve(async (req) => {
     const { data: tr } = await db.from("playlist_tracks").select("id,path,title,artist,free_download,invite_id,event_id").eq("id", id).maybeSingle();
     if (!tr || !tr.free_download) return json({ error: "This track isn't a free download right now." }, 404);
     const { data: salt } = await db.from("settings").select("value").eq("key", "ip_salt").maybeSingle();
-    const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
+    const ip = ipFromHeaders((h) => req.headers.get(h));
     const ipHash = await sha256(ip + "|" + String(salt?.value ?? "unset") + "|dl");
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ipHash });
     if ((n ?? 0) > 30) return json({ error: "Too many tries. Wait a minute and try again." }, 429);

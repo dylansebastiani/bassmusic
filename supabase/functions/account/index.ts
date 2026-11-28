@@ -16,6 +16,7 @@
 //                                   artists (pass status + sell links), playlist (x-admin-token)
 //   GET  ?a=qr&e=<slug>             a QR code of the show's public link (public: it's the same link anyone can see)
 //   POST {a:"profile", ...}         save your one artist profile; copied onto every show you're booked on (preview only for now)
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -38,7 +39,7 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
   return (data?.value as T) ?? fallback;
 }
 async function ipHash(req: Request, tag: string) {
-  const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
+  const ip = ipFromHeaders((h) => req.headers.get(h));
   return sha256(ip + "|" + (await setting("ip_salt", "unset")) + "|" + tag);   // hashed, never stored raw
 }
 const LINK_HOSTS: Record<string, string[]> = {

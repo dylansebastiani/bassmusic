@@ -1,4 +1,5 @@
 import { CONFIG } from "./config.ts";
+import { ipFromHeaders } from "./client_ip.mjs";
 const ORIGIN = Deno.env.get("SITE_URL") || "*";
 export const CORS = {
   "Access-Control-Allow-Origin": ORIGIN,
@@ -22,10 +23,9 @@ export async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-// Only cf-connecting-ip is trusted: Cloudflare sets it, a visitor can't. x-forwarded-for is client-supplied, so it is
-// never used. With no trusted header, everyone shares one "no-ip" bucket (stricter limits, but never spoofable).
+// cf-connecting-ip, else the last x-forwarded-for hop, else x-real-ip (see client_ip.mjs). Never one shared bucket.
 export function clientIp(req: Request) {
-  return (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
+  return ipFromHeaders((h) => req.headers.get(h));
 }
 // Never store a raw IP: hash it with a server-side salt kept in settings.ip_salt.
 export const ipHash = async (req: Request, salt: string) => sha256(clientIp(req) + "|" + salt);

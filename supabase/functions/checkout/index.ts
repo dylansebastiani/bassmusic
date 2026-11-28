@@ -8,6 +8,7 @@
 //   GET  ?a=ticket&t=token    one ticket, for the ticket page
 //   GET  ?a=qr&t=token        that ticket's QR code
 //   POST ?a=hook              Stripe's own confirmation for promoter accounts (backup for a closed tab)
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 import { addressHeld } from "./reveal.mjs";
@@ -305,7 +306,7 @@ Deno.serve(async (req) => {
 
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return no("Bad request"); }
   if (b.a !== "checkout") return no("Bad request");
-  const ipRaw = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
+  const ipRaw = ipFromHeaders((h) => req.headers.get(h));
   const ip = await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|tickets");   // hashed, never stored raw
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 20) return no("Too many tries. Wait a minute and try again.", 429);

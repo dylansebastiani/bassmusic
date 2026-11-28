@@ -13,9 +13,11 @@
 //   POST ?a=milestone {e, n}            staff-only milestone for a show (x-admin-token, owner of the show)
 //   POST ?a=notify                      cron (x-runner-secret): email artists about newly credited sales
 // Milestones are staff-only. Nothing about them is ever shown or sent to an artist.
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 import { publicRefs } from "./refs.mjs";
+import { sameSecret } from "../_shared/client_ip.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -331,7 +333,7 @@ Deno.serve(async (req) => {
     const go = (u.searchParams.get("go") || "").toLowerCase();
     if (go) {
       if (!TAG.test(go)) return Response.redirect(SITE, 302);
-      const ipRaw = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim() || "no-ip";
+      const ipRaw = ipFromHeaders((h) => req.headers.get(h));
       const ua = req.headers.get("user-agent") || "";
       // Link-preview robots (iMessage, Instagram, Facebook...) open links too; they don't count as taps.
       const human = !/bot|crawl|spider|preview|facebookexternalhit|slackbot|whatsapp|telegram|discord|twitterbot|linkedin|embedly|curl|wget/i.test(ua);
@@ -358,7 +360,7 @@ Deno.serve(async (req) => {
       const { data: tls } = await db.from("track_links").select("tag,event_id").is("revoked_at", null);
       const key = Deno.env.get("BUILD_REFS_KEY") || "";
       const sent = req.headers.get("x-build-key") || "";
-      if (key && sent.length === key.length && [...key].every((ch, i) => ch === sent[i])) {
+      if (key && sameSecret(key, sent)) {
         return json({ refs: [...(data || []).map((r) => r.sell_ref), ...(tls || []).map((r) => r.tag)].filter((r) => TAG.test(r)) });
       }
       const ids = [...new Set([...(data || []), ...(tls || [])].map((r) => r.event_id).filter(Boolean))];

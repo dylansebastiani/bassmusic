@@ -225,7 +225,13 @@ async function goPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
   let refs = [];
   try { refs = (await (await fetch(`${fn}/artist-sales?a=refs`, { headers: process.env.BUILD_REFS_KEY ? { "x-build-key": process.env.BUILD_REFS_KEY } : {}, signal: AbortSignal.timeout(15000) })).json()).refs || []; }
-  catch (e) { console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", e.message); return; }
+  catch (e) {
+    if (process.env.CI) throw new Error(`build: could not fetch artist links (${e.message}); refusing to ship without /go/ pages`);
+    console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", e.message); return;
+  }
+  // Live /go/ links must never 404. In CI a missing key or an empty list fails the build instead of quietly building zero pages.
+  if (process.env.CI && !process.env.BUILD_REFS_KEY) throw new Error("build: BUILD_REFS_KEY is not set; refusing to build without the full /go/ list");
+  if (process.env.CI && !refs.length) throw new Error("build: the artist link list came back empty; refusing to build zero /go/ pages");
   let n = 0;
   for (const r of refs) {
     if (!/^[a-z0-9]{1,24}$/.test(r)) continue;

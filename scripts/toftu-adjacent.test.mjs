@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { publicRefs, UNDERGROUND_EVENT_ID } from "../supabase/functions/artist-sales/refs.mjs";
+import { ipFromHeaders, sameSecret } from "../supabase/functions/_shared/client_ip.mjs";
 import { addressHeld } from "../supabase/functions/checkout/reveal.mjs";
 
 const read = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
@@ -39,17 +40,37 @@ assert.equal(addressHeld({ location_secret: false, address_reveal_at: future }, 
 assert.equal(addressHeld({ location_secret: false, address_reveal_at: null }, now), false);   // normal show: unchanged
 assert.match(read("supabase/functions/checkout/index.ts"), /const held = addressHeld\(ev\);\n\s+const address = held \? null : ev\.address;/);
 
-// 3. Client IP: only cf-connecting-ip. No function may read x-forwarded-for.
+// 3. Client IP: cf-connecting-ip, else the LAST x-forwarded-for hop, else x-real-ip. Never one shared bucket.
+const hdr = (o) => (k) => o[k] ?? null;
+assert.equal(ipFromHeaders(hdr({ "cf-connecting-ip": "1.1.1.1", "x-forwarded-for": "9.9.9.9", "x-real-ip": "8.8.8.8" })), "1.1.1.1");
+assert.equal(ipFromHeaders(hdr({ "cf-connecting-ip": " 1.1.1.1 , 2.2.2.2" })), "1.1.1.1");
+assert.equal(ipFromHeaders(hdr({ "x-forwarded-for": "6.6.6.6, 7.7.7.7, 3.3.3.3", "x-real-ip": "8.8.8.8" })), "3.3.3.3");
+assert.equal(ipFromHeaders(hdr({ "x-forwarded-for": "4.4.4.4" })), "4.4.4.4");
+assert.equal(ipFromHeaders(hdr({ "x-real-ip": "5.5.5.5" })), "5.5.5.5");
+assert.notEqual(ipFromHeaders(hdr({ "x-real-ip": "5.5.5.5" })), ipFromHeaders(hdr({ "x-real-ip": "5.5.5.6" })));
+assert.equal(ipFromHeaders(hdr({})), "unknown");
 const dir = new URL("../supabase/functions/", import.meta.url);
 for (const d of readdirSync(dir)) {
   if (!statSync(new URL(d, dir)).isDirectory()) continue;
   for (const f of readdirSync(new URL(d + "/", dir)).filter((x) => x.endsWith(".ts"))) {
     const src = readFileSync(new URL(d + "/" + f, dir), "utf8");
-    assert.equal(/headers\.get\(["']x-forwarded-for["']\)/i.test(src), false, `${d}/${f} trusts x-forwarded-for`);
     assert.equal(src.includes('"0.0.0.0"'), false, `${d}/${f} still falls back to 0.0.0.0`);
+    assert.equal(src.includes('"no-ip"'), false, `${d}/${f} still uses one shared no-ip bucket`);
   }
 }
-assert.match(read("supabase/functions/_shared/util.ts"), /cf-connecting-ip"\) \|\| ""\)\.split\(","\)\[0\]\.trim\(\) \|\| "no-ip"/);
+assert.match(read("supabase/functions/_shared/util.ts"), /ipFromHeaders/);
+
+// 3b. The refs key is compared in constant time.
+assert.equal(sameSecret("abc123", "abc123"), true);
+assert.equal(sameSecret("abc123", "abc124"), false);
+assert.equal(sameSecret("abc123", "abc12"), false);
+assert.equal(sameSecret("abc123", ""), false);
+assert.match(sales, /sameSecret\(key, sent\)/);
+
+// 3c. In CI the build refuses to run without the refs key or with an empty list.
+const build = read("scripts/build.mjs");
+assert.match(build, /process\.env\.CI && !process\.env\.BUILD_REFS_KEY\) throw/);
+assert.match(build, /process\.env\.CI && !refs\.length\) throw/);
 
 // 4. Turnstile fails closed with no secret, and says so in the log.
 const util = read("supabase/functions/_shared/util.ts");
