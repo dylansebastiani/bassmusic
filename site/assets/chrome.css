@@ -24,24 +24,32 @@
 .sx-menu nav a:last-child{border-bottom:0;color:#B6FF00}
 @media (min-width:760px){.sx-nav{display:flex}.sx-go{margin-left:8px}.sx-menu{display:none}}
 
-.sx-foot{position:relative;z-index:2;background:#000;border-top:1px solid #1C1C1C;color:#F4F1EE;font-family:"Archivo",system-ui,sans-serif;display:grid;gap:26px;justify-items:stretch;
-  padding:32px max(18px,env(safe-area-inset-right,0px)) max(28px,calc(env(safe-area-inset-bottom,0px) + 20px)) max(18px,env(safe-area-inset-left,0px));text-align:left}
-.sx-top{display:grid;gap:10px;justify-items:start}
-.sx-foot .sx-brand img{width:28px;height:28px}
-.sx-tag{margin:0;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9A9490}
-.sx-groups{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:16px;width:100%}
-.sx-g{display:grid;gap:10px;align-content:start}
-.sx-h{margin:0 0 2px;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#B6FF00}
-.sx-g a{color:#F4F1EE;font-size:14px;line-height:1.3;letter-spacing:0;text-transform:none;text-decoration:none;white-space:nowrap}
-.sx-g a:hover,.sx-legal a:hover,.sx-foot .fsocial a:hover{color:#B6FF00}
-.sx-base{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding-top:18px;border-top:1px solid #2A2627;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.sx-foot{position:relative;z-index:2;background:#000;border-top:1px solid #1C1C1C;color:#F4F1EE;font-family:"Archivo",system-ui,sans-serif;display:grid;grid-template-columns:minmax(0,1fr);gap:28px;overflow:hidden;
+  padding:44px max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px));text-align:left}
+.sx-close{display:grid;gap:14px;justify-items:start}
+.sx-kick{margin:0;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9A9490}
+.sx-big{margin:0;font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(46px,13vw,96px);line-height:.92;letter-spacing:.005em;color:#F4F1EE}
+.sx-big em{font-style:normal;color:#B6FF00}
+.sx-ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.sx-cta,.sx-ghost{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-size:20px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;padding:13px 22px 11px;border-radius:0;line-height:1}
+.sx-cta{background:#B6FF00;color:#000;border:1px solid #B6FF00}
+.sx-cta:hover,.sx-cta:focus-visible{background:#fff;border-color:#fff}
+.sx-ghost{color:#F4F1EE;border:1px solid #6C6567}
+.sx-ghost:hover,.sx-ghost:focus-visible{border-color:#F4F1EE}
+.sx-links{display:flex;flex-wrap:wrap;gap:12px 22px;padding-top:24px;border-top:1px solid #2A2627}
+.sx-links a{color:#F4F1EE;font-size:15px;text-decoration:none;white-space:nowrap}
+.sx-links a:hover,.sx-legal a:hover,.sx-foot .fsocial a:hover{color:#B6FF00}
+.sx-base{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
 .sx-legal,.sx-foot .fsocial{display:flex;gap:18px;flex-wrap:wrap}
 .sx-foot .fsocial:empty{display:none}
-.sx-legal a,.sx-foot .fsocial a{color:#CFC9C5;text-decoration:none;font-size:11px;font-weight:400;letter-spacing:.12em}
+.sx-legal a,.sx-foot .fsocial a{color:#9A9490;text-decoration:none;font-size:11px;font-weight:400;letter-spacing:.12em}
 .sx-copy{margin:0 0 0 auto;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;color:#9A9490;text-transform:uppercase}
-@media (max-width:359px){.sx-groups{grid-template-columns:1fr 1fr}}
-@media (min-width:900px){.sx-foot{grid-template-columns:minmax(220px,1fr) minmax(0,2fr);column-gap:64px;row-gap:28px;padding:44px max(40px,5vw) 32px}
-  .sx-groups{justify-content:start;column-gap:72px}.sx-base{grid-column:1 / -1}}
+/* Giant wordmark that bleeds off the bottom edge. Decorative, quiet, still a link home. */
+.sx-giant{display:flex;align-items:center;gap:.16em;margin:6px 0 calc(-0.2em + env(safe-area-inset-bottom,0px));font-size:clamp(48px,16vw,250px);line-height:1;text-decoration:none;color:#2A2627;white-space:nowrap}
+.sx-giant img{width:.82em;height:.82em;opacity:.22;flex:none}
+.sx-giant b{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.02em;color:#2A2627}
+@media (min-width:900px){.sx-foot{column-gap:64px;padding:72px max(40px,5vw) 0}
+  .sx-close{grid-column:1 / -1}.sx-links,.sx-base,.sx-giant{grid-column:1 / -1}.sx-giant{font-size:clamp(52px,15.8vw,250px)}}
 
 /* Small "way home" strip for signed-in fan pages (me, collection, t). No marketing chrome there. */
 .sx-home{display:flex;flex-wrap:wrap;gap:8px 18px;margin:28px 0 0;padding-top:14px;border-top:1px solid #2A2627;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}

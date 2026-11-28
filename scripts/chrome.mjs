@@ -30,21 +30,22 @@ export function siteFoot(cfg, variant) {
     if (/^[A-Za-z0-9._-]{1,60}$/.test(h)) social.push(`<a href="${esc(base + h)}" target="_blank" rel="noopener">${label}</a>`);
   }
   const mail = /^[^@\s"<>]+@[^@\s"<>]+$/.test((cfg && cfg.contactEmail) || "") ? "mailto:" + cfg.contactEmail : "/privacy.html";
-  const group = (title, links) => `<div class="sx-g"><p class="sx-h">${title}</p>${links.map(([t, h, cls]) => `<a href="${esc(h)}"${cls ? ` class="${cls}"` : ""}>${t}</a>`).join("")}</div>`;
   const name = esc((cfg && cfg.labelName) || "Subduction");
-  // Three short groups by who you are, then one small row for legal, socials and the year.
+  const link = ([t, h, cls]) => `<a href="${esc(h)}"${cls ? ` class="${cls}"` : ""}>${t}</a>`;
+  // A closing block (headline and two buttons), one row of links, one small legal row, then the giant wordmark.
   return `<footer class="sx-foot${variant ? " sx-" + variant : ""}" id="foot">
-  <div class="sx-top"><a class="sx-brand" href="/" aria-label="Subduction home"><img src="/assets/logo-64.webp" width="28" height="28" alt="" loading="lazy"><b>${name}</b></a><p class="sx-tag">Ticketing for the underground</p></div>
-  <div class="sx-groups">
-    ${group("Fans", [["Shows", "/shows"], ["My account", "/me.html"], ["My collection", "/collection.html"]])}
-    ${group("Promoters", [["Sell tickets", "/promoter.html"], ["Fees", "/fees.html"], ["Try a test ticket", "/demo.html"]])}
-    ${group("Artists", [["Artist waitlist", "/artists.html"]])}
+  <div class="sx-close">
+    <p class="sx-kick">Ticketing for the underground</p>
+    <p class="sx-big">Run the night.<br>Keep the <em>money.</em></p>
+    <div class="sx-ctas"><a class="sx-cta" href="${SELL[1]}">${SELL[0]}</a><a class="sx-ghost" href="/shows">Find a show</a></div>
   </div>
+  <nav class="sx-links" aria-label="Footer">${[["Shows", "/shows"], ["My account", "/me.html"], ["My collection", "/collection.html"], ["Sell tickets", "/promoter.html"], ["Fees", "/fees.html"], ["Try a test ticket", "/demo.html"], ["Artist waitlist", "/artists.html"]].map(link).join("")}</nav>
   <div class="sx-base">
     <nav class="sx-legal" aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="${esc(mail)}" class="contact">Contact</a></nav>
     <nav class="fsocial" id="fsocial" aria-label="Social">${social.join("")}</nav>
     <p class="sx-copy" id="foot-cat">&copy; ${new Date().getFullYear()} ${name}</p>
   </div>
+  <a class="sx-giant" href="/" aria-label="Subduction home"><img src="/assets/logo-64.webp" width="64" height="64" alt="" loading="lazy"><b>${name}</b></a>
 </footer>`;
 }
 

@@ -36,7 +36,7 @@ for (const [f, w, h, label] of [["pv-page", 296, 530, "Your page"], ["pv-ticket"
   if (!new RegExp(`<img src="assets/${f}\\.webp" width="${w}" height="${h}" alt="[^"]+" loading="lazy"`).test(promo)) fail(`homepage preview needs the lazy ${f} image with width and height`);
   if (!promo.includes(`<b>${label}</b>`)) fail("homepage preview step is missing its label " + label);
 }
-if (!/<figcaption>Sample show\./.test(promo)) fail("homepage preview must be labeled as a sample");
+if (!/<p class="pv-tag">Sample show/.test(promo)) fail("homepage preview must be labeled as a sample");
 if (!/\$2\.61/.test(home)) fail("homepage lost the $2.61 buyer fee");
 
 for (const f of ["promoter-preview.webp", "pv-page.webp", "pv-ticket.webp", "pv-door.webp"]) {

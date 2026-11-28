@@ -21,7 +21,8 @@ for (const f of WITH) {
   assert.deepEqual([...menu.matchAll(/>([^<]+)<\/a>/g)].map((m) => m[1]), ["Shows", "Artists", "My account", "Sell tickets"], f + ": phone menu");
   const foot = (html.match(/<footer class="sx-foot[^"]*" id="foot">([\s\S]*?)<\/footer>/) || [])[1];
   assert.ok(foot, f + ": shared footer");
-  for (const g of ["Fans", "Promoters", "Artists"]) assert.ok(foot.includes(`<p class="sx-h">${g}</p>`), f + ": footer group " + g);
+  assert.match(foot, /<a class="sx-cta" href="\/promoter\.html">Sell tickets<\/a><a class="sx-ghost" href="\/shows">Find a show<\/a>/, f + ": footer buttons");
+  for (const l of ["Shows", "My account", "My collection", "Artist waitlist"]) assert.ok(foot.includes(`>${l}</a>`), f + ": footer link " + l);
   assert.match(foot, /<a href="\/promoter\.html">Sell tickets<\/a><a href="\/fees\.html">Fees<\/a><a href="\/demo\.html">Try a test ticket<\/a>/, f + ": crew links");
   assert.match(foot, /<nav class="sx-legal"[^>]*><a href="\/privacy\.html">Privacy<\/a><a href="\/terms\.html">Terms<\/a><a href="[^"]+" class="contact">Contact<\/a><\/nav>/, f + ": legal row");
   assert.match(foot, /id="fsocial"/, f + ": social row kept");
