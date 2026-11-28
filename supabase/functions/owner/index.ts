@@ -5,6 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { referralAdminRows } from "../_shared/referrals.ts";
 import { brevo } from "../_shared/email/brevo.ts";
 import { CONFIG } from "../_shared/config.ts";
+import { makeStaff } from "./staff.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const CORS = {
@@ -38,85 +39,27 @@ async function requireAdmin(req: Request) {
 }
 
 // ---------- Staff actions: one-tap email, mark contacted, notes ----------
-// Every action is logged to engagement_events (type staff:*) with the staff member as subscriber_id.
-// Email goes out one at a time through Brevo as a plain personal note from Dylan, never in bulk.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const SEND_KINDS = ["nudge_stripe", "invite", "pitch", "custom"];
-const LOG_KINDS = ["contacted", "note", "stop"];
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
-
-// Only people already in the system can be emailed from here.
-async function knownContact(email: string) {
-  const checks = await Promise.all([
-    db.from("companies").select("id").ilike("contact_email", email).limit(1),
-    db.from("demo_leads").select("email").ilike("email", email).limit(1),
-    db.from("artist_waitlist").select("email").ilike("email", email).limit(1),
-    db.from("artist_invites").select("id").ilike("email", email).limit(1),
-    db.from("ticket_orders").select("id").ilike("email", email).limit(1),
-    db.from("subscribers").select("id").ilike("email", email).limit(1),
-  ]);
-  return checks.some((r) => (r.data ?? []).length > 0);
+// The rules live in ./staff.mjs (so they can be tested with stubs). This file wires in the database, Brevo and the config.
+const FN = (Deno.env.get("SUPABASE_URL") || "https://hxfuelulxsituzcgsvhg.supabase.co") + "/functions/v1";
+// People who unsubscribed from the demo test ticket are blocked on the Brevo contact. true = blocked, false = fine, null = couldn't ask.
+async function brevoBlocked(email: string): Promise<boolean | null> {
+  const key = Deno.env.get("BREVO_API_KEY");
+  if (!key) return null;
+  try {
+    const r = await fetch("https://api.brevo.com/v3/contacts/" + encodeURIComponent(email), { headers: { "api-key": key, Accept: "application/json" } });
+    if (r.status === 404) return false;
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null);
+    return j ? j.emailBlacklisted === true : null;
+  } catch { return null; }
 }
-async function stopped(email: string) {
-  const [{ data: sub }, { data: stop }] = await Promise.all([
-    db.from("subscribers").select("status").ilike("email", email).limit(1).maybeSingle(),
-    db.from("engagement_events").select("id").eq("type", "staff:stop").eq("meta->>to", email).limit(1),
-  ]);
-  return sub?.status === "unsubscribed" || (stop ?? []).length > 0;
-}
-
+const staff = makeStaff({
+  db, brevo, fnBase: FN, brevoBlocked, config: CONFIG as Record<string, unknown>, fromEmail: Deno.env.get("FROM_EMAIL") || String(CONFIG.fromEmail || ""),
+  json: (body: unknown, status = 200) => json(body, status),
+});
 async function post(req: Request, admin: { id: string; email: string }) {
   const b = await req.json().catch(() => ({})) as Record<string, unknown>;
-  const to = String(b.to || "").trim().toLowerCase();
-  if (!EMAIL_RE.test(to) || to.length > 254) return json({ error: "That email doesn't look right." }, 400);
-
-  if (b.a === "log") {
-    const kind = String(b.kind || "");
-    if (!LOG_KINDS.includes(kind)) return json({ error: "Unknown action." }, 400);
-    const text = String(b.text || "").trim().slice(0, 1000);
-    if (kind === "note" && !text) return json({ error: "Write a note first." }, 400);
-    const { error } = await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "staff:" + kind, meta: { to, text: text || null, by: admin.email } });
-    if (error) { console.error("owner log", error.message); return json({ error: "Couldn't save. Try again." }, 500); }
-    return json({ ok: true });
-  }
-
-  if (b.a === "send") {
-    const kind = String(b.kind || "custom");
-    const subject = String(b.subject || "").trim().replace(/[\r\n]+/g, " ");
-    const body = String(b.body || "").trim();
-    const name = String(b.name || "").trim().slice(0, 80) || null;
-    if (!SEND_KINDS.includes(kind)) return json({ error: "Unknown email." }, 400);
-    if (subject.length < 2 || subject.length > 140) return json({ error: "Subject needs 2 to 140 characters." }, 400);
-    if (body.length < 10 || body.length > 4000) return json({ error: "Message needs 10 to 4000 characters." }, 400);
-    if (!(await knownContact(to))) return json({ error: "Only people already in Subduction can be emailed from here." }, 400);
-    if (await stopped(to)) return json({ error: "They asked not to get email. Not sent." }, 409);
-    // Limits: 20 an hour per staff member, and one email per person every 10 minutes.
-    const hour = new Date(Date.now() - 3600e3).toISOString(), ten = new Date(Date.now() - 600e3).toISOString();
-    const [{ count: mine }, { count: theirs }] = await Promise.all([
-      db.from("engagement_events").select("id", { count: "exact", head: true }).eq("type", "staff:email").eq("subscriber_id", admin.id).gte("created_at", hour),
-      db.from("engagement_events").select("id", { count: "exact", head: true }).eq("type", "staff:email").eq("meta->>to", to).gte("created_at", ten),
-    ]);
-    if ((mine ?? 0) >= 20) return json({ error: "That's 20 emails this hour. Try again later." }, 429);
-    if ((theirs ?? 0) > 0) return json({ error: "They got an email from here in the last 10 minutes." }, 429);
-
-    const addr = String(CONFIG.mailingAddress || "").trim();
-    const from = Deno.env.get("FROM_EMAIL") || String(CONFIG.fromEmail || "");
-    const unsub = `mailto:${from}?subject=unsubscribe`;
-    const foot = `Subduction${addr && !/TBD/i.test(addr) ? " · " + addr : ""}`;
-    const paras = body.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
-    const html = `<!doctype html><html><body style="margin:0;padding:24px;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111">${paras}` +
-      `<p style="margin:28px 0 0;font-size:12px;color:#777">${esc(foot)}<br><a href="${unsub}" style="color:#777">Unsubscribe</a> or reply "stop".</p></body></html>`;
-    const text = `${body}\n\n--\n${foot}\nUnsubscribe: reply "stop" or email ${from}`;
-    const res = await brevo.send({
-      to: { email: to, name }, subject, html, text, tags: ["staff-" + kind], fromName: String(CONFIG.fromName || "Dylan @ Subduction"),
-      headers: { "List-Unsubscribe": `<${unsub}>` },
-    });
-    await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "staff:email",
-      meta: { to, kind, subject, ok: res.ok, error: res.ok ? null : res.error.slice(0, 200), by: admin.email } });
-    if (!res.ok) { console.error("owner send", res.status, res.error); return json({ error: "Brevo didn't send it. Try again in a minute." }, 502); }
-    return json({ ok: true });
-  }
-  return json({ error: "Unknown action." }, 400);
+  return await staff.post(b, admin) as Response;
 }
 
 Deno.serve(async (req) => {
