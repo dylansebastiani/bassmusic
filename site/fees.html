@@ -26,6 +26,7 @@
 @font-face{font-family:"Space Mono";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/space-mono-latin-400-normal.woff2) format("woff2")}
 @font-face{font-family:"Space Mono";font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/space-mono-latin-700-normal.woff2) format("woff2")}</style>
 <link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="/assets/chrome.css">
 <style>
 .wrap{max-width:640px}
 h1{font-size:clamp(48px,13vw,76px);margin:8px 0 12px}
@@ -53,13 +54,17 @@ input:focus{border-color:#fff}
 .sources p+p{margin-top:10px}
 .sources a{color:var(--hot)}
 footer a:hover{color:var(--hot)}
+.gets{border-top:1px solid var(--line);margin-top:28px;padding-top:18px}
+.checks{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}
+.checks li{position:relative;padding-left:26px;font-size:15px;line-height:1.45;color:#e6e1dd}
+.checks li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:7px;border-left:2px solid var(--hot);border-bottom:2px solid var(--hot);transform:rotate(-45deg)}
 </style>
 <!--CONFIG-->
 <title>Fee calculator · Subduction</title>
 </head>
 <body>
+<!--SITE-NAV:bleed-->
 <main class="wrap">
-  <div class="top"><a href="./"><img src="assets/logo-64.webp" width="64" height="64" alt="Home"></a></div>
   <p class="mono">Fee calculator</p>
   <h1 class="disp">What buyers <em>pay.</em></h1>
   <p class="lead">Enter a ticket price and how many tickets you expect to sell. On a $25 ticket the buyer pays $2.61 in fees ($27.61 total) and you keep $25. Money lands in your Stripe from the first sale. The Subduction number is what checkout charges today. The others are estimates from published rates.</p>
@@ -89,6 +94,19 @@ footer a:hover{color:var(--hot)}
     <p id="bulk"></p>
   </div>
 
+  <div class="gets">
+    <p class="mono">Every show gets</p>
+    <ul class="checks">
+      <li>A custom page in your brand, no Subduction logo</li>
+      <li>Your own playlist playing on your page</li>
+      <li>Ticket tiers and promo codes</li>
+      <li>PDF tickets and emails in your look</li>
+      <li>A door scanner on any phone</li>
+      <li>Guest list and artist passes</li>
+      <li>Your buyer list, yours to export</li>
+    </ul>
+  </div>
+
   <div class="sources">
     <p>Estimates, not quotes. Read in November 2026 from each platform's public page. A negotiated rate can be different, and fees change. Every number here is for one ticket per order, with the buyer paying the fee and no tax added.</p>
     <p>Subduction matches checkout. Buyers pay a flat $1.50 per paid ticket plus Stripe card processing of 2.9% and 30¢ per order. The total is rounded up so you keep the full ticket price. Free tickets stay free.</p>
@@ -96,12 +114,8 @@ footer a:hover{color:var(--hot)}
     <p>Posh's published rate is 10% + $0.99 per paid ticket, and card processing is included. <a href="https://posh.vip/university/post/posh-payouts-payments-refunds-security-explained" target="_blank" rel="noopener">Posh fees</a>.</p>
     <p>DICE's US self sign-up terms charge 13% of the face value, and card processing is included. Partnership rates are negotiated separately and are not on that page. <a href="https://support.dice.fm/article/764-mio-ticketing-terms-and-conditions-us" target="_blank" rel="noopener">DICE self sign-up terms</a>.</p>
   </div>
-  <footer>
-    <a href="./">Home</a>
-    <a href="demo.html">Sell tickets</a>
-    <a href="promoter.html">Promoter sign in</a>
-  </footer>
 </main>
+<!--SITE-FOOT:bleed-->
 <script src="assets/fees.js"></script>
 </body>
 </html>

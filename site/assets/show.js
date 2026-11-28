@@ -325,7 +325,7 @@
 
   function miss(text) {
     document.title = text + " · Subduction";
-    $("page").innerHTML = '<div class="miss"><a class="brand" href="/" aria-label="Subduction home"><img src="/assets/logo.png" alt=""></a><h1 class="disp">' + text + '</h1><a class="btn" href="/">Back home</a></div>';
+    $("page").innerHTML = '<div class="miss"><a class="brand" href="/" aria-label="Subduction home"><img src="/assets/logo.png" alt=""></a><h1 class="disp">' + text + '</h1><a class="btn" href="/shows">Find a show</a><a class="home" href="/">Back home</a></div>';
   }
 
   // Event markup for approved promoter shows. T.O.F.T.U. stays out through Jan 9, 2027 Chicago time.

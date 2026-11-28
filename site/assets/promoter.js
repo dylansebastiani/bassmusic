@@ -20,7 +20,8 @@
   function showById(id) { return me.shows.find(function (s) { return s.id === id; }); }
   function homeHref() { return me && me.owner ? "#co/" + coId : "#"; }
   function top(back) {
-    var home = '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>';
+    // Signed out, the shared site header already carries the logo (promoter.html), so the screen skips its own.
+    var home = tok ? '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>' : "";
     return '<div class="top">' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : home) + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>";
   }
   // Setup is one straight line: 1 Your show, 2 Your flyer, 3 Get paid, then send. Every screen says where you are.
@@ -89,7 +90,11 @@
   // ---------- sign in ----------
   function signin() {
     app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1>" +
-      "<ul class=pts><li>Your own ticket page, built for you.</li><li>$1.50 flat buyer fee, you keep your full ticket price.</li><li>No passwords.</li></ul>" +
+      "<p class=pitch>Send us your show. We build your ticket page, fans buy on their phone, and you scan them in at the door.</p>" +
+      "<p class=feeline id=feeline><b>$1.50 flat buyer fee</b><span>You keep your full ticket price.</span></p>" +
+      '<figure class=preview id=preview><img src="assets/promoter-preview.webp" width="960" height="560" alt="Sample of a show page, a phone ticket with a QR code, and the door check-in screen" decoding="async">' +
+      "<figcaption>Sample show. Your page, their ticket, your door.</figcaption></figure>" +
+      "<ul class=pts><li>Your own ticket page, built for you.</li><li>Your brand on the page, not ours.</li><li>No passwords.</li></ul>" +
       "<p class=lead>Type your email. We send a button that signs you in and opens your show.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
       '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
@@ -643,6 +648,8 @@
   function load() { return api(FN + "?a=me").then(function (r) { me = r; if (!coId || !me.companies.some(function (c) { return c.id === coId; })) coId = (me.companies[0] || {}).id || ""; }); }
   function route() {
     app.onclick = null; warns = {};
+    // The shared public header and footer show on the signed-out start screen only.
+    document.body.classList.toggle("in", !!tok);
     if (!tok) return signin();
     if (!me) return load().then(route).catch(function (e) { if (tok) app.innerHTML = '<p class="msg bad">' + esc(e.message) + "</p>"; });
     var h = location.hash.replace(/^#/, "").split("/");
