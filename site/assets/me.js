@@ -167,7 +167,7 @@
         }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (p ? " Tap Add a show to start one." : "") + "</p>";
         g.shows.forEach(function (sh) { if (sh.sales) h += '<div class="mcard"><h3>' + esc(sh.name) + "</h3>" + StackSavings.line(sh.sales) + "</div>"; });
       });
-      if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
+      if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe and a custom page for every show. Your buyers pay the fee, so you keep your full ticket price.</div><a class="mbtn" href="promoter.html">Open a promoter account</a> <a class="mbtn ghost" href="' + esc(d.demo) + '">Try a test ticket first</a></div>';
     }
     $("panes").innerHTML = h;
   }

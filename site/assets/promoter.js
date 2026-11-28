@@ -10,9 +10,24 @@
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (r.status === 403 && j.no_crew) { try { localStorage.setItem("me_tab", "crew"); } catch (e) {} location.replace("me.html"); return new Promise(function () {}); } if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (r.status === 403 && j.no_crew) { noCrew(); return new Promise(function () {}); } if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
   }
   var call = function (a, body) { return api(FN, Object.assign({ a: a }, body || {})); };
+  // Signed in, but no promoter crew yet (a fan, a buyer, or someone who signed in on My account): open one right here.
+  function noCrew() {
+    app.innerHTML = top() + "<h1>Open your promoter account</h1><p class=lead>You're signed in. One tap opens your account and your first show.</p>" +
+      '<button class=btn type=button id=startco>Open my promoter account</button><p class=msg role=status></p><p class=note><a href="me.html">Back to my account</a></p>';
+    wireTop();
+    document.getElementById("startco").onclick = function () {
+      var b = this; b.disabled = true; say("Opening…");
+      fetch(FN, { method: "POST", headers: { "x-admin-token": tok, "Content-Type": "application/json" }, body: JSON.stringify({ a: "start" }) })
+        .then(function (r) { return r.json().then(function (j) {
+          if (r.status === 401) { signOut(); say(j.error || "Sign in with your email.", true); return; }
+          if (!r.ok) { b.disabled = false; return say(j.no_crew ? "This email can't open a promoter account. Email hello@subduction.art and we'll set it up." : (j.error || "Something went wrong. Try again."), true); }
+          me = null; location.hash = ""; route();
+        }); }).catch(function () { b.disabled = false; say("Something went wrong. Try again.", true); });
+    };
+  }
   function signOut() { tok = ""; try { localStorage.removeItem(KEY); } catch (e) {} location.hash = ""; route(); }
   function say(t, bad) { var m = app.querySelector(".msg"); if (m) { m.textContent = t || ""; m.className = "msg" + (bad ? " bad" : ""); } }
   function go(h) { if (location.hash === h) route(); else location.hash = h; }
@@ -107,7 +122,7 @@
     function showSent(v, fromDemo) {
       document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false;
       document.getElementById("senttitle").textContent = fromDemo ? "Check your email" : "Got it";
-      document.getElementById("sentmsg").textContent = "If that email can sign in, a sign-in button is on its way to " + v + ". Open it on this phone and tap it.";
+      document.getElementById("sentmsg").textContent = "A button is on its way to " + v + ". Open it on this phone and tap it to open your show. Nothing in a minute? Check spam, or send it again.";
       say("");
     }
     function sendLink() {

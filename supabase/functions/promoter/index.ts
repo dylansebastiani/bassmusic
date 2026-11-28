@@ -1,6 +1,7 @@
 import { db, setting } from "../_shared/db.ts";
 import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, sha256, clientIp, verifyTurnstile } from "../_shared/util.ts";
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
+import { promoterSignin } from "../_shared/templates.ts";
 import { guessesLocked, noteGuessFail, codeEmailAllowed, noteCodeEmail } from "../_shared/signin_guard.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
@@ -23,7 +24,9 @@ async function mailingAddress(): Promise<string> {
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
 //   POST {a:"lead", email}                                public: save a new promoter email, sync it to Brevo, tell Dylan
+//   POST {a:"open", email}                                Sell tickets page: email a one-tap button that opens the promoter app
 //   POST {a:"login", email} / {a:"verify", email, code}   email + 6-digit code; company staff (or Dylan) only
+//   POST {a:"start"}                                      signed in with no crew: open their promoter account now
 //   GET  ?a=me                                            my companies (brand kit), their shows and checklists
 //   POST {a:"company-create", name, owner_email}          Dylan only: add a promoter company and its owner
 //   POST {a:"invite", company, email?}                    Dylan only: email them a one-tap link to start (adds them as owner)
@@ -117,6 +120,22 @@ async function mailCode(m: SigninMember) {
   if (!(await codeEmailAllowed(m.id))) return;
   const r = await sendSignin(m);
   if (r !== "recent") await noteCodeEmail(m.id);
+}
+// Sell tickets page: one button that opens the promoter app, the same kind of link as the demo and the staff invite.
+// It holds "<row id>.<secret>" in the #fragment, so it never reaches a server log and holds no email. `redeem` trades it
+// for a session and opens their crew. Same limits as the code email: one a minute, and the daily cap per address.
+async function mailButton(m: SigninMember) {
+  if (!(await codeEmailAllowed(m.id))) return;
+  const { data: recent } = await db.from("signin_codes").select("id").eq("subscriber_id", m.id).gte("created_at", new Date(Date.now() - 60000).toISOString()).limit(1);
+  if (recent?.length) return;
+  await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("subscriber_id", m.id).is("used_at", null);
+  const secret = rand() + rand() + rand();
+  const { data: row } = await db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await codeHash(m.id, secret), expires_at: new Date(Date.now() + 20 * 60000).toISOString() }).select("id").single();
+  if (!row) return;
+  await noteCodeEmail(m.id);
+  const r = promoterSignin(`${SITE_URL}/promoter#invite=${row.id}.${secret}`);
+  const res = await brevo.send({ to: { email: m.email }, subject: r.subject, html: r.html, text: r.text, tags: ["signin"], fromName: "Subduction" });
+  if (!res.ok) console.error("promoter: sign-in button failed", res.status, res.error);
 }
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(6))).map((b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -392,11 +411,12 @@ Deno.serve(async (req) => {
       // Artist pass mail is sent on its own. This screen never emails an artist contact.
       if (await artistContact(email) !== false) return;
       let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
+      // The lead row marks that this address asked for a promoter account. Nothing is made from it until the inbox is
+      // proven by the button (see provision). Someone already on the list (a fan or a buyer) gets one too, so their
+      // button opens a crew instead of an empty account. No referral code here: it comes from their own sign-in.
+      const { error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: ipH });
+      if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
       if (!m) {
-        // The only record a new address leaves before it is verified. No referral code here: it comes later from
-        // the person's own sign-in (see provision).
-        const { error: le } = await db.from("promoter_leads").insert({ email, source, utm_source, utm_medium, utm_campaign, referrer, ip_hash: ipH });
-        if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
         // The sign-in code needs a subscriber row to hang on. It is saved unsubscribed (no mail, no Brevo) and turned
         // on in provision() once the inbox is proven. It has no company and no crew until then.
         m = (await db.from("subscribers").insert({ email, source: OPEN_SOURCE, status: "unsubscribed" }).select("id,status").single()).data
@@ -404,7 +424,7 @@ Deno.serve(async (req) => {
       }
       if (m && m.status !== "deleted") {
         const { data: full } = await db.from("subscribers").select(MEMBER_COLS).eq("id", m.id).maybeSingle();
-        if (full) await mailCode(full as SigninMember);
+        if (full) await mailButton(full as SigninMember);
       }
     })().catch((e) => console.error("promoter: open", String(e?.message || e)));
     const rt = (globalThis as any).EdgeRuntime;
@@ -435,8 +455,16 @@ Deno.serve(async (req) => {
     if (/^[0-9a-f]{64}$/.test(tk0)) {
       const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at,created_at").eq("token_hash", await sha256(tk0)).maybeSingle();
       // Member-key sessions are limited and never start a promoter crew.
-      if (s0 && new Date(s0.expires_at).getTime() > Date.now() && !isLimitedSession(s0.created_at, s0.expires_at)) {
+      const live0 = !!s0 && new Date(s0.expires_at).getTime() > Date.now();
+      // A one-day session from a fan's member key can't open a crew. They sign in with their email first.
+      if (a === "start" && s0 && live0 && isLimitedSession(s0.created_at, s0.expires_at)) return no("Sign in with your email to open a promoter account.", 401);
+      if (s0 && live0 && !isLimitedSession(s0.created_at, s0.expires_at)) {
         const { data: m0 } = await db.from("subscribers").select("email,status").eq("id", s0.subscriber_id).maybeSingle();
+        // "Open a promoter account" from someone already signed in (their inbox is proven): this is their ask, so record it.
+        if (a === "start" && m0 && m0.status !== "deleted") {
+          const { error: le } = await db.from("promoter_leads").insert({ email: String(m0.email).toLowerCase(), source: "signed-in" });
+          if (le && !(le.code === "23505" || /duplicate key/i.test(le.message || ""))) console.error("promoter: lead", le.message);
+        }
         if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email, b.referral_code)) st = await staffAuth(req);
       }
     }
@@ -496,6 +524,9 @@ Deno.serve(async (req) => {
     }
     return ok(await streetView(show, SITE_URL));
   }
+
+  // "Open a promoter account": the crew was made above (or already existed). The page reloads its data next.
+  if (a === "start") return ok({ ok: true });
 
   if (a === "me") {
     const ids = st.owner ? null : st.companies.map((c) => c.id);
