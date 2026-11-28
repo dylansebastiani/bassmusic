@@ -31,11 +31,15 @@ if (!/const subject = "Test ticket: Fault Line";/.test(demoFn)) fail("the test t
 
 const home = read("dist/index.html");
 const promo = home.slice(home.indexOf('id="promoters"'), home.indexOf('id="pricing"'));
-if (!/<figure class="art sample" id="sample"><img src="assets\/promoter-preview\.webp" width="960" height="560" alt="Sample show[^"]*" loading="lazy"/.test(promo)) fail("homepage promoters block needs the lazy sample preview with width and height");
-if (!/<figcaption>Sample show\./.test(promo)) fail("homepage preview must be labeled as a sample");
+if (!/<figure class="art sample" id="sample">/.test(promo)) fail("homepage promoters block needs the sample preview");
+for (const [f, w, h, label] of [["pv-page", 296, 530, "Your page"], ["pv-ticket", 298, 432, "Their ticket"], ["pv-door", 298, 162, "Your door"]]) {
+  if (!new RegExp(`<img src="assets/${f}\\.webp" width="${w}" height="${h}" alt="[^"]+" loading="lazy"`).test(promo)) fail(`homepage preview needs the lazy ${f} image with width and height`);
+  if (!promo.includes(`<b>${label}</b>`)) fail("homepage preview step is missing its label " + label);
+}
+if (!/<p class="pv-tag">Sample show/.test(promo)) fail("homepage preview must be labeled as a sample");
 if (!/\$2\.61/.test(home)) fail("homepage lost the $2.61 buyer fee");
 
-for (const f of ["promoter-preview.webp"]) {
+for (const f of ["promoter-preview.webp", "pv-page.webp", "pv-ticket.webp", "pv-door.webp"]) {
   const b = readFileSync(join(root, "dist/assets", f));
   if (b.toString("ascii", 0, 4) !== "RIFF" || b.toString("ascii", 8, 12) !== "WEBP") fail(f + " is not a webp");
   if (b.length > 60000) fail(f + " is over 60KB");

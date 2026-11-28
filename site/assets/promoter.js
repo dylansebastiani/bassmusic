@@ -89,16 +89,18 @@
 
   // ---------- sign in ----------
   function signin() {
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1>" +
+    app.innerHTML = top() + "<h1>Sell tickets with <em>Subduction.</em></h1>" +
       "<p class=pitch>Send us your show. We build your ticket page, fans buy on their phone, and you scan them in at the door.</p>" +
       "<p class=feeline id=feeline><b>$1.50 flat buyer fee</b><span>You keep your full ticket price.</span></p>" +
-      '<figure class=preview id=preview><img src="assets/promoter-preview.webp" width="960" height="560" alt="Sample of a show page, a phone ticket with a QR code, and the door check-in screen" decoding="async">' +
-      "<figcaption>Sample show. Your page, their ticket, your door.</figcaption></figure>" +
-      "<ul class=pts><li>Your own ticket page, built for you.</li><li>Your brand on the page, not ours.</li><li>No passwords.</li></ul>" +
-      "<p class=lead>Type your email. We send a button that signs you in and opens your show.</p>" +
+      '<figure class=preview id=preview><ol class=pv>' +
+      '<li><span class=shot><img src="assets/pv-page.webp" width="296" height="530" alt="Sample show page for Fault Line with ticket prices" decoding="async"></span><div><i>01</i><b>Your page</b><span>Your flyer, lineup and prices. Your brand, not ours.</span></div></li>' +
+      '<li><span class=shot><img src="assets/pv-ticket.webp" width="298" height="432" alt="Sample phone ticket with a QR code" decoding="async"></span><div><i>02</i><b>Their ticket</b><span>A QR code lands in their email. No app needed.</span></div></li>' +
+      '<li><span class=shot><img src="assets/pv-door.webp" width="298" height="162" alt="Door check-in screen showing IN in green" decoding="async"></span><div><i>03</i><b>Your door</b><span>Scan it at the door. Green means in.</span></div></li>' +
+      "</ol><figcaption>Sample show</figcaption></figure>" +
+      "<p class=lead>Type your email. We send a button that signs you in and opens your show. No passwords.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
       '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
-      '<button class=btn type=submit>Send my email</button></form>' +
+      '<button class=btn type=submit>Email me a sign-in link</button></form>' +
       '<div id=sent hidden><div class=card><b id=senttitle>Got it</b><small id=sentmsg></small></div><button class=linkbtn type=button id=again>Send it again</button></div>' +
       '<p class=msg role=status></p><p class=note id=newhere>First time here. <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>';
     var em = document.getElementById("em"); em.addEventListener("focus", loadTurnstile, { once: true });
