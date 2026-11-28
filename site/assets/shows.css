@@ -27,7 +27,8 @@ a{color:inherit}
 h1{font-size:clamp(64px,16vw,128px);max-width:8ch;margin-top:8px}
 
 .filters{margin-top:28px;border:1px solid var(--line);background:#050505}
-.cities{display:flex;gap:8px;padding:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;border-bottom:1px solid var(--line)}
+.cities{display:flex;flex-wrap:wrap;gap:8px;padding:10px;border-bottom:1px solid var(--line)}
+.filters:has(.fbar[hidden]) .cities{border-bottom:0}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--line);color:#e6e1dd;text-decoration:none;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .chip b{font-weight:400;color:var(--mute)}
@@ -123,12 +124,14 @@ form[hidden]{display:none}
   .wrap{padding-inline:max(40px,5vw)}
   .foot{padding-inline:max(40px,5vw)}
   .cities{flex-wrap:wrap;overflow:visible}
-  .fbar{grid-template-columns:2fr 1fr 1fr}
+  .fbar{grid-template-columns:2fr 1fr}
+  .fbar:has(#onbox:not([hidden])){grid-template-columns:2fr 1fr 1fr}
   .fbar div{border-bottom:0;border-right:1px solid var(--line)}
   .fbar div:last-child{border-right:0}
   .wall{grid-template-columns:1fr 1fr;gap:48px 22px}
   .wall .cell:first-child{grid-column:auto}
   .feat{grid-template-columns:minmax(260px,420px) 1fr;gap:40px;align-items:end}
+  .feat:has(.flyer.wide){grid-template-columns:minmax(320px,640px) 1fr}
 }
 @media (min-width:1100px){
   .wall{grid-template-columns:1fr 1fr 1fr}

@@ -384,6 +384,7 @@ async function directoryPages() {
       .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where)}</p>`)
       .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(c.city)} <em>shows.</em></h1>`)
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", esc(desc))
+      .replace("Bass shows across the Midwest. Tickets here,", `Bass shows in ${esc(c.city)}. Tickets here,`)
       .replaceAll("https://subduction.art/shows", pageUrl)
       .replace(/<div id="list" class="wall">[\s\S]*?<!--LIST--><\/div>/, () => `<div id="list" class="wall">${list}</div>`)
       .replace(SHOWS_TAG, `<script>window.__SHOWS_CITY=${jsonInline(path)};window.__SHOWS_CITY_NAME=${jsonInline(`${c.city}, ${c.state}`)};</script>\n$1`);

@@ -145,6 +145,8 @@
   }
   function paintCities() {
     var list = cityList();
+    // Search and date only help once there is a list to dig through.
+    $("filters").querySelector(".fbar").hidden = all.length < 6;
     var html = '<a class="chip' + (locked ? "" : " on") + '" href="/shows"' + (locked ? "" : ' aria-current="page"') + ">All cities <b>" + all.length + "</b></a>";
     var seen = false;
     list.forEach(function (c) {
