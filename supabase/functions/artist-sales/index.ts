@@ -17,7 +17,7 @@ import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 import { publicRefs } from "./refs.mjs";
-import { sameSecret } from "../_shared/client_ip.mjs";
+import { sameSecret } from "../_shared/secret.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
     // ---- cron: alerts ----
     if (req.method === "POST" && a === "notify") {
       const secret = await setting<string | null>("runner_secret", null);
-      if (!secret || req.headers.get("x-runner-secret") !== secret) return no("Not allowed", 401);
+      if (!sameSecret(req.headers.get("x-runner-secret"), secret)) return no("Not allowed", 401);
       return json({ sent: await notify() });
     }
     // ---- staff: milestone ----

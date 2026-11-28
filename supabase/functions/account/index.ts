@@ -91,6 +91,14 @@ async function botCheck(token: unknown, ip: string) {
   return r.success === true && r.action === "signup" && hosts.includes(r.hostname);
 }
 
+// Sign-in code limits, per person (not per IP). Counted in engagement_events. Same numbers as _shared/signin_guard.ts.
+const MAX_FAILS_PER_DAY = 10, MAX_CODE_EMAILS_PER_DAY = 10;
+async function countToday(subscriberId: string, type: string): Promise<number> {
+  const { count, error } = await db.from("engagement_events").select("id", { count: "exact", head: true })
+    .eq("subscriber_id", subscriberId).eq("type", type).gte("created_at", new Date(Date.now() - 86400000).toISOString());
+  return error ? Number.MAX_SAFE_INTEGER : (count ?? 0);
+}
+const note = (subscriberId: string, type: string) => db.from("engagement_events").insert({ subscriber_id: subscriberId, type });
 async function sendSignin(email: string) {
   let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
   if (m?.status === "deleted") return;
@@ -101,12 +109,17 @@ async function sendSignin(email: string) {
   // One a minute per person, so nobody can flood an inbox by typing someone else's address.
   const { data: recent } = await db.from("signin_codes").select("id").eq("subscriber_id", m.id).gte("created_at", new Date(Date.now() - 60000).toISOString()).limit(1);
   if (recent?.length) return;
+  // At most 10 code emails a day per address.
+  if ((await countToday(m.id, "signin:sent")) >= MAX_CODE_EMAILS_PER_DAY) return;
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("account: BREVO_API_KEY not set"); return; }
   const secret = hex(18), salt = await setting("ip_salt", "unset");
   // A 6-digit code rides along with the button, for when the email opens on a different device.
   const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
   const expires = new Date(Date.now() + 20 * 60000).toISOString();
+  // A new code cancels every older live one for this person.
+  await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("subscriber_id", m.id).is("used_at", null);
+  await note(m.id, "signin:sent");
   const [{ data: row }] = await Promise.all([
     db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await sha256(`${m.id}|${secret}|${salt}`), expires_at: expires }).select("id").single(),
     db.from("signin_codes").insert({ subscriber_id: m.id, code_hash: await sha256(`${m.id}|code:${code}|${salt}`), expires_at: expires }),
@@ -432,7 +445,8 @@ async function crew(m: { id: string; email: string }, slug: string, token = "") 
     by_type: byType, prices, last7: days, artists, checks,
     playlist: { mode: pl.mode || "subduction", tracks: (pl.tracks || []).length, artist_tracks: artistTracks ?? 0 },
     can_add_guests: canAdd, lineup,
-    door: canAdd ? { link: `${SITE}/door.html?e=${ev.slug}`, has_pin: !!ev.door_pin_hash } : null, artist_people: artistPeople.map(({ kind, order_id, ...p }) => p), guests: guests.map(({ kind, ...g }) => g), buyers: buyers.map(({ kind, list, order_id, ...b }) => b) };
+    door: canAdd ? { link: `${SITE}/door.html?e=${ev.slug}`, has_pin: !!ev.door_pin_hash } : null, // Names, emails and phones only for the owner (canAdd). Staff-role members get empty lists.
+    artist_people: canAdd ? artistPeople.map(({ kind, order_id, ...p }) => p) : [], guests: canAdd ? guests.map(({ kind, ...g }) => g) : [], buyers: canAdd ? buyers.map(({ kind, list, order_id, ...b }) => b) : [] };
 }
 
 Deno.serve(async (req) => {
@@ -462,6 +476,8 @@ Deno.serve(async (req) => {
         if (!EMAIL_RE.test(email) || code.length !== 6) return bad();
         const { data: m } = await db.from("subscribers").select("id,email,status,access_token").eq("email", email).maybeSingle();
         if (!m || m.status === "deleted") return bad();
+        // 10 wrong guesses a day across all of this person's codes, then locked. A new code doesn't reset it.
+        if ((await countToday(m.id, "signin:fail")) >= MAX_FAILS_PER_DAY) return no("Too many wrong codes today. Try again tomorrow.", 429);
         const { data: rows } = await db.from("signin_codes").select("id,code_hash,attempts").eq("subscriber_id", m.id).is("used_at", null)
           .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(6);
         const live = (rows || []).filter((r) => r.attempts < 5);
@@ -469,7 +485,7 @@ Deno.serve(async (req) => {
         const want = await sha256(`${m.id}|code:${code}|${await setting("ip_salt", "unset")}`);
         const hit = live.find((r) => r.code_hash === want);
         // A wrong guess counts against every open code for this email (5 wrong and they're all dead).
-        if (!hit) { await Promise.all(live.map((r) => db.from("signin_codes").update({ attempts: r.attempts + 1 }).eq("id", r.id))); return bad(); }
+        if (!hit) { await Promise.all([note(m.id, "signin:fail"), ...live.map((r) => db.from("signin_codes").update({ attempts: r.attempts + 1 }).eq("id", r.id))]); return bad(); }
         await db.from("signin_codes").update({ used_at: new Date().toISOString() }).eq("id", hit.id);
         const token = hex(32);
         await db.from("admin_sessions").insert({ subscriber_id: m.id, token_hash: await sha256(token), expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
