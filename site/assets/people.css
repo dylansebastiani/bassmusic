@@ -102,7 +102,7 @@ td.who a:hover{color:var(--fg);border-color:var(--fg)}
   td.who::before{display:none}
   td.who b{font-size:16px}
   td.who span{display:block;margin-top:2px;font-size:14px}
-  td.who a{display:inline-block;padding:3px 0}
+  td.who a{display:inline-flex;align-items:center;min-height:40px;padding:10px 0}
   td.empty{display:block;text-align:left}
   td.empty::before{display:none}
 }
