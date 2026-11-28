@@ -200,6 +200,12 @@ html:not(.js) .rv{opacity:1;transform:none}
   .sec h2{font-size:clamp(60px,5.6vw,100px);max-width:none}
   .price-big{font-size:clamp(110px,10vw,180px)}
 }
+/* promoters: a sample of the real product (page, ticket, door) instead of decorative art */
+.art.sample{order:0;height:auto;margin:6px 0 0;pointer-events:auto;-webkit-mask-image:none;mask-image:none;overflow:visible}
+.art.sample img{height:auto;object-fit:fill;border:1px solid var(--line);background:#000}
+.sample figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:10px}
+.sample figcaption a{color:var(--hot);text-underline-offset:3px}
+@media (min-width:900px){.art.sample{top:0;bottom:0;right:0;width:46%;display:flex;flex-direction:column;justify-content:center;margin:0}}
 </style>
 <link rel="stylesheet" href="/assets/chrome.css">
 <!--CONFIG-->
@@ -231,7 +237,7 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
   </ol>
   </div>
-  <figure class="art tall" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-promoters-m.webp"><img src="assets/art-promoters.webp" alt="" loading="lazy"></picture></figure>
+  <figure class="art sample" id="sample"><img src="assets/promoter-preview.webp" width="960" height="560" alt="Sample show: the show page, a phone ticket with a QR code, and the door check-in screen" loading="lazy" decoding="async"><figcaption>Sample show. Your page, their ticket, your door. <a href="demo.html">Try a test ticket</a></figcaption></figure>
   </div>
   <div class="yours rv">
     <h3 class="disp">Your brand. <em>Not ours.</em></h3>
