@@ -19,7 +19,7 @@
     var img = s.flyer ? '<img class="flyer" src="' + esc(s.flyer) + '" alt="">' : "";
     var where = [s.venue, s.city, s.state].filter(Boolean).join(", ") + (s.venue_secret ? " (shown publicly as Secret location)" : "");
     var buttons = s.status === "pending"
-      ? '<div class="row"><button type="button" class="btn" data-act="approve"' + extra + '>Put it on the list</button><button type="button" class="btn ghost" data-act="reject"' + extra + ">Leave it off</button></div>"
+      ? '<div class="row"><button type="button" class="btn" data-act="approve" data-v="' + esc(s.updated_at || "") + '"' + extra + '>Put it on the list</button><button type="button" class="btn ghost" data-act="reject" data-v="' + esc(s.updated_at || "") + '"' + extra + ">Leave it off</button></div>"
       : "<p class=\"fine\">" + (s.status === "approved" ? "It's on the list." : "Left off.") + "</p>";
     var more = [];
     if (s.was_live) more.push("Edited after it went live");
@@ -51,6 +51,7 @@
         var body = { a: b.getAttribute("data-act") };
         if (b.getAttribute("data-id")) body.id = b.getAttribute("data-id");
         else body.k = key;
+        body.updated_at = b.getAttribute("data-v") || "";
         b.disabled = true;
         post(body).then(function () { load(); }).catch(function (err) { say(err.message); b.disabled = false; });
       });

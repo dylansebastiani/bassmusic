@@ -298,15 +298,17 @@
     } catch (e) { return ""; }
   }
   function startEdit() {
-    S.edit = true; load(S.show); $("go3").textContent = "Save changes"; paintCard();
+    S.edit = true; loadTurnstile(); load(S.show); $("go3").textContent = "Save changes"; paintCard();
     $("m2").textContent = S.show.stage === "live" ? "This show is live. A change goes back for a look first." : "";
     goto(2);
   }
   $("editbtn").addEventListener("click", startEdit);
   function save() {
     $("go3").disabled = true; say("m3", "Saving.");
-    var fd = body(); fd.set("a", "edit"); fd.set("s", S.session);
-    call(fd).then(function (j) {
+    tsPass(8000).then(function () {
+      var fd = body(); fd.set("a", "edit"); fd.set("s", S.session); tsUse(fd);
+      return call(fd);
+    }).then(function (j) {
       $("go3").disabled = false; say("m3", "");
       $("mailnote").textContent = j.requeued ? "Saved. It's back in the queue for a look." : "Saved.";
       S.edit = false; S.flyer = null; S.pub = null; $("go3").textContent = "Next";

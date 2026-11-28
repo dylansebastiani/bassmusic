@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   LINK_DAYS, SESSION_HOURS, chicagoLocalToIso, cleanHandle, expiry, flyerHints, hashToken, isToken, linkMail, linkState, newLinkMail,
   newToken, ownerView, parseAge, parseEvent, parseSounds, readShow, redeemLink, reviewExtras, sessionFor, ticketSite, UNSUB_HEADER,
+  linkCapReached, mayMailLink, publicFlyerPath,
 } from "../supabase/functions/directory/submit.mjs";
 import { cityPath, externalCard, publicCard, secretNow } from "../supabase/functions/directory/listing.mjs";
 
@@ -233,6 +234,55 @@ assert.match(shows, /href="\/shows-send"/);
 assert.doesNotMatch(shows, /<form id="form"/);
 const build = read("./build.mjs");
 assert.match(build, /\/shows-send \/shows-send\.html 200/);
+
+// ---------- debug review fixes ----------
+{
+  // 1. Edit-link mail only to a known non-artist address, capped per email, no show name in the subject.
+  assert.equal(mayMailLink(false), true);
+  assert.equal(mayMailLink(true), false, "artist address gets no link mail");
+  assert.equal(mayMailLink(null), false, "failed lookup sends nothing");
+  assert.equal(linkCapReached(5), false);
+  assert.equal(linkCapReached(6), true);
+  assert.equal(linkMail({ name: "Secret Warehouse Night", url: "https://subduction.art/shows-send?k=x" }).subject.includes("Secret"), false);
+  const submitBranch = fn.slice(fn.indexOf("// Artist check first"));
+  assert.ok(submitBranch.indexOf("artistContact(addr)") < submitBranch.indexOf("sendMail(linkMail"), "artist check runs before the link mail");
+  assert.match(submitBranch, /mayMailLink\(flags\.get\(email\)[^)]*\)\s*&&\s*!\(await linkCapHit\(email\)\)/);
+  assert.match(linkBranch, /mayMailLink\(await artistContact\(email\)\)/);
+  assert.match(linkBranch, /linkCapHit\(email\)/);
+
+  // 2. Turnstile on edit, server and page.
+  const editBranch = fn.slice(fn.indexOf('if (a === "mine" || a === "edit")'), fn.indexOf('if (a === "link")'));
+  assert.ok(editBranch.indexOf("botCheck(req, fields)") > editBranch.indexOf('if (a === "mine") return'), "mine stays free of the bot check");
+  assert.ok(editBranch.indexOf("botCheck(req, fields)") < editBranch.indexOf("readShow(fields"), "bot check runs before any write");
+  const saveFn = js.slice(js.indexOf("function save()"), js.indexOf('$("another")'));
+  assert.match(saveFn, /tsPass\(8000\)[\s\S]*tsUse\(fd\)[\s\S]*call\(fd\)/);
+
+  // 4. Impersonation.
+  const base = { name: "Bass Night", date: "2027-03-01", venue: "Hall", city: "Chicago", state: "IL", ticket_url: "https://posh.vip/e/x" };
+  assert.ok(readShow(base, today).data);
+  for (const n of ["T.O.F.T.U. Afterparty", "tOfTu night", "Underground Rave", "The UNDERGROUND"]) assert.ok(readShow({ ...base, name: n }, today).error, n);
+  for (const u of ["https://subduction.art/tickets/x", "https://www.subduction.art/e/y", "https://tickets.subduction.art/z"]) assert.ok(readShow({ ...base, ticket_url: u }, today).error, u);
+  assert.ok(readShow({ ...base, ticket_url: "https://notsubduction.art/x" }, today).data, "look-alike host is a normal link");
+
+  // 5. Approve race.
+  const decideFn = fn.slice(fn.indexOf("async function decide"), fn.indexOf("Deno.serve"));
+  assert.match(decideFn, /\.eq\("updated_at", seen\)/);
+  assert.match(decideFn, /status === "approved" && !seen/);
+  assert.match(decideFn, /409/);
+  assert.equal((fn.match(/decide\(row, status, cleanText\(fields\.updated_at, 64\)\)/g) || []).length, 2);
+  assert.match(fn, /REVIEW_COLS = "[^"]*updated_at"/);
+  const rv = read("../site/assets/shows-review.js");
+  assert.match(rv, /body\.updated_at = /);
+  assert.match(rv, /data-v=/);
+
+  // 6. Secret location never borrows the main flyer.
+  assert.equal(publicFlyerPath({ venue_secret: true, flyer_path: "main.jpg", public_flyer_path: "" }), "");
+  assert.equal(publicFlyerPath({ venue_secret: true, flyer_path: "main.jpg", public_flyer_path: "pub.jpg" }), "pub.jpg");
+  assert.equal(publicFlyerPath({ venue_secret: false, flyer_path: "main.jpg", public_flyer_path: "" }), "main.jpg");
+  assert.equal(publicFlyerPath({ venue_secret: false, flyer_path: "main.jpg", public_flyer_path: "pub.jpg" }), "pub.jpg");
+  assert.match(fn, /flyerUrl\(publicFlyerPath\(row\)\)/);
+  assert.match(page, /secret-location show needs its own public flyer|separate public flyer/);
+}
 
 // ---------- hands off ----------
 for (const f of ["../site/tickets.html", "../site/ticket.html", "../site/assets/tickets.js", "../site/assets/ticket.js"]) {

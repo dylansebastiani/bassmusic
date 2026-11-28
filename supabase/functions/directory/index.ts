@@ -19,8 +19,8 @@ import {
   cityPath, honeypotFilled, leadMail, listingPlace, normTicketUrl, publicCard, subductionCard,
 } from "./listing.mjs";
 import {
-  UNSUB_HEADER, expiry, hashToken, linkMail, newLinkMail, newToken, ownerView, parseEvent, readShow,
-  redeemLink, reviewExtras, sessionFor, ticketSite,
+  UNSUB_HEADER, expiry, hashToken, linkCapReached, linkMail, mayMailLink, newLinkMail, newToken, ownerView, parseEvent,
+  publicFlyerPath, readShow, redeemLink, reviewExtras, sessionFor, ticketSite,
 } from "./submit.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -77,6 +77,16 @@ async function artistContact(email: string): Promise<boolean | null> {
   return (a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email));
 }
 
+// At most 6 link emails an hour per address, across all its shows. A failed lookup counts as capped.
+async function linkCapHit(email: string): Promise<boolean> {
+  const { data: ids, error: e1 } = await db.from("directory_listings").select("id").eq("submitter_email", email).limit(200);
+  if (e1) return true;
+  if (!ids || !ids.length) return false;
+  const since = new Date(Date.now() - 3600000).toISOString();
+  const { count, error } = await db.from("directory_links").select("id", { count: "exact", head: true }).eq("kind", "link").in("listing_id", ids.map((r) => r.id)).gte("created_at", since);
+  return error ? true : linkCapReached(count);
+}
+
 async function admins(): Promise<string[]> {
   const raw = await setting<unknown>("admin_emails", []);
   return (Array.isArray(raw) ? raw : []).map((e) => String(e).toLowerCase().trim()).filter((e) => EMAIL_RE.test(e));
@@ -126,7 +136,7 @@ async function listingShows(today: string) {
   if (error) { console.error("directory: listings", error.message); return []; }
   const cards = [];
   for (const row of data || []) {
-    const card = externalCard({ ...row, flyer_url: flyerUrl(row.public_flyer_path || row.flyer_path) }, today, new Date());
+    const card = externalCard({ ...row, flyer_url: flyerUrl(publicFlyerPath(row)) }, today, new Date());
     if (card) cards.push(publicCard(card));
   }
   return cards;
@@ -145,10 +155,11 @@ function reviewView(row: Record<string, unknown>) {
     ticket_url: row.ticket_url,
     flyer: flyerUrl(row.flyer_path as string | null),
     email: row.submitter_email,
+    updated_at: row.updated_at,
     ...reviewExtras(row as never),
   };
 }
-const REVIEW_COLS = "id,name,show_date,venue,venue_secret,secret_reveal_at,city,state,ticket_url,flyer_path,public_flyer_path,submitter_email,status,was_live,lineup,price,sounds,artist_socials,promoter_ig,age,source";
+const REVIEW_COLS = "id,name,show_date,venue,venue_secret,secret_reveal_at,city,state,ticket_url,flyer_path,public_flyer_path,submitter_email,status,was_live,lineup,price,sounds,artist_socials,promoter_ig,age,source,updated_at";
 
 // Brevo send (the same one the promoter lead uses). The daily mail runner never sees it.
 type Mail = { subject: string; text: string; fromName: string; tag: string };
@@ -250,10 +261,15 @@ async function botCheck(req: Request, f: Record<string, string>) {
 const OWNER_COLS = "id,name,show_date,venue,venue_secret,secret_reveal_at,city,state,ticket_url,flyer_path,public_flyer_path,submitter_email,status,was_live,lineup,price,sounds,artist_socials,promoter_ig,age,source";
 const mine = (row: Record<string, unknown>) => ownerView(row as never, flyerUrl, SITE, cityPath);
 
-async function decide(row: { id: string; status: string }, status: "approved" | "rejected") {
+// Approving needs the updated_at the reviewer saw. A show edited after the page opened is refused, not approved blind.
+async function decide(row: { id: string; status: string }, status: "approved" | "rejected", seen: string) {
   if (row.status !== "pending") return json({ ok: true, status: row.status });
-  const { error } = await db.from("directory_listings").update({ status, reviewed_at: new Date().toISOString() }).eq("id", row.id).eq("status", "pending");
+  if (status === "approved" && !seen) return no("Reload the page and look again.", 409);
+  let q = db.from("directory_listings").update({ status, reviewed_at: new Date().toISOString() }).eq("id", row.id).eq("status", "pending");
+  if (status === "approved") q = q.eq("updated_at", seen);
+  const { data, error } = await q.select("id");
   if (error) { console.error("directory: review", error.message); return no("Couldn't save that. Try again.", 500); }
+  if (!data || !data.length) return no("This show changed. Reload the page and look again.", 409);
   return json({ ok: true, status });
 }
 
@@ -275,7 +291,7 @@ Deno.serve(async (req) => {
       if (!await staff(req)) return no("Sign in again.", 401);
       const { data, error } = await db.from("directory_listings").select(REVIEW_COLS + ",created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(50);
       if (error) return no("Couldn't load that. Try again.", 500);
-      return json({ pending: (data || []).map(reviewView) });
+      return json({ pending: ((data || []) as Record<string, unknown>[]).map(reviewView) });
     }
     const [own, listed] = await Promise.all([subductionShows(today), listingShows(today)]);
     const shows = [...own, ...listed].sort((x, y) => (x.dates[0] || "").localeCompare(y.dates[0] || "") || x.name.localeCompare(y.name));
@@ -307,13 +323,13 @@ Deno.serve(async (req) => {
     if (TOKEN_RE.test(k)) {
       const { data: row } = await db.from("directory_listings").select("id,status").eq("review_token_hash", await sha256(k)).maybeSingle();
       if (!row) return no("Not found", 404);
-      return decide(row, status);
+      return decide(row, status, cleanText(fields.updated_at, 64));
     }
     const id = cleanText(fields.id, 40);
     if (!UUID_RE.test(id) || !await staff(req)) return no("Sign in again.", 401);
     const { data: row } = await db.from("directory_listings").select("id,status").eq("id", id).maybeSingle();
     if (!row) return no("Not found", 404);
-    return decide(row, status);
+    return decide(row, status, cleanText(fields.updated_at, 64));
   }
 
   if (a === "parse") {
@@ -341,6 +357,7 @@ Deno.serve(async (req) => {
     const { data: row } = await db.from("directory_listings").select(OWNER_COLS).eq("id", listingId).maybeSingle();
     if (!row) return no("Not found", 404);
     if (a === "mine") return json({ ok: true, show: mine(row) });
+    if (!(await botCheck(req, fields))) return no("Bot check failed. Refresh and try again.", 403);
 
     const parsed = readShow(fields, today);
     if (!parsed.data) return no(parsed.error || "Check the form.");
@@ -394,9 +411,8 @@ Deno.serve(async (req) => {
     const work = (async () => {
       const { data: rows } = await db.from("directory_listings").select("id,name").eq("submitter_email", email).order("created_at", { ascending: false }).limit(3);
       if (!rows || !rows.length) return;
-      const since = new Date(Date.now() - 3600000).toISOString();
-      const { count } = await db.from("directory_links").select("id", { count: "exact", head: true }).eq("kind", "link").in("listing_id", rows.map((r) => r.id)).gte("created_at", since);
-      if ((count ?? 0) >= 6) return;
+      if (!mayMailLink(await artistContact(email))) return;
+      if (await linkCapHit(email)) return;
       const shows = [];
       for (const r of rows) { const token = await issue(r.id, "link"); if (token) shows.push({ name: r.name, token }); }
       if (shows.length) await sendMail(newLinkMail({ shows, base: `${SITE}/shows-send` }), [email], "", true);
@@ -442,17 +458,20 @@ Deno.serve(async (req) => {
     return no("Couldn't save that. Try again.", 500);
   }
 
-  // Their own one-time link, then the note to Dylan. The artist-contact rule only applies to Dylan's note.
-  const linkToken = await issue(id, "link");
-  const session = await issue(id, "session");
-  if (linkToken) await sendMail(linkMail({ name: d.name, url: `${SITE}/shows-send?k=${linkToken}` }), [email], "", true);
-
+  // Artist check first. It guards both Dylan's note and the edit-link mail to the typed address.
   const flags = new Map<string, boolean | null>();
   const list = await admins();
   for (const addr of [...list, email]) {
     if (!flags.has(addr)) flags.set(addr, await artistContact(addr));
   }
   const artistOf = (addr: string) => flags.get(addr) ?? null;
+
+  // The link goes only to a non-artist address and not past the hourly cap. The session is theirs either way.
+  const session = await issue(id, "session");
+  if (mayMailLink(flags.get(email) ?? null) && !(await linkCapHit(email))) {
+    const linkToken = await issue(id, "link");
+    if (linkToken) await sendMail(linkMail({ name: d.name, url: `${SITE}/shows-send?k=${linkToken}` }), [email], "", true);
+  }
   const mail = leadMail({
     name: d.name, when: formatDay(d.show_date), venue: d.venue, venue_secret: d.venue_secret, city: d.city, state: d.state, ticket_url: d.ticket_url, from: email,
     extra: [

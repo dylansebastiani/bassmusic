@@ -97,6 +97,25 @@ export function chicagoLocalToIso(raw) {
   return "";
 }
 
+// Names and links that pose as T.O.F.T.U., the underground night, or a Subduction ticket page are refused.
+export const IMPERSONATION_RE = /t\.?o\.?f\.?t\.?u|underground/i;
+export function subductionLink(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "subduction.art" || host.endsWith(".subduction.art");
+  } catch { return false; }
+}
+
+// Edit-link mail goes only to an address known NOT to be on an artist pass. A failed lookup (null) sends nothing.
+export const mayMailLink = (artistFlag) => artistFlag === false;
+export const LINK_MAIL_CAP = 6;
+export const linkCapReached = (count) => (Number(count) || 0) >= LINK_MAIL_CAP;
+
+// A secret-location show never borrows its main flyer for the public card. Only a separate public flyer is used.
+export function publicFlyerPath(row) {
+  return row.venue_secret ? row.public_flyer_path || "" : row.public_flyer_path || row.flyer_path || "";
+}
+
 const yes = (v) => ["1", "true", "on", "yes"].includes(cleanText(v, 8).toLowerCase());
 
 // Everything a submitter types goes through here. Returns { error } or { data }.
@@ -107,11 +126,13 @@ export function readShow(f, today) {
   const place = listingPlace(f.city, f.state);
   const ticket = normTicketUrl(f.ticket_url);
   if (!name) return { error: "Add the show name." };
+  if (IMPERSONATION_RE.test(name)) return { error: "That name can't be used here. Use your own show's name." };
   if (!dateOk(when, today)) return { error: "Add a date that is today or later." };
   if (!place.city) return { error: "Add the city." };
   if (!MIDWEST.includes(place.state)) return { error: "Pick a Midwest state." };
   if (!venue) return { error: "Add the venue." };
   if (!ticket) return { error: "Add a ticket link that starts with https." };
+  if (subductionLink(ticket)) return { error: "Subduction shows are listed already. Add your own ticket link." };
   const secret = yes(f.venue_secret);
   const reveal = secret ? chicagoLocalToIso(f.secret_reveal) : "";
   if (secret && cleanText(f.secret_reveal, 16) && !reveal) return { error: "That reveal time doesn't look right." };
@@ -294,7 +315,7 @@ export function linkMail({ name, url }) {
     "",
     "You get this because you sent a show in. To stop these, reply with the word stop.",
   ];
-  return { subject: "Your link to edit " + name, text: lines.join("\n"), fromName: "Subduction", tag: "directory-link" };
+  return { subject: "Your link to edit your show on Subduction", text: lines.join("\n"), fromName: "Subduction", tag: "directory-link" };
 }
 
 export function newLinkMail({ shows, base }) {
