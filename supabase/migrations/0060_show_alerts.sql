@@ -6,13 +6,14 @@
 
 create extension if not exists citext;
 
--- One row per email per city. unsub_token is the only thing that ever goes in a link. No raw IPs: ip_hash only.
+-- One row per email per city. The unsubscribe link carries a token made from the row id and a server secret.
+-- Only its hash is stored here (unsub_hash), the same rule as every other token. No raw IPs: ip_hash only.
 create table if not exists public.show_alerts (
   id uuid primary key default gen_random_uuid(),
   email citext not null,
   city_path text not null check (city_path ~ '^[a-z0-9-]{1,48}$'),
   city_name text not null,
-  unsub_token text not null unique check (unsub_token ~ '^[0-9a-f]{64}$'),
+  unsub_hash text not null unique check (unsub_hash ~ '^[0-9a-f]{64}$'),
   ip_hash text,
   created_at timestamptz not null default now(),
   unsubscribed_at timestamptz,

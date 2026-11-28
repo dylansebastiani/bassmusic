@@ -306,10 +306,17 @@ async function sendAlertMail(to: string, mail: { subject: string; html: string; 
   } catch (e) { console.error("directory: alert mail failed", (e as Error).message); return false; }
 }
 const unsubPage = (token: string) => `${SITE}/shows?unalert=${token}`;
+// The unsubscribe token is an HMAC of the row id with the server's salt, so it can be rebuilt for every email
+// and only its hash is ever stored.
+async function alertToken(id: string) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("alerts|" + (await setting("ip_salt", "unset"))), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(id));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 async function unalert(token: string) {
   if (!ALERT_TOKEN_RE.test(token)) return no("That link doesn't work anymore.", 404);
-  const { data, error } = await db.from("show_alerts").update({ unsubscribed_at: new Date().toISOString() }).eq("unsub_token", token).select("city_name");
+  const { data, error } = await db.from("show_alerts").update({ unsubscribed_at: new Date().toISOString() }).eq("unsub_hash", await sha256(token)).select("city_name");
   if (error) { console.error("directory: unalert", error.message); return no("Couldn't save that. Try again.", 500); }
   if (!data || !data.length) return no("That link doesn't work anymore.", 404);
   return json({ ok: true, city: data[0].city_name });
@@ -337,10 +344,11 @@ async function sweepAlerts(cards: any[]) {
   const address = await mailingAddress();
   for (const path of Object.keys(byCity)) {
     const list = byCity[path];
-    const { data: subs } = await db.from("show_alerts").select("id,email,unsub_token,city_name").eq("city_path", path).is("unsubscribed_at", null).limit(2000);
+    const { data: subs } = await db.from("show_alerts").select("id,email,city_name").eq("city_path", path).is("unsubscribed_at", null).limit(2000);
     let sent = 0;
     for (const sub of subs || []) {
-      const ok = await sendAlertMail(sub.email, alertMail({ cityName: sub.city_name, cityPath: path, shows: list.map((x) => x.c), unsubUrl: unsubPage(sub.unsub_token), address, site: SITE }), sub.unsub_token, "show-alert");
+      const tok = await alertToken(sub.id);
+      const ok = await sendAlertMail(sub.email, alertMail({ cityName: sub.city_name, cityPath: path, shows: list.map((x) => x.c), unsubUrl: unsubPage(tok), address, site: SITE }), tok, "show-alert");
       if (ok) { sent++; await db.from("show_alerts").update({ last_sent_at: new Date().toISOString() }).eq("id", sub.id); }
     }
     await db.from("show_alert_shows").update({ sent_at: new Date().toISOString(), sent_count: sent }).in("show_key", list.map((x) => x.key));
@@ -407,17 +415,16 @@ Deno.serve(async (req) => {
     if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
     const city = cityFrom(fields.city, fields.city_name, cityPath);
     if (!city) return no("Pick a city.");
-    const { data: had } = await db.from("show_alerts").select("id,unsub_token,unsubscribed_at").eq("email", email).eq("city_path", city.path).maybeSingle();
-    let token = had?.unsub_token || "";
+    const { data: had } = await db.from("show_alerts").select("id,unsubscribed_at").eq("email", email).eq("city_path", city.path).maybeSingle();
     if (had && !had.unsubscribed_at) return json({ ok: true, city: city.name });   // already on the list: no second email
+    const id = had?.id || crypto.randomUUID(), token = await alertToken(id);
     if (had) {
       const { error } = await db.from("show_alerts").update({ unsubscribed_at: null, city_name: city.name }).eq("id", had.id);
       if (error) { console.error("directory: alert", error.message); return no("Couldn't save that. Try again.", 500); }
     } else {
-      token = hex(32);
-      const { error } = await db.from("show_alerts").insert({ email, city_path: city.path, city_name: city.name, unsub_token: token, ip_hash: await ipHash(req) });
-      if (error && !(error.code === "23505")) { console.error("directory: alert", error.message); return no("Couldn't save that. Try again.", 500); }
-      if (error) return json({ ok: true, city: city.name });
+      const { error } = await db.from("show_alerts").insert({ id, email, city_path: city.path, city_name: city.name, unsub_hash: await sha256(token), ip_hash: await ipHash(req) });
+      if (error && error.code === "23505") return json({ ok: true, city: city.name });
+      if (error) { console.error("directory: alert", error.message); return no("Couldn't save that. Try again.", 500); }
     }
     await sendAlertMail(email, welcomeMail({ cityName: city.name, cityPath: city.path, unsubUrl: unsubPage(token), address: await mailingAddress(), site: SITE }), token, "show-alert-welcome");
     return json({ ok: true, city: city.name });
