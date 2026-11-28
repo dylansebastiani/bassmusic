@@ -176,10 +176,10 @@ ${codeRow}
     const link = String(extra?.link || `${SITE_URL}/promoter`), crew = String(extra?.company || "your crew");
     const html = `${eyebrow("Subduction")}${big("Let's get your show up")}
 <p>You're set up on Subduction as <b>${crew}</b>. Tap below to start. No password, no app.</p>
-<p style="color:#bdbdbd">It takes about 10 minutes: your logo and colors, five quick questions about your show, your flyers, and connecting where your ticket money goes. We build the page.</p>
+<p style="color:#bdbdbd">Four steps, about 5 minutes: your show, your flyer, where your ticket money goes, then send it. We build the page.</p>
 ${btn(link, "Start now")}<p style="margin:0;color:#888;font-size:14px">The button works for 7 days. After that, sign in at ${SITE_URL.replace(/^https?:\/\//, "")}/promoter with this email.</p>`;
-    const text = `You're set up on Subduction as ${crew}.\n\nStart here (no password): ${link}\n\nIt takes about 10 minutes: logo and colors, five quick questions, your flyers, and where ticket money goes. We build the page.\n\nThe link works for 7 days. After that, sign in at ${SITE_URL}/promoter with this email.`;
-    return { subject: `${crew} is set up on Subduction`, ...wrap(m, html, text, "Tap to start. Takes about 10 minutes.", "You're getting this because you were added as a promoter on Subduction.") };
+    const text = `You're set up on Subduction as ${crew}.\n\nStart here (no password): ${link}\n\nFour steps, about 5 minutes: your show, your flyer, where your ticket money goes, then send it. We build the page.\n\nThe link works for 7 days. After that, sign in at ${SITE_URL}/promoter with this email.`;
+    return { subject: `${crew} is set up on Subduction`, ...wrap(m, html, text, "Tap to start. Takes about 5 minutes.", "You're getting this because you were added as a promoter on Subduction.") };
   },
   // Referral rewards
   reward: (m, extra) => {
