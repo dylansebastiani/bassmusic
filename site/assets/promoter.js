@@ -154,6 +154,7 @@
       (shows.some(function (x) { return x.sales && x.sales.count; }) ? "<h2>What you kept</h2>" + shows.filter(function (x) { return x.sales; }).map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "") +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
+      (shows.length ? "<h2>Message my crowd</h2>" + shows.filter(function (x) { return x.review_status !== "draft"; }).map(function (x) { return '<div class=card data-href="#crowd/' + x.id + '"><b>' + esc(x.name) + "</b><small>Email the people who bought tickets.</small></div>"; }).join("") : "") +
       (s ? '<button class=ghost type=button id=buyers>Download buyers</button>' : "") +
       (s ? '<h2>Ad pixel</h2><p class=note>Off until you paste a Meta pixel id. Only that pixel hears about visits and purchases on this show.</p><label for=px>Pixel id</label><input id=px inputmode=numeric autocomplete=off value="' + esc((s.kit && s.kit.pixel) || "") + '"><button class=ghost type=button id=pxsave>Save pixel</button>' : "") +
       '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and the page starts in acid green.</small></div>' +
@@ -553,6 +554,60 @@
     });
   }
 
+  // ---------- Message my crowd: write, review, then press Send. Nothing goes out before that last button ----------
+  var crowdDraft = { show: "", subject: "", body: "", next_date: "" };
+  function crowd(id) {
+    var co = company(), mine = me.shows.filter(function (s) { return s.company_id === co.id && s.review_status !== "draft"; });
+    var s = showById(id) || null;
+    if (!s || s.company_id !== co.id) {
+      app.innerHTML = top(homeHref()) + "<h1>Message my crowd</h1><p class=lead>Pick the show whose buyers you want to write to.</p>" +
+        (mine.length ? mine.map(function (x) { return '<div class=card data-href="#crowd/' + x.id + '"><b>' + esc(x.name) + "</b><small>Email the people who bought tickets.</small></div>"; }).join("") : "<p class=note>You have no shows with buyers yet.</p>") + "<p class=msg role=status></p>";
+      wireTop(); app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
+      return;
+    }
+    if (crowdDraft.show !== s.id) crowdDraft = { show: s.id, subject: "", body: "", next_date: "" };
+    function write() {
+      app.innerHTML = top(homeHref()) + '<div class=qnum>Step 1 of 2 · Write</div><h1>Message my crowd</h1><p class=lead>This goes to people who bought tickets to ' + esc(s.name) + ' and are still subscribed. You review it before anything is sent.</p>' +
+        '<label for=cd>Next date you are announcing (optional)</label><input type=text id=cd maxlength=60 value="' + esc(crowdDraft.next_date) + '" placeholder="Fri Mar 12 at the warehouse">' +
+        '<label for=cs>Subject</label><input type=text id=cs maxlength=140 value="' + esc(crowdDraft.subject) + '">' +
+        '<label for=cb>Message</label><textarea id=cb rows=10 maxlength=5000>' + esc(crowdDraft.body) + '</textarea>' +
+        '<button class=btn type=button id=next>Review</button><p class=note>Review shows you how many people will get it. Nothing is sent yet.</p><p class=msg role=status></p>';
+      wireTop();
+      var keep = function () { crowdDraft.next_date = document.getElementById("cd").value; crowdDraft.subject = document.getElementById("cs").value; crowdDraft.body = document.getElementById("cb").value; };
+      ["cd", "cs", "cb"].forEach(function (i) { document.getElementById(i).oninput = keep; });
+      document.getElementById("next").onclick = function () {
+        keep();
+        if (!crowdDraft.subject.trim() || !crowdDraft.body.trim()) return say("Add a subject and a message.", true);
+        var b = this; b.disabled = true; say("Counting…");
+        call("crowd-count", { show: s.id }).then(function (r) { review(r.count); }).catch(function (x) { say(x.message, true); b.disabled = false; });
+      };
+    }
+    function review(n) {
+      var ok = n > 0;
+      app.innerHTML = top() + '<div class=qnum>Step 2 of 2 · Review</div><h1>Ready to send?</h1>' +
+        '<div class=card><small>Goes to</small><b>' + n + (n === 1 ? " person" : " people") + '</b><small>Buyers of ' + esc(s.name) + ' who are still subscribed.</small></div>' +
+        (crowdDraft.next_date ? '<div class=card><small>Next date</small><b>' + esc(crowdDraft.next_date) + "</b></div>" : "") +
+        '<div class=card><small>Subject</small><b>' + esc(crowdDraft.subject) + '</b></div>' +
+        '<div class=card><small>Message</small><div style="white-space:pre-wrap;margin-top:6px">' + esc(crowdDraft.body) + '</div></div>' +
+        '<p class=note>Every email has an unsubscribe link and our mailing address. You can send one message a day.</p>' +
+        (ok ? '<button class=btn type=button id=go>Send to ' + n + (n === 1 ? " person" : " people") + '</button>' : '<p class=note>Nobody to send to for this show yet.</p>') +
+        '<button class=ghost type=button id=back>Back, don\'t send</button><p class=msg role=status></p>';
+      var out = document.getElementById("out"); if (out) out.onclick = signOut;
+      document.getElementById("back").onclick = write;
+      var g = document.getElementById("go");
+      if (g) g.onclick = function () {
+        g.disabled = true; document.getElementById("back").disabled = true; say("Sending. This can take a minute.");
+        call("crowd-send", { show: s.id, subject: crowdDraft.subject, body: crowdDraft.body, next_date: crowdDraft.next_date }).then(function (r) {
+          crowdDraft = { show: s.id, subject: "", body: "", next_date: "" };
+          app.innerHTML = top(homeHref()) + "<h1>" + (r.stopped ? "Stopped early" : "Sent") + "</h1><p class=lead>" + (r.stopped
+            ? "The email service asked us to slow down, so we stopped. " + r.sent + " of " + r.total + " went out. The rest were not sent. Wait a day before you try again." : r.sent + " of " + r.total + " sent.") + "</p><a class=btn href=\"" + homeHref() + "\">Back</a>";
+          wireTop();
+        }).catch(function (x) { say(x.message, true); g.disabled = false; document.getElementById("back").disabled = false; });
+      };
+    }
+    write();
+  }
+
   function load() { return api(FN + "?a=me").then(function (r) { me = r; if (!coId || !me.companies.some(function (c) { return c.id === coId; })) coId = (me.companies[0] || {}).id || ""; }); }
   function route() {
     app.onclick = null; warns = {};
@@ -569,6 +624,7 @@
     if (h[0] === "paid") return paid();
     if (h[0] === "send") return send(h[1]);
     if (h[0] === "links") return links(h[1]);
+    if (h[0] === "crowd") return crowd(h[1]);
     home();
   }
   window.addEventListener("hashchange", route);
