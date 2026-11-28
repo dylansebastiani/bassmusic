@@ -1,0 +1,15 @@
+/* Show alerts box on /shows and the city pages (assets/alerts.js). Brand tokens only. */
+.alerts{margin-top:48px;padding:26px 18px 22px;border:1px solid var(--hot);background:#000}
+.alerts:empty{display:none}
+.alerts h2{font-size:clamp(46px,12vw,84px);margin-top:8px}
+.alert-lead{color:#cfc9c5;max-width:36ch;margin:12px 0 0}
+.alert-form{margin-top:18px}
+.alert-form select{display:block;width:100%;background:#000;color:var(--fg);border:1px solid #6c6567;border-radius:0;font:inherit;font-size:17px;padding:15px 14px;margin-bottom:8px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#f4f1ee 50%),linear-gradient(135deg,#f4f1ee 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat}
+.alert-form .unit{display:flex;flex-direction:column;border:1px solid #6c6567;background:#000}
+.alert-form .unit:focus-within{border-color:#fff}
+.alert-form input[type=email]{width:100%;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:16px 14px;outline:none}
+.alert-form .btn{margin-top:0;border-top:1px solid #6c6567}
+.alert-msg{min-height:20px;margin-top:8px;font-size:14px;color:var(--mute)}
+.alerts.done{border-color:var(--line)}
+.alert-note{border:1px solid var(--hot);color:var(--fg);padding:12px 14px;margin:0 0 18px;font-size:15px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}

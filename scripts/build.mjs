@@ -405,3 +405,5 @@ mkdirSync(join(out, "shows", "review"), { recursive: true });
 writeFileSync(join(out, "shows", "index.html"), readFileSync(join(out, "shows.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 if (existsSync(join(out, "shows-review.html"))) writeFileSync(join(out, "shows", "review", "index.html"), readFileSync(join(out, "shows-review.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");
+// City list for the show alerts box on /shows (assets/alerts.js): [path, "City, ST"] for every known city.
+writeFileSync(join(out, "assets", "cities.json"), JSON.stringify(KNOWN_CITIES.map(([c, s]) => [cityPath(c, s), `${c}, ${s}`])));
