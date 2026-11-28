@@ -24,6 +24,17 @@ assert.match(build, /rel="preload" as="image"/);
 // The page paints from the build list, then swaps only if the live list differs.
 assert.match(js, /window\.__SHOWS_DATA/);
 assert.match(js, /JSON\.stringify\(live\) === JSON\.stringify\(all\)/);
+// A failed or malformed live response must not wipe the seed.
+assert.match(js, /if \(!r\.ok\) throw/);
+assert.match(js, /if \(!Array\.isArray\(j && j\.shows\)\) throw/);
+assert.doesNotMatch(js, /\(j && j\.shows\) \|\| \[\]/);
+// The throws must come before the list is replaced.
+assert.ok(js.indexOf("if (!Array.isArray(j && j.shows)) throw") < js.indexOf("all = live;"));
+// Stale seed: build time is written with jsonInline and old listings are dropped on failure, events kept.
+assert.match(build, /window\.__SHOWS_BUILT=\$\{jsonInline\(Date\.now\(\)\)\}/);
+assert.match(js, /window\.__SHOWS_BUILT/);
+assert.match(js, /12 \* 3600 \* 1000/);
+assert.match(js, /s\.source !== "listing"/);
 assert.match(js, /fetchpriority="high"/);
 assert.match(js, /loading="lazy"/);
 assert.match(js, /width="' \+/);

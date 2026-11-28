@@ -172,8 +172,19 @@ function visible(file) {
   return html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ");
 }
 const page = visible("../site/shows.html").replace(/\s+/g, " ");
-assert.match(page, /Selling tickets for this\? Run it on Subduction/);
-assert.doesNotMatch(page.replace("Selling tickets for this? Run it on Subduction", ""), /\?|—|–|;/);
+// The pitch is per card, only for outside listings. Never page-level, never Subduction checkout or T.O.F.T.U.
+assert.doesNotMatch(page, /Selling tickets|—|–|;|\?/);
+{
+  const js = readFileSync(new URL("../site/assets/shows.js", import.meta.url), "utf8");
+  const m = js.match(/function sell\(s\) \{ return ([^\n]+) \}/);
+  assert.ok(m, "sell() exists in shows.js");
+  const run = (s) => new Function("s", "isToftu", "return " + m[1])(s, (x) => x.slug === "underground");
+  assert.match(run({ source: "listing", slug: "" }), /Selling tickets for this\? <a href="\/demo">Run it on Subduction<\/a>/);
+  assert.equal(run({ source: "subduction", slug: "foo" }), "");
+  assert.equal(run({ source: "subduction", slug: "underground" }), "");
+  assert.equal(run({ source: "listing", slug: "underground" }), "");
+  assert.match(js, /sell\(s\)/);
+}
 const review = visible("../site/shows-review.html");
 assert.doesNotMatch(review, /Selling tickets|—|–|;|\?/);
 const showPage = readFileSync(new URL("../site/show.html", import.meta.url), "utf8");

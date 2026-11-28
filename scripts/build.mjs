@@ -316,7 +316,7 @@ async function directoryPages() {
   // Public directory fields only (publicCard is an allowlist: no lineup, venue or address), written into the
   // page so the list paints with no wait. The browser still fetches the live list after first paint.
   const safe = (shows || []).map(publicCard);
-  const dataTag = shows ? `<script>window.__SHOWS_DATA=${jsonInline(safe)};</script>\n` : "";
+  const dataTag = shows ? `<script>window.__SHOWS_DATA=${jsonInline(safe)};window.__SHOWS_BUILT=${jsonInline(Date.now())};</script>\n` : "";
   const SHOWS_TAG = /(<script src="\/assets\/shows\.js[^"]*"[^>]*><\/script>)/;
   const preload = (list) => {
     const f = list.find((s) => s.source === "subduction" && /^(https:\/\/|\/)[^\s"<>]+$/.test(s.flyer || ""));
