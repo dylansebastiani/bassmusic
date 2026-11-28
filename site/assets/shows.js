@@ -159,7 +159,7 @@
   }
 
   function quiet(title, line, extra) {
-    return '<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">' + title + "</p><p>" + line + "</p>" + (extra || "") + "</div>";
+    return '<div class="quiet"><img class="art" src="/assets/art/fans-burst.webp" width="960" height="400" alt="" loading="lazy" decoding="async"><span class="laser" aria-hidden="true"></span><p class="disp">' + title + "</p><p>" + line + "</p>" + (extra || "") + "</div>";
   }
   function empty() {
     var others = cityList().filter(function (c) { return c.path !== locked; });
