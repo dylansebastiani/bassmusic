@@ -51,11 +51,17 @@
     try { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
     catch (e) { return ""; }
   }
+  // All-in buyer fee, from the shared fee code (assets/fees.js), shown on a $25 ticket: "$2.61 in fees on a $25 ticket".
+  function feeNote() {
+    var F = window.SubductionFees;
+    if (!F) return "";
+    return "$" + (F.feeCents(2500) / 100).toFixed(2) + " in fees on a $25 ticket";
+  }
   function card(s, i) {
     var own = s.source === "subduction";
     var ext = /^https:\/\//i.test(s.url || "");
     var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="">' : "";
-    var label = own && s.slug !== "underground" ? 'Tickets here<small>$1.50 fee</small>' : "Tickets";
+    var label = own && s.slug !== "underground" ? 'Tickets here<small>' + feeNote() + "</small>" : "Tickets";
     var tag = '<span class="tickets">' + label + "</span>";
     var frame = img ? '<span class="frame">' + img + tag + "</span>" : '<span class="frame blank">' + tag + "</span>";
     var venue = s.secret ? "Secret location" : (s.venue || "");
