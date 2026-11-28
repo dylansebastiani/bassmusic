@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; form-action 'self'; object-src 'none'; base-uri 'self'">
+<script>if(window.top!==window.self){document.documentElement.style.display="none";try{window.top.location.replace(location.href)}catch(e){}}</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/app.css?v=cfbbab4977">
+<link rel="stylesheet" href="assets/admin.css?v=1a9e3c20ae">
+<link rel="stylesheet" href="assets/staffnav.css?v=fc818d2ab5">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+<title>Staff</title>
+</head>
+<body class="adminbody">
+<nav class="snav" aria-label="Staff pages"><a class="m" href="/" aria-label="Subduction home"><img src="assets/logo-64.webp" alt="" width="20" height="20"></a><a class="l" href="admin.html" aria-current="page">Staff</a><a class="l" href="people.html">People</a><a class="l" href="studio.html">Page studio</a><a class="l" href="shows-review.html">Listings</a></nav>
+<main class="wrap admin">
+  <div class="top"><img src="assets/logo.png" alt=""><span class="mono">Staff</span><span class="who mono" id="who"></span><button type="button" id="signout" hidden>Sign out</button></div>
+
+  <section id="login">
+    <h1 class="disp">Staff <em>sign in</em></h1>
+    <p class="lead">Your email, then the 6-digit code we send it. Only emails on the staff list get in. You stay signed in on this device for 30 days.</p>
+    <form id="lf" novalidate><label class="sr" for="aemail">Email</label>
+      <div class="unit"><input type="email" id="aemail" placeholder="email" autocomplete="email" inputmode="email"><button type="submit" class="btn">Send code</button></div></form>
+    <form id="cf" novalidate hidden><label class="sr" for="acode">Code</label>
+      <div class="unit"><input type="text" id="acode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code"><button type="submit" class="btn">Sign in</button></div></form>
+    <p class="msg" id="lmsg" role="status"></p>
+  </section>
+
+  <section class="app" id="app" hidden>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="shows" aria-selected="true">Shows</button>
+      <button type="button" role="tab" data-tab="tracks" aria-selected="false">Tracks</button>
+      <button type="button" role="tab" data-tab="members" aria-selected="false">Members</button>
+      <button type="button" role="tab" data-tab="numbers" aria-selected="false">Numbers</button>
+      <button type="button" role="tab" data-tab="staff" aria-selected="false">Staff</button>
+    </nav>
+
+    <!-- ================= SHOWS ================= -->
+    <div class="panel" id="p-shows" role="tabpanel">
+      <div id="showList">
+        <h2 class="disp">Shows</h2>
+        <div class="grid" id="shows"></div>
+        <details class="add" id="addShow"><summary class="btn ghost">Add a show or pop-up</summary>
+          <form id="ef" novalidate class="form">
+            <label for="e_name">Name</label><input type="text" id="e_name" required>
+            <label for="e_kind">Type</label><select id="e_kind"><option value="show">Show</option><option value="popup">Pop-up</option><option value="drop">Drop</option><option value="other">Other</option></select>
+            <label for="e_venue">Venue</label><input type="text" id="e_venue">
+            <label for="e_city">City</label><input type="text" id="e_city">
+            <label for="e_address">Address</label><input type="text" id="e_address">
+            <label for="e_start">Starts</label><input type="datetime-local" id="e_start">
+            <label for="e_end">Ends</label><input type="datetime-local" id="e_end">
+            <label for="e_ticket">Tickets / info link</label><input type="url" id="e_ticket" placeholder="https://">
+            <label for="e_stickers">Stickers printed for this show</label><input type="number" id="e_stickers" inputmode="numeric" min="0" placeholder="0">
+            <label for="e_desc">Details</label><input type="text" id="e_desc">
+            <button type="submit" class="btn">Save show</button>
+            <div class="msg" id="emsg" role="status"></div>
+          </form></details>
+        <p class="fine">Ticketed shows with their own page (like T.O.F.T.U.) are set up with Claude. Once one exists, you run everything for it from here.</p>
+      </div>
+
+      <div id="showView" hidden>
+        <button type="button" class="back" id="back">← All shows</button>
+        <h2 class="disp" id="svName"></h2>
+        <div class="when" id="svWhen"></div>
+        <div class="links" id="svLinks"></div>
+        <nav class="seg" id="seg"></nav>
+
+        <section class="sv" id="sv-lineup" hidden>
+          <div class="banner" id="luState"></div>
+          <div id="luOpts" class="luopts"></div>
+          <div id="luNights"></div>
+          <div class="savebar"><button type="button" class="btn" id="luSave">Save lineup</button><div class="msg" id="luMsg" role="status"></div></div>
+        </section>
+
+        <section class="sv" id="sv-sales" hidden>
+          <div class="stats four" id="sstats"></div>
+          <div class="switch"><span id="salesState"></span><button type="button" class="btn ghost" id="salesBtn"></button></div>
+          <div id="stypes"></div>
+          <div class="sub mono">Latest orders</div>
+          <div class="tablewrap"><table id="otable"><thead><tr><th>Name</th><th class="num">Tix</th><th class="num">Paid</th><th>Code</th><th>When</th></tr></thead><tbody></tbody></table></div>
+        </section>
+
+        <section class="sv" id="sv-guests" hidden>
+          <div class="dlhead">
+            <div class="dltotal"><b id="gtotal">0</b><span>coming</span></div>
+            <button type="button" class="btn ghost" id="gadd">+ Add to guest list</button>
+          </div>
+          <form class="form" id="gf" novalidate hidden>
+            <p class="lead">A free, real ticket, emailed with its QR code. It scans at the door like any other.</p>
+            <label for="gtype">Ticket</label><select id="gtype"></select>
+            <label for="gname">Full name</label><input type="text" id="gname" autocomplete="off" placeholder="First and last name" maxlength="80">
+            <label for="gemail">Email</label><input type="email" id="gemail" autocomplete="off" inputmode="email" placeholder="Where their ticket goes" maxlength="254">
+            <div class="hint" id="gemailh"></div>
+            <label for="gphone">Phone</label><input type="tel" id="gphone" autocomplete="off" inputmode="tel" placeholder="(309) 555-0123" maxlength="20">
+            <div class="hint" id="gphoneh"></div>
+            <label for="glist">Whose list</label><input type="text" id="glist" placeholder="Dylan, Mook, artist name..." maxlength="40">
+            <button type="submit" class="btn" id="ggo">Send guest ticket</button>
+            <p class="msg" id="gmsg" role="status"></p>
+          </form>
+          <div class="chips" id="gfilter"></div>
+          <input type="search" id="gsearch" class="search gsearch" placeholder="Search name, email or code" autocomplete="off">
+          <div class="sub mono" id="gcount"></div>
+          <div class="people" id="guests"></div>
+        </section>
+
+        <section class="sv" id="sv-artists" hidden>
+          <p class="lead">Each artist gets a gold Artist Pass (both nights) and a private link where they add their own guest list. Make the invite, then text them the link. You can open any artist's page to do it for them.</p>
+          <form class="form" id="af" novalidate>
+            <label for="aname">Artist name</label><input type="text" id="aname" maxlength="80" placeholder="e.g. Treegaud">
+            <label for="aspots">Guest spots</label><input type="number" id="aspots" min="0" max="50" value="2" inputmode="numeric">
+            <p class="fnote">Their real info, for the door list. Fill in all three and their pass gets emailed right now. Leave them blank and the artist adds them from their link. Their ticket always shows the artist name.</p>
+            <label for="artfull">Full name</label><input type="text" id="artfull" maxlength="80" autocomplete="off" placeholder="First and last (as on their ID)">
+            <label for="artemail">Email</label><input type="email" id="artemail" maxlength="254" autocomplete="off" inputmode="email" placeholder="Where their pass goes">
+            <label for="artphone">Phone</label><input type="tel" id="artphone" maxlength="20" autocomplete="off" inputmode="tel" placeholder="(309) 555-0123">
+            <details class="aduo"><summary>Duo or group? Add the second person</summary>
+              <p class="fnote">They get their own pass and their own link to the same artist page: one profile, one guest list (the spots above are shared), one set of tracks. Add more people later with Add a member.</p>
+              <label for="art2full">Their full name</label><input type="text" id="art2full" maxlength="80" autocomplete="off" placeholder="First and last (as on their ID)">
+              <label for="art2email">Email</label><input type="email" id="art2email" maxlength="254" autocomplete="off" inputmode="email" placeholder="Where their pass goes">
+              <label for="art2phone">Phone</label><input type="tel" id="art2phone" maxlength="20" autocomplete="off" inputmode="tel" placeholder="(309) 555-0123">
+            </details>
+            <button type="submit" class="btn">Create artist</button>
+            <p class="msg" id="amsg" role="status"></p>
+          </form>
+          <div class="artists" id="artists"></div>
+        </section>
+
+        <section class="sv" id="sv-playlist" hidden>
+          <p class="lead">What the music bar plays on this show's page, always shuffled. Artists' own tracks go straight into the mix, and anyone who downloads one lands in the fan list below.</p>
+          <div class="plmode" id="plMode"></div>
+          <div id="plOwn"></div>
+          <button type="button" class="btn" id="plSave">Save playlist</button>
+          <p class="msg" id="plMsg" role="status"></p>
+          <div class="sub mono">From the artists</div>
+          <div id="plArt"></div>
+          <div class="sub mono">Fans who downloaded</div>
+          <div id="plFans"></div>
+        </section>
+
+        <section class="sv" id="sv-codes" hidden>
+          <p class="lead">Give each promoter, artist or post its own code to see who's actually selling. $0 off works for tracking only.</p>
+          <div class="codes" id="ptable"></div>
+          <form class="form" id="promof" novalidate>
+            <label for="pcode">New code</label><input type="text" id="pcode" maxlength="30" placeholder="e.g. HARLEY" autocapitalize="characters">
+            <label for="plabel">Who it's for</label><input type="text" id="plabel" maxlength="60">
+            <label for="poff">Dollars off per ticket</label><input type="number" id="poff" min="0" step="1" value="0" inputmode="numeric">
+            <button type="submit" class="btn ghost">Save code</button>
+            <p class="msg" id="pmsg" role="status"></p>
+          </form>
+        </section>
+
+        <section class="sv" id="sv-images" hidden>
+          <p class="lead">Flyers show on the ticket page once the lineup is revealed. Upload from your phone; big images are shrunk automatically.</p>
+          <div class="imgs" id="flyers"></div>
+          <div class="sub mono">Link preview image</div>
+          <p class="fine">What shows when the ticket link is shared in texts, Instagram and Facebook. Best at 1200 × 630. Apps keep old previews for a while, so new ones can take a day to show up.</p>
+          <div class="imgs one" id="shareBox"></div>
+        </section>
+
+        <section class="sv" id="sv-details" hidden>
+          <div id="detailsForm"></div>
+          <form class="form" id="pinf" novalidate>
+            <div class="sub mono">Door PIN</div>
+            <label for="newpin">4 to 8 digits. Door staff use it to open the door app. A new PIN signs out every door phone.</label>
+            <input type="password" id="newpin" inputmode="numeric" maxlength="8" autocomplete="new-password">
+            <button type="submit" class="btn ghost">Save PIN</button>
+            <p class="msg" id="pinmsg" role="status"></p>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <!-- ================= TRACKS ================= -->
+    <div class="panel" id="p-tracks" role="tabpanel" hidden>
+      <h2 class="disp">Tracks</h2>
+      <div class="grid" id="tracks"></div>
+      <details class="add" id="addTrack"><summary class="btn ghost">Add a track</summary>
+        <form id="tf" novalidate class="form">
+          <label for="t_title">Title</label><input type="text" id="t_title" required>
+          <label for="t_artist">Artist</label><input type="text" id="t_artist">
+          <label for="t_desc">One line (optional)</label><input type="text" id="t_desc">
+          <fieldset class="src"><legend>Streaming file · mp3 or m4a, under 20 MB · required</legend>
+            <input type="file" id="t_audio" accept="audio/*"><span class="or">or paste a link</span><input type="url" id="t_audio_link" placeholder="Google Drive or Dropbox link"></fieldset>
+          <fieldset class="src"><legend>WAV download · up to 50 MB · optional</legend>
+            <input type="file" id="t_wav" accept=".wav,audio/wav,audio/x-wav"><span class="or">or paste a link</span><input type="url" id="t_wav_link" placeholder="Google Drive or Dropbox link"></fieldset>
+          <fieldset class="src"><legend>Cover · square JPG or PNG, under 3 MB · optional</legend>
+            <input type="file" id="t_cover" accept="image/*"><span class="or">or paste a link</span><input type="url" id="t_cover_link" placeholder="Google Drive or Dropbox link"></fieldset>
+          <p class="fine">Links: set sharing to "Anyone with the link". SoundCloud links can't be pulled in (SoundCloud blocks downloads).</p>
+          <label class="check"><input type="checkbox" id="t_current"><span>Make this the welcome track everyone gets on signup</span></label>
+          <button type="submit" class="btn" id="t_go">Add track</button>
+          <div class="msg" id="tmsg" role="status"></div>
+        </form></details>
+    </div>
+
+    <!-- ================= MEMBERS ================= -->
+    <div class="panel" id="p-members" role="tabpanel" hidden>
+      <h2 class="disp">Members</h2>
+      <div class="stats" id="mstats"></div>
+      <div class="row2"><button type="button" class="btn ghost" id="csv">Download CSV</button><button type="button" class="btn ghost" id="brevoBtn">Brevo</button></div>
+      <div class="card" id="brevo" hidden></div>
+      <input type="search" id="mq" class="search" placeholder="Search members">
+      <div class="tablewrap"><table id="mtable"><thead><tr><th>Email</th><th>Name</th><th>Phone</th><th>ZIP</th><th>From</th><th class="num">Tracks</th><th>Joined</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <!-- ================= NUMBERS ================= -->
+    <div class="panel" id="p-numbers" role="tabpanel" hidden>
+      <h2 class="disp">Numbers</h2>
+      <div class="sub mono">Per show (stickers and QR)</div><div class="tablewrap"><table id="etable"><thead><tr><th>Show</th><th class="num">Stickers out</th><th class="num">Views</th><th class="num">Unlocks</th><th class="num">Joined there</th><th class="num">Scan rate</th></tr></thead><tbody></tbody></table></div>
+      <div class="sub mono">Per artist</div><div class="tablewrap"><table id="atable"><thead><tr><th>Artist</th><th class="num">Tracks</th><th class="num">QR views</th><th class="num">Unlocks</th></tr></thead><tbody></tbody></table></div>
+      <div class="sub mono">Per track</div><div class="tablewrap"><table id="ttable"><thead><tr><th>Track</th><th class="num">Views</th><th class="num">Unlocks</th><th class="num">Re-scans</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <!-- ================= STAFF ================= -->
+    <div class="panel" id="p-staff" role="tabpanel" hidden>
+      <h2 class="disp">Staff</h2>
+      <p class="lead">Everyone here can do everything on this page: shows, sales, guest list, tracks and members. They join on the homepage with their email first, then sign in here.</p>
+      <ul class="list staff" id="staff"></ul>
+      <form id="sf" novalidate><label class="sr" for="s_email">Email</label><div class="unit"><input type="email" id="s_email" placeholder="partner's email"><button type="submit" class="btn">Add</button></div></form>
+      <div class="msg" id="smsg" role="status"></div>
+    </div>
+  </section>
+</main>
+<script src="assets/stack.js?v=9942b2fd78"></script>
+<script src="assets/admin.js?v=bd62831e61"></script>
+</body>
+</html>

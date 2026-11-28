@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Subduction · Ticketing for the underground</title>
+<meta name="description" content="Tickets for underground and bass promoters. A custom event page, tickets, emails and a door app. Money goes to your own Stripe. Buyers pay $1.50 a ticket plus card processing.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Subduction · Ticketing for the underground">
+<meta property="og:description" content="Your show, your page, your money. Custom event pages, tickets and a door app for promoters, an artist waitlist, free tracks for fans. Buyers pay $1.50 a ticket plus card processing.">
+<meta property="og:image" content="https://subduction.art/assets/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Subduction · Ticketing for the underground">
+<meta name="twitter:description" content="Your show, your page, your money. Custom event pages, tickets and a door app for promoters, an artist waitlist, free tracks for fans. Buyers pay $1.50 a ticket plus card processing.">
+<meta name="twitter:image" content="https://subduction.art/assets/og.jpg">
+<script>document.documentElement.className="js"</script>
+<link rel="preload" href="assets/fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>@font-face{font-family:"Anton";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/anton-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/archivo-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/archivo-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/archivo-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Space Mono";font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/space-mono-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Space Mono";font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/space-mono-latin-700-normal.woff2) format("woff2")}</style>
+<style>
+/* Promoters first, artists second, fans third. Black, white, acid green. Mobile first. */
+:root{--bg:#000;--fg:#f4f1ee;--mute:#9a9490;--line:#2a2627;--hot:#b6ff00;
+  --disp:"Anton","Arial Narrow",Impact,sans-serif;--text:"Archivo",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html{overflow-x:clip;background:var(--bg);scroll-behavior:smooth;scroll-padding-top:64px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.55;overflow-x:hidden;-webkit-text-size-adjust:100%}
+img{display:block}
+a{color:inherit}
+.grain{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:.08;mix-blend-mode:screen;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.disp{font-family:var(--disp);font-weight:400;text-transform:uppercase;line-height:.92;letter-spacing:.005em}
+.disp em,.hot{font-style:normal;color:var(--hot)}
+.kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot)}
+.lead .short{display:none}
+.lead{font-size:16px;line-height:1.55;color:#e6e1dd;max-width:40ch}
+.fine{font-size:13px;line-height:1.6;color:var(--mute);max-width:52ch}
+
+/* ===== sections ===== */
+.sec{position:relative;z-index:2;display:flex;flex-direction:column;gap:20px;
+  padding:72px max(18px,env(safe-area-inset-right,0px)) 72px max(18px,env(safe-area-inset-left,0px))}
+.sec>*{position:relative;z-index:1}
+.sec h2{font-size:clamp(40px,11vw,104px);max-width:11ch}
+
+/* hero */
+.hero{min-height:100svh;justify-content:flex-end;padding-bottom:max(36px,calc(env(safe-area-inset-bottom,0px) + 28px))}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70%;background:linear-gradient(to top,rgba(0,0,0,.95),rgba(0,0,0,.6) 50%,rgba(0,0,0,0));z-index:0}
+.hero h1{font-size:clamp(52px,14vw,132px);max-width:9ch}
+.hero .kick{align-self:flex-start;background:rgba(0,0,0,.75);padding:4px 8px}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-block;background:var(--hot);color:#000;border:0;border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:14px 24px 12px;text-decoration:none;cursor:pointer;transition:background .15s}
+.btn:hover:not(:disabled),.btn:focus-visible{background:#fff;outline:none}
+.btn:disabled{opacity:.5;cursor:default}
+.ghost{display:inline-block;color:#fff;border:1px solid #6c6567;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;padding:12px 20px 10px;text-decoration:none}
+.ghost:hover{border-color:var(--hot);color:var(--hot)}
+
+/* numbered steps and feature lists */
+ol.steps{list-style:none;padding:0;border-top:1px solid var(--line);max-width:860px}
+.steps li{display:grid;grid-template-columns:4ch 1fr;gap:10px;align-items:baseline;border-bottom:1px solid var(--line);padding:12px 0}
+.steps li i{font-family:var(--mono);font-style:normal;font-size:12px;letter-spacing:.1em;color:var(--hot)}
+.steps li h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(26px,7vw,44px);line-height:.95}
+.steps li p{grid-column:2;font-size:14px;line-height:1.5;color:#b5afab;margin-top:5px;max-width:46ch}
+
+/* pricing */
+.price-big{font-family:var(--disp);font-size:clamp(88px,26vw,240px);line-height:.85;color:var(--hot);white-space:nowrap}
+.price-big small{font-size:.2em;color:#fff;letter-spacing:.06em;margin-left:.2em}
+
+/* fans: email box (logic shared with collection and t pages) */
+form{width:100%;max-width:460px;display:flex;flex-direction:column;gap:8px}
+form[hidden]{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.unit{display:flex;flex-direction:column;border:1px solid #6c6567;background:#000}
+.unit:focus-within{border-color:#fff}
+input[type=email],.unit input[type=text]{width:100%;min-width:0;background:transparent;border:0;color:var(--fg);border-radius:0;font-family:var(--text);font-size:17px;padding:17px 16px;outline:none}
+.unit .btn{width:100%;border-top:1px solid #6c6567}
+#code{font-family:var(--mono);font-size:24px;letter-spacing:.32em;text-align:center}
+#code::placeholder{font-family:var(--text);font-size:17px;letter-spacing:0}
+input::placeholder{color:#8a8486}
+@media (min-width:480px){.unit{flex-direction:row}.unit input{flex:1}.unit .btn{width:auto;border-top:0;border-left:1px solid #6c6567;padding-inline:26px;white-space:nowrap}}
+.hp{position:absolute;left:-9999px}
+.msg{font-size:14px;min-height:20px;color:var(--mute)}
+.msg.ok{color:#fff}
+#ts{display:flex;justify-content:center;margin-top:10px}
+.hint{font-size:14px;color:var(--hot);cursor:pointer;text-decoration:underline;background:none;border:0;font-family:inherit;padding:4px 0}
+.proof{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#cfc9c5}
+
+/* checklists */
+.checks{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr;gap:10px 28px}
+.checks li{position:relative;padding-left:26px;font-size:15px;line-height:1.45;color:#e6e1dd}
+.checks li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:7px;border-left:2px solid var(--hot);border-bottom:2px solid var(--hot);transform:rotate(-45deg)}
+.checks.big{gap:16px}
+.checks.big li{color:#b5afab;font-size:14px}
+.checks.big b{display:block;color:#fff;font-size:17px;font-weight:700;margin-bottom:2px}
+.yours{border-left:3px solid var(--hot);padding:4px 0 4px 18px;max-width:640px;display:flex;flex-direction:column;gap:8px}
+.yours h3{font-size:clamp(32px,8.6vw,56px)}
+/* fee bars */
+.bars{display:flex;flex-direction:column;gap:10px;max-width:560px;width:100%}
+.bars-h{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:2px}
+.fee{display:grid;grid-template-columns:92px 1fr 56px;gap:12px;align-items:center;font-size:15px}
+.fee .track{height:12px;background:#151515}
+.fee .track b{display:block;height:100%;background:#4a4644}
+.fee span:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.fee.us{color:var(--hot);font-weight:700}
+.fee.us .track b{background:var(--hot)}
+.join{font-weight:700;font-size:16px;margin-bottom:10px}
+.box{width:100%;max-width:460px}
+
+/* section art: the image is part of the section, not a box. It bleeds off the edge and fades into the black. */
+.split{position:relative;display:flex;flex-direction:column}
+.copy{position:relative;z-index:1;display:flex;flex-direction:column;gap:22px;min-width:0}
+.art{order:-1;position:relative;z-index:0;pointer-events:none;margin:-24px calc(-1 * max(18px,env(safe-area-inset-right,0px))) 4px;height:96vw;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 80%,transparent 100%),linear-gradient(to right,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 80%,transparent 100%),linear-gradient(to right,transparent 0,#000 12%,#000 88%,transparent 100%);mask-composite:intersect}
+.art picture,.hero-art picture{display:block;width:100%;height:100%}
+.art img{width:100%;height:100%;object-fit:contain;object-position:50% 50%;display:block}
+.art.wide{height:62vw;margin-bottom:4px}
+.hero-art{position:absolute;inset:0;z-index:0;margin:0;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent 100%);mask-image:linear-gradient(to bottom,#000 55%,transparent 100%)}
+.hero-art img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+@media (min-width:900px){
+  .split{display:block}
+  .art,.art.wide{position:absolute;top:-8%;bottom:-8%;right:calc(-1 * max(40px,5vw));left:auto;width:58%;height:auto;margin:0;
+    -webkit-mask-image:radial-gradient(ellipse 70% 62% at 55% 50%,#000 45%,transparent 100%);mask-image:radial-gradient(ellipse 70% 62% at 55% 50%,#000 45%,transparent 100%)}
+  .split.flip .art{right:auto;left:calc(-1 * max(40px,5vw))}
+  .art img,.art.wide img{object-fit:contain;object-position:50% 50%}
+  .copy{max-width:50%}
+  .split.flip .copy{margin-left:auto}
+  .hero-art{left:38%;-webkit-mask-image:radial-gradient(ellipse 65% 70% at 55% 48%,#000 50%,transparent 100%);mask-image:radial-gradient(ellipse 65% 70% at 55% 48%,#000 50%,transparent 100%)}
+  .hero-art img{object-fit:contain;object-position:50% 50%}
+}
+
+/* ===== phones: one clean rhythm. Solid bar, bold cropped art bands, tight type, buttons above the fold. ===== */
+@media (max-width:899px){
+  .sec{padding-top:0;padding-bottom:40px;gap:16px}
+  .sec h2{font-size:clamp(38px,10.4vw,56px);max-width:none}
+  .hero{min-height:100svh;justify-content:flex-end;padding-top:0;padding-bottom:max(84px,calc(env(safe-area-inset-bottom,0px) + 80px));overflow:hidden;gap:16px}
+  .hero h1{font-size:clamp(46px,13vw,72px);max-width:none;line-height:.9}
+  .hero .lead{font-size:15px}
+  /* the live site's opening: the machine fills the top of the screen edge to edge, breathes, and melts into black under the headline */
+  .hero-art{position:absolute;inset:0;order:0;width:auto;height:auto;margin:0;overflow:hidden;-webkit-mask-image:none;mask-image:none}
+  .hero-art picture{position:absolute;left:0;right:0;top:0;height:64%;display:block;animation:breathe 9s ease-in-out infinite alternate;will-change:transform}
+  .hero-art img{width:100%;height:100%;object-fit:cover;object-position:50% 0;transform-origin:50% 30%;will-change:transform}
+  @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.07) translate3d(0,-1.2%,0)}}
+  .hero::after{display:block;height:100%;background:linear-gradient(to bottom,rgba(0,0,0,.3) 0,rgba(0,0,0,0) 12%,rgba(0,0,0,0) 38%,rgba(0,0,0,.75) 52%,#000 61%)}
+  .hero .kick{display:none}
+  .lead .long{display:none}.lead .short{display:inline}
+  @media (prefers-reduced-motion:reduce){.hero-art picture{animation:none}}
+  #fans .art{margin-top:16px;margin-bottom:44px}
+  /* centre everything on phones; lists keep their left edge but sit as a centred block */
+  .hero,.sec,.copy,.yours{align-items:center;text-align:center}
+  .split,.steps,.bars,.box{align-self:stretch}
+  .steps,.bars,.checks{text-align:left}
+  .checks{width:fit-content;max-width:100%;margin-inline:auto}
+  .ctas{justify-content:center}
+  .lead,.fine{margin-inline:auto}
+  .yours{border-left:0;border-top:3px solid var(--hot);padding:16px 0 0;max-width:34ch}
+  .box form{margin-inline:auto}
+  .box{margin-inline:auto}
+  .join{text-align:center}
+  .price-big small{margin-left:0}
+  /* section art = a clean strip centred in the gap between sections */
+  .art,.art.wide,.art.tall{height:auto;margin:0 calc(-1 * max(18px,env(safe-area-inset-right,0px))) 28px;overflow:hidden;-webkit-mask-image:none;mask-image:none}
+  .art picture{display:block}
+  .art img,.art.tall img{width:100%;height:auto;object-fit:fill;transform:none}
+  .price-big{font-size:clamp(84px,24vw,120px)}
+  .price-big small{display:block;font-size:.2em;margin:.5em 0 0;color:#cfc9c5;letter-spacing:.12em}
+  .steps li h3{font-size:28px}
+  .btn{font-size:20px;padding:13px 20px 11px}
+  .ghost{font-size:18px;padding:11px 16px 9px}
+}
+
+/* reveals */
+.rv{opacity:0;transform:translateY(14px)}
+@supports (animation-timeline:view()){
+  .rv{animation:rise linear both;animation-timeline:view();animation-range:entry 5% entry 40%}
+  @keyframes rise{to{opacity:1;transform:none}}
+}
+@supports not (animation-timeline:view()){.rv{transition:opacity .6s ease,transform .6s ease}.rv.in{opacity:1;transform:none}}
+html:not(.js) .rv{opacity:1;transform:none}
+.hero .rv{animation:up .9s cubic-bezier(.2,.7,.2,1) both;animation-timeline:auto;opacity:1;transform:none}
+.hero .rv:nth-child(2){animation-delay:.12s}.hero .rv:nth-child(3){animation-delay:.24s}.hero .rv:nth-child(4){animation-delay:.36s}.hero .rv:nth-child(5){animation-delay:.48s}
+@keyframes up{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rv,.hero .rv{animation:none;transition:none;opacity:1;transform:none}}
+
+@media (min-width:900px){
+  .sec{padding-inline:max(40px,5vw);padding-top:120px;padding-bottom:100px;gap:28px}
+  .hero{justify-content:center}
+  .hero::after{height:100%;background:linear-gradient(to right,rgba(0,0,0,.9) 0,rgba(0,0,0,.5) 40%,rgba(0,0,0,0) 60%)}
+  .hero>*{max-width:min(640px,52vw)}
+  /* The base rule caps the headline at 9ch, which splits "Your show." and "Your money." at desktop sizes. */
+  .hero h1{font-size:clamp(84px,8vw,120px);max-width:min(640px,52vw)}
+  .lead{font-size:19px}
+  .sec h2{font-size:clamp(60px,5.6vw,100px);max-width:none}
+  .price-big{font-size:clamp(110px,10vw,180px)}
+}
+/* promoters: a sample of the real product (page, ticket, door) instead of decorative art */
+.art.sample{order:0;height:auto;margin:10px 0 0;pointer-events:auto;-webkit-mask-image:none;mask-image:none;overflow:visible}
+.pv{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.pv li{display:grid;grid-template-columns:104px 1fr;gap:16px;align-items:center;padding:10px 14px 10px 10px;border:1px solid var(--line);background:#000}
+.pv .shot{width:104px;height:140px;display:flex;align-items:center;justify-content:center;background:#000}
+.pv img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;display:block}
+.pv div{display:grid;gap:4px;text-align:left}
+.pv i{font-style:normal;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--hot)}
+.pv b{font-family:var(--disp);font-weight:400;font-size:24px;line-height:1;letter-spacing:.02em;text-transform:uppercase;color:var(--fg)}
+.pv span{font-size:14px;line-height:1.45;color:var(--mute);text-wrap:pretty}
+.pv-tag{margin:0 0 10px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);text-align:left}
+.sample figcaption{margin-top:10px}
+.pv-try{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px 13px;border:1px solid var(--hot);color:var(--hot);text-decoration:none;font-family:var(--disp);font-size:20px;letter-spacing:.08em;text-transform:uppercase;line-height:1}
+.pv-try span{font-family:var(--text);font-size:22px;letter-spacing:0}
+.pv-try:hover,.pv-try:focus-visible{background:var(--hot);color:#000}
+@media (min-width:900px){.art.sample{top:0;bottom:0;right:0;width:46%;display:flex;flex-direction:column;justify-content:center;margin:0}
+  .pv li{grid-template-columns:120px 1fr;gap:22px}.pv .shot{width:120px;height:160px}.pv b{font-size:28px}.pv span{font-size:15px}}
+</style>
+<link rel="stylesheet" href="/assets/chrome.css?v=d80d05c2a2">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script><script>if(/[?&](e|r|src)=/.test(location.search)){var s=document.createElement("script");s.src="/assets/player.js?v=694bd2118b";s.defer=true;document.head.appendChild(s);}</script><script>(function(){
+var P={"m":"2127463657899244","g":"G-X6VM4P4QXW","t":"DC4UH0RC77U703IGPCMG"},FULL=true,T=window.Trk={};
+try{if(localStorage.getItem("stack_admin"))return}catch(e){}
+var q=new URLSearchParams(location.search),first=location.pathname.split("/")[1]||"";
+if(q.get("preview")==="1"||q.get("test")==="1")return;
+if(FULL&&(first==="underground"||q.get("e")==="underground"))return;
+var OK={e:1,ref:1,src:1,utm_source:1,utm_medium:1,utm_campaign:1,utm_content:1,utm_term:1,fbclid:1,gclid:1,ttclid:1};
+function bad(k,v){return !OK[k]||/@|cs_/i.test(v)}
+function isClean(){var ok=true;q.forEach(function(v,k){if(bad(k,v))ok=false});
+if(/[=@]/.test(location.hash))ok=false;
+if(document.referrer.indexOf(location.origin)===0&&/[?#]/.test(document.referrer))ok=false;return ok}
+function cleanUrl(){var u=new URLSearchParams();q.forEach(function(v,k){if(!bad(k,v))u.append(k,v)});var s=u.toString();return location.origin+location.pathname+(s?"?"+s:"")}
+var ref=document.referrer;if(ref.indexOf(location.origin)===0)ref=location.origin+ref.slice(location.origin.length).split(/[?#]/)[0];
+var slug=(first&&!/\./.test(first)?first:q.get("e")||"").replace(/[^a-z0-9-]/gi,"").toLowerCase()||"show";
+var gOn=false,pOn=false;
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
+gtag("js",new Date());
+gtag("config",P.g,{send_page_view:false,allow_ad_personalization_signals:false});
+gtag("event","page_view",{page_location:cleanUrl(),page_referrer:ref,page_title:document.title});
+var gs=document.createElement("script");gs.async=true;gs.src="https://www.googletagmanager.com/gtag/js?id="+P.g;document.head.appendChild(gs);gOn=true;
+T.pix=function(){
+if(pOn||!isClean())return;pOn=true;
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");
+fbq("set","autoConfig",false,P.m);fbq("init",P.m);fbq("track","PageView");
+!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var s=d.createElement("script");s.type="text/javascript";s.async=!0;s.src=r+"?sdkid="+e+"&lib="+t;var x=d.getElementsByTagName("script")[0];x.parentNode.insertBefore(s,x)};ttq.load(P.t);ttq.page()}(window,document,"ttq");
+};
+T.pix();
+if(FULL){
+T.view=function(){if(!pOn){gtag("event","view_item",{items:[{item_id:slug,item_name:slug}]});return}
+fbq("track","ViewContent",{content_type:"product",content_ids:[slug],content_name:slug});
+ttq.track("ViewContent",{content_type:"product",content_id:slug,content_name:slug});
+gtag("event","view_item",{items:[{item_id:slug,item_name:slug}]})};
+T.checkout=function(){if(pOn){fbq("track","InitiateCheckout",{content_type:"product",content_ids:[slug]});ttq.track("InitiateCheckout",{content_type:"product",content_id:slug})}
+gtag("event","begin_checkout",{items:[{item_id:slug,item_name:slug}]})};
+T.purchase=function(cents){var v=Math.round(Number(cents)||0)/100;
+if(pOn){fbq("track","Purchase",{value:v,currency:"USD"});ttq.track("CompletePayment",{value:v,currency:"USD"})}
+gtag("event","purchase",{value:v,currency:"USD"})};
+}
+})();</script>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="sx-bar sx-over" id="sx-bar">
+  <a class="sx-brand" href="/" aria-label="Subduction home"><img src="/assets/logo-64.webp" width="26" height="26" alt=""><b>Subduction</b></a>
+  <nav class="sx-nav" aria-label="Site"><a href="/shows">Shows</a><a href="/artists.html">Artists</a><a href="/me.html">My account</a><a href="/collection.html" id="mine" hidden>My collection</a></nav>
+  <a class="sx-go" href="/promoter.html">Sell tickets</a>
+  <details class="sx-menu"><summary aria-label="Menu"><i></i><i></i><i></i></summary><nav aria-label="Menu"><a href="/shows">Shows</a><a href="/artists.html">Artists</a><a href="/me.html">My account</a><a href="/promoter.html">Sell tickets</a></nav></details>
+</header><script>(function(){var b=document.getElementById("sx-bar");if(!b)return;function f(){b.classList.toggle("sx-solid",(window.scrollY||0)>4)}addEventListener("scroll",f,{passive:true});f()})()</script>
+
+<!-- 1. The pitch, for everyone -->
+<section class="sec hero" id="top" aria-label="Subduction">
+  <figure class="hero-art" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/flyer-m.webp" width="720" height="1280"><img src="assets/art-hero.webp" alt="" fetchpriority="high"></picture></figure>
+  <p class="kick rv">Ticketing for the underground</p>
+  <h1 class="disp rv">Your show.<br>Your page.<br>Your <em>money.</em></h1>
+  <p class="lead rv"><span class="long">Tickets for underground shows. Promoters get a custom page in their own brand and keep their money. Artists can join the waitlist. Fans get free music.</span><span class="short">Custom ticket pages for underground shows.</span></p>
+  <div class="ctas rv"><a class="btn" href="demo.html">Try a test ticket</a><a class="ghost" href="#promoters">How it works</a></div>
+</section>
+
+<!-- 2. Promoters -->
+<section class="sec" id="promoters" aria-label="For promoters">
+  <div class="split">
+  <div class="copy">
+  <p class="kick rv">For promoters</p>
+  <h2 class="disp rv">Sell tickets<br>in <em>4 steps.</em></h2>
+  <ol class="steps">
+    <li class="rv"><i>01</i><h3>Sign up</h3><p>Your email, then a sign-in button in your inbox. No password.</p></li>
+    <li class="rv"><i>02</i><h3>Upload your kit</h3><p>Logo, flyers, colors, dates, lineup and ticket prices.</p></li>
+    <li class="rv"><i>03</i><h3>Go live</h3><p>We build your page and check it. Usually live within a day.</p></li>
+    <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
+  </ol>
+  </div>
+  <figure class="art sample" id="sample">
+    <p class="pv-tag">Sample show · Fault Line</p>
+    <ol class="pv">
+      <li class="rv"><span class="shot"><img src="assets/pv-page.webp" width="296" height="530" alt="Sample show page for Fault Line with ticket prices" loading="lazy" decoding="async"></span><div><i>01</i><b>Your page</b><span>Your flyer, lineup and prices. Fans buy on their phone.</span></div></li>
+      <li class="rv"><span class="shot"><img src="assets/pv-ticket.webp" width="298" height="432" alt="Sample phone ticket with a QR code" loading="lazy" decoding="async"></span><div><i>02</i><b>Their ticket</b><span>A QR code lands in their email. No app needed.</span></div></li>
+      <li class="rv"><span class="shot"><img src="assets/pv-door.webp" width="298" height="162" alt="Door check-in screen showing IN in green" loading="lazy" decoding="async"></span><div><i>03</i><b>Your door</b><span>Scan it at the door. Green means in.</span></div></li>
+    </ol>
+    <figcaption><a class="pv-try" href="demo.html">Try a test ticket<span aria-hidden="true">→</span></a></figcaption>
+  </figure>
+  </div>
+  <div class="yours rv">
+    <h3 class="disp">Your brand. <em>Not ours.</em></h3>
+  </div>
+  <div class="ctas rv"><a class="btn" href="promoter.html">Sell tickets</a></div>
+</section>
+
+<!-- 3. Pricing -->
+<section class="sec" id="pricing" aria-label="Pricing">
+  <div class="split flip">
+  <div class="copy">
+  <p class="kick rv">Pricing</p>
+  <div class="price-big rv">$1.50<small>per ticket</small></div>
+  <p class="lead rv">On a $25 ticket the buyer pays $2.61 in fees ($27.61 total). You keep $25. Money lands in your Stripe from the first sale. No monthly fee. Free tickets stay free.</p>
+  <div class="bars rv" role="table" aria-label="Fees a buyer pays on a $25 ticket">
+    <p class="bars-h" role="caption">Fees on a $25 ticket</p>
+    <div class="fee" role="row"><span role="cell">Eventbrite</span><span class="track" aria-hidden="true"><b style="width:100%"></b></span><span role="cell">$3.52</span></div>
+    <div class="fee" role="row"><span role="cell">Posh</span><span class="track" aria-hidden="true"><b style="width:99%"></b></span><span role="cell">$3.49</span></div>
+    <div class="fee" role="row"><span role="cell">DICE</span><span class="track" aria-hidden="true"><b style="width:92%"></b></span><span role="cell">$3.25</span></div>
+    <div class="fee us" role="row"><span role="cell">Subduction</span><span class="track" aria-hidden="true"><b style="width:74%"></b></span><span role="cell">$2.61</span></div>
+  </div>
+  <p class="fine rv">Card processing included for everyone. Published US rates, Nov 2026. <a href="fees.html">See every fee</a>.</p>
+  </div>
+  <figure class="art wide" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-pricing-m.webp"><img src="assets/art-pricing.webp" alt="" loading="lazy"></picture></figure>
+  </div>
+</section>
+
+<!-- 4. Fans and artists -->
+<section class="sec" id="fans" aria-label="For fans and artists">
+  <div class="split flip">
+  <div class="copy">
+  <p class="kick rv">For fans</p>
+  <h2 class="disp rv" id="fanH">Go to shows.<br>Get free <em>music.</em></h2>
+  <div class="box rv">
+    <p class="join">Join free. Start your collection.</p>
+    <form id="f" novalidate method="post" action="collection.html">
+    <label for="email" class="sr">Email address</label>
+    <div class="unit">
+      <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+      <button type="submit" class="btn" id="btn">Join</button>
+    </div>
+    <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
+    <input type="text" id="website" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div id="ts"></div>
+    <p class="fine" id="fine"></p>
+    </form>
+    <div id="msg" class="msg" role="status"></div>
+    <!-- Known email: the box swaps to a 6-digit code (sent to their inbox) instead of a second signup. -->
+    <form id="cf" novalidate hidden>
+      <label for="code" class="sr">6-digit code</label>
+      <div class="unit">
+        <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" spellcheck="false">
+        <button type="submit" class="btn" id="cbtn">Sign in</button>
+      </div>
+      <p class="fine"><button type="button" class="hint" id="resend">Send a new code</button> &middot; <button type="button" class="hint" id="other">Different email</button></p>
+    </form>
+    <div class="proof" id="proof" hidden></div>
+  </div>
+  <ul class="checks big" id="fanSub">
+    <li class="rv"><b>Free unreleased tracks</b>From the artists you came to see.</li>
+    <li class="rv"><b>Your collection</b>Play them anytime or download the WAV.</li>
+    <li class="rv"><b>Shows first</b>Hear about the next one before anyone else.</li>
+  </ul>
+  <p class="fine artline rv" id="artists">Artists: one page for your music, shows and fans. <a href="artists.html">Join the waitlist</a>.</p>
+  </div>
+  <figure class="art tall" aria-hidden="true"><picture><source media="(max-width:899px)" srcset="assets/art-fans-m.webp"><img src="assets/art-fans.webp" alt="" loading="lazy"></picture></figure>
+  </div>
+</section>
+
+<footer class="sx-foot" id="foot">
+  <div class="sx-close">
+    <p class="sx-kick">Ticketing for the underground</p>
+    <p class="sx-big">Run the night.<br>Keep the <em>money.</em></p>
+    <div class="sx-ctas"><a class="sx-cta" href="/promoter.html">Sell tickets</a><a class="sx-ghost" href="/shows">Find a show</a></div>
+  </div>
+  <nav class="sx-links" aria-label="Footer"><a href="/shows">Shows</a><a href="/me.html">My account</a><a href="/collection.html">My collection</a><a href="/promoter.html">Sell tickets</a><a href="/fees.html">Fees</a><a href="/demo.html">Try a test ticket</a><a href="/artists.html">Artist waitlist</a></nav>
+  <div class="sx-base">
+    <nav class="sx-legal" aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:hello@subduction.art" class="contact">Contact</a></nav>
+    <nav class="fsocial" id="fsocial" aria-label="Social"></nav>
+    <p class="sx-copy" id="foot-cat">&copy; 2026 Subduction</p>
+  </div>
+  <a class="sx-giant" href="/" aria-label="Subduction home"><img src="/assets/logo-64.webp" width="64" height="64" alt="" loading="lazy"><b>Subduction</b></a>
+</footer>
+
+<script>/* Shared helpers for every page. No framework. */
+window.Stack = (function () {
+  var C = window.STACK || {};
+  var FN = (C.supabaseUrl || "") + "/functions/v1";
+  var q = new URLSearchParams(location.search);
+
+  // Attribution travels with the visitor across pages and survives a reload.
+  // pref is a promoter referral code. It rides along with the visit. It is not a ticket link.
+  // ref is a street-team code for a show. It rides along with the visit, same as the other campaign fields.
+  var KEYS = ["src", "e", "r", "utm_source", "utm_medium", "utm_campaign", "pref", "ref"];
+  var attr = {};
+  try { attr = JSON.parse(sessionStorage.getItem("stack_attr") || "{}"); } catch (e) {}
+  KEYS.forEach(function (k) { if (q.get(k)) attr[k] = q.get(k).slice(0, 80); });
+  // Remember the first outside site that sent them here. Later pages on our site keep that.
+  if (!attr.referrer && document.referrer) {
+    try {
+      var ref = new URL(document.referrer), here = location.hostname.replace(/^www\./, ""), host = ref.hostname.replace(/^www\./, "");
+      if (host && host !== here) { attr.ref_host = host.slice(0, 80); attr.referrer = (ref.origin + ref.pathname).slice(0, 200); }
+    } catch (e) {}
+  }
+  try { sessionStorage.setItem("stack_attr", JSON.stringify(attr)); } catch (e) {}
+  function source() {
+    var s = String(attr.utm_source || attr.src || attr.ref_host || "direct").trim();
+    return (s || "direct").slice(0, 20);
+  }
+
+  // A/B headline variant, fixed per browser.
+  function variant() {
+    var m = document.cookie.match(/(?:^|; )stack_v=([AB])/);
+    if (m) return m[1];
+    var v = Math.random() < 0.5 ? "A" : "B";
+    document.cookie = "stack_v=" + v + "; max-age=31536000; path=/; SameSite=Lax";
+    return v;
+  }
+
+  function api(name, body, method) {
+    return fetch(FN + "/" + name, {
+      method: method || "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+      keepalive: true
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw Object.assign(new Error(j.error || "request failed"), { status: r.status, body: j }); return j; }); });
+  }
+  function get(name, params) {
+    var u = new URL(FN + "/" + name); Object.keys(params || {}).forEach(function (k) { if (params[k] != null) u.searchParams.set(k, params[k]); });
+    return fetch(u).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw Object.assign(new Error(j.error || "request failed"), { status: r.status, body: j }); return j; }); });
+  }
+
+  function pageview(path) {
+    try {
+      var b = JSON.stringify({ path: path, source: source(), utm_source: attr.utm_source || null, utm_medium: attr.utm_medium || null, utm_campaign: attr.utm_campaign || null, referrer: attr.referrer || null, event_slug: attr.e || null, variant: variant() });
+      if (navigator.sendBeacon) navigator.sendBeacon(FN + "/pageview", new Blob([b], { type: "text/plain" }));
+      else api("pageview", JSON.parse(b)).catch(function () {});
+    } catch (e) {}
+  }
+
+  // Signups that failed to send (bad festival signal) wait here and retry.
+  var PENDING = "stack_pending";
+  function pendingList() { try { return JSON.parse(localStorage.getItem(PENDING) || "[]"); } catch (e) { return []; } }
+  function savePending(p) { var l = pendingList(); l.push(p); try { localStorage.setItem(PENDING, JSON.stringify(l.slice(-20))); } catch (e) {} }
+  function flushPending(prep) {
+    var l = pendingList(); if (!l.length) return Promise.resolve(null);
+    var keep = [], ok = null;
+    return l.reduce(function (p, item) {
+      return p.then(function () { return Promise.resolve(prep ? prep(item) : item); })
+        .then(function (body) { return api("subscribe", body).then(function (r) { ok = r; }); })
+        .catch(function (e) { if (!e.status || e.status >= 500 || e.status === 429 || e.status === 403) keep.push(item); });
+    }, Promise.resolve()).then(function () { try { localStorage.setItem(PENDING, JSON.stringify(keep)); } catch (e) {} return ok; });
+  }
+
+  function fill(s, map) { return String(s || "").replace(/\{\{(\w+)\}\}/g, function (_, k) { return map[k] != null ? map[k] : ""; }); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  window.__go = function (url) { location.href = url; };
+  return { C: C, FN: FN, q: q, attr: attr, source: source, variant: variant, api: api, get: get, pageview: pageview, savePending: savePending, flushPending: flushPending, pendingList: pendingList, fill: fill, esc: esc };
+})();
+
+</script>
+<script>
+(function () {
+  var S = window.Stack, C = S.C, $ = function (id) { return document.getElementById(id); }, root = document.documentElement;
+  var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var v = S.variant();
+  function all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function esc(s) { return S.esc(s); }
+
+  // ---------- Bits from config ----------
+  var name = C.labelName || "Subduction";
+  $("foot-cat").innerHTML = "&copy; " + new Date().getFullYear() + " " + esc(name);
+  // Site footer socials. Instagram is left out on purpose. An empty row stays hidden (.fsocial:empty).
+  (function () { var so = C.social || {}, out = [], map = { tiktok: ["TikTok", "https://tiktok.com/@"], facebook: ["Facebook", "https://facebook.com/"] };
+    Object.keys(map).forEach(function (k) { var h = (so[k] || "").replace(/^@/, ""); if (h) out.push('<a href="' + esc(map[k][1] + h) + '" target="_blank" rel="noopener">' + map[k][0] + "</a>"); });
+    var row = $("fsocial"); if (row) row.innerHTML = out.join(""); })();
+  all(".contact").forEach(function (a) { var s = a.getAttribute("data-subject"); a.href = "mailto:" + (C.contactEmail || "") + (s ? "?subject=" + encodeURIComponent(s) : ""); });
+  $("fine").textContent = "Your first free track unlocks right away. " + (C.microcopy || "") + " Members use the same box and get a code by email.";
+
+  // Fans arriving from a show QR (?e=) or a friend link (?r=) skip the promoter pitch and land on the email box.
+  var fanVisit = !!(S.q.get("e") || S.q.get("r") || S.q.get("src"));
+  if (fanVisit) addEventListener("load", function () { $("fans").scrollIntoView({ behavior: "auto" }); });
+
+  S.get("meta", { e: S.attr.e || null }).then(function (m) {
+    if (m.event) {
+      $("fanH").innerHTML = esc(S.fill(C.eventHeadline || "You made it to {{EVENT_NAME}}.", { EVENT_NAME: m.event.name }));
+    }
+    if (m.count && m.count >= (C.socialProofMin || 100)) { $("proof").textContent = m.count.toLocaleString() + " members"; $("proof").hidden = false; }
+  }).catch(function () {});
+  S.pageview("/");
+
+  // ---------- Returning members ----------
+  // The member key lives on the phone (see collection.html). A show QR (?e=slug) checks them in with no typing;
+  // otherwise the homepage stays put (promoters and artists come here too) and the bar shows "My collection".
+  var MKEY = "stack_member";
+  function remember(tok) { try { localStorage.setItem(MKEY, tok); } catch (e) {} }
+  var mine = null; try { mine = localStorage.getItem(MKEY); } catch (e) {}
+  if (mine && /^[0-9a-f-]{36}$/i.test(mine)) {
+    $("mine").hidden = false;
+    if (S.q.get("e")) {
+      S.api("checkin", { t: mine, e: S.q.get("e") })
+        .then(function (r) { window.__go("collection.html" + (r.event ? "?e=" + encodeURIComponent(r.event.slug) : "")); })
+        .catch(function (err) { if (err.status === 404) { try { localStorage.removeItem(MKEY); } catch (e) {} $("mine").hidden = true; } });
+    }
+  }
+
+  // ---------- Signup ----------
+  var FIX = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com", "hotmial.com": "hotmail.com", "hotmal.com": "hotmail.com", "yaho.com": "yahoo.com", "yahooo.com": "yahoo.com", "outlok.com": "outlook.com", "iclod.com": "icloud.com", "icoud.com": "icloud.com" };
+  function suggest(email) {
+    var at = email.lastIndexOf("@"); if (at < 0) return null;
+    var dom = email.slice(at + 1).toLowerCase(), fixed = FIX[dom];
+    if (!fixed && /\.(con|cmo|ocm|vom|cm)$/.test(dom)) fixed = dom.replace(/\.(con|cmo|ocm|vom|cm)$/, ".com");
+    return fixed && fixed !== dom ? email.slice(0, at + 1) + fixed : null;
+  }
+  // Bot check. Loads when the email field is focused (not on page load, it is ~2 MB), so the pass is usually ready
+  // before they finish typing; submit waits for the pass itself, not just the script.
+  // No size is forced: an Invisible widget shows nothing, and a Managed one shows a
+  // checkbox only if Cloudflare actually needs a tap (interaction-only).
+  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [], tsErr = null;
+  function tsGot(tok) { tsToken = tok; var w = tsWaiters; tsWaiters = []; w.forEach(function (f) { f(); }); }
+  function loadTurnstile() {
+    if (tsLoaded || !C.turnstileSiteKey) return; tsLoaded = true;
+    window.__tsOnload = function () {
+      tsId = turnstile.render("#ts", { sitekey: C.turnstileSiteKey, action: "signup", appearance: "interaction-only", "refresh-expired": "auto",
+        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function (code) { tsToken = null; tsErr = String(code || "error").slice(0, 20); } });
+    };
+    var s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; s.async = true; document.head.appendChild(s);
+  }
+  function tsPass(ms) {
+    if (!C.turnstileSiteKey || tsToken) return Promise.resolve();
+    loadTurnstile();
+    return new Promise(function (res) { tsWaiters.push(res); setTimeout(res, ms); });
+  }
+  function go(res) {
+    if (res.check_email) return askCode(res);
+    remember(res.access_token);
+    window.__go("collection.html?t=" + encodeURIComponent(res.access_token) + (res.track ? "&new=" + encodeURIComponent(res.track.slug) : "") + (res.event ? "&e=" + encodeURIComponent(res.event.slug) : ""));
+  }
+  var EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/, pendingSuggest = null;
+  function say(t, ok) { $("msg").textContent = t; $("msg").className = "msg" + (ok ? " ok" : ""); }
+  $("hintBtn").addEventListener("click", function () { $("email").value = pendingSuggest; $("hint").hidden = true; pendingSuggest = null; });
+  $("email").addEventListener("focus", loadTurnstile, { once: true });
+  // ---------- Known email: sign in with the 6-digit code we just emailed ----------
+  var lastBody = null, codeEvent = null;
+  function askCode(res) {
+    codeEvent = res.event;
+    $("f").hidden = true; $("cf").hidden = false; $("code").value = ""; $("cbtn").disabled = false;
+    say("You're already in. We emailed a 6-digit code to " + lastBody.email + ".", true);
+    setTimeout(function () { $("code").focus(); }, 50);
+  }
+  $("code").addEventListener("input", function () {
+    var c = $("code").value.replace(/\D/g, "").slice(0, 6); $("code").value = c;
+    if (c.length === 6) $("cf").requestSubmit ? $("cf").requestSubmit() : $("cbtn").click();
+  });
+  $("cf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var c = $("code").value.replace(/\D/g, "");
+    if (c.length !== 6) { say("Enter the 6-digit code from your email."); return; }
+    $("cbtn").disabled = true; say("Checking...");
+    S.api("verify", { email: lastBody.email, code: c }).then(function (r) {
+      remember(r.access_token);
+      window.__go("collection.html" + (codeEvent ? "?e=" + encodeURIComponent(codeEvent.slug) : ""));
+    }).catch(function (err) { $("cbtn").disabled = false; $("code").select(); say(err.message || "That didn't work. Try again."); });
+  });
+  $("resend").addEventListener("click", function () { if (lastBody) { say("Sending a new code..."); submit(lastBody, true); } });
+  $("other").addEventListener("click", function () { $("cf").hidden = true; $("f").hidden = false; $("btn").disabled = false; say(""); $("email").focus(); });
+
+  $("f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = $("email").value.trim();
+    if (!EMAIL_OK.test(email)) { say("That email doesn't look right."); $("email").focus(); return; }
+    var sug = suggest(email);
+    if (sug && pendingSuggest !== sug) { pendingSuggest = sug; $("hintBtn").textContent = "Did you mean " + sug + "?"; $("hint").hidden = false; say(""); return; }
+    $("hint").hidden = true;
+    $("btn").disabled = true; say("One sec...");
+    submit({ email: email, hp: $("website").value, variant: v, src: S.attr.src || null, e: S.attr.e || null, r: S.attr.r || null,
+      utm_source: S.attr.utm_source || null, utm_medium: S.attr.utm_medium || null, utm_campaign: S.attr.utm_campaign || null, turnstile: null });
+  });
+  function submit(body, resend) {
+    lastBody = body;
+    tsPass(12000).then(function () { body.turnstile = tsToken; body.ts_err = tsToken ? null : (tsErr || (tsLoaded ? "no-pass" : "not-loaded")); return S.api("subscribe", body); })
+      // A pass works once: clear it and fetch a fresh one for any retry.
+      .then(function (r) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); return r; }, function (e) { tsToken = null; if (tsId !== null) turnstile.reset(tsId); throw e; })
+      .then(function (r) { if (resend && r.check_email) { $("cf").hidden = false; say("New code sent to " + body.email + ".", true); } else go(r); })
+      .catch(function (err) {
+        if (err.status === 429) { say("Slow down a sec and try again."); $("btn").disabled = false; return; }
+        if (err.status === 403) { say("Couldn't confirm you're human. Give it a second and tap again."); $("btn").disabled = false; return; }
+        if (err.status && err.status < 500) { say(err.message || "Couldn't sign you up."); $("btn").disabled = false; return; }
+        // Network died (festival wifi). Keep the signup, show success, retry later.
+        if (resend) { say("No signal. Try again in a sec."); return; }
+        S.savePending(body);
+        window.__go("collection.html?pending=1");
+      });
+  }
+  // A signup saved with no signal: finish it now with a fresh bot pass, then straight to the collection.
+  if (navigator.onLine && S.pendingList().length) {
+    say("Finishing your signup...", true);
+    tsPass(12000).then(function () { return S.flushPending(function (it) { it.turnstile = tsToken; it.ts_err = tsToken ? null : "pending"; tsToken = null; if (tsId !== null) turnstile.reset(tsId); return it; }); })
+      .then(function (r) { if (r && r.access_token) go(r); else say(""); }).catch(function () { say(""); });
+  }
+
+  // ---------- Phones: fly into the machine as the first screen scrolls away; the bar goes solid after it ----------
+  (function () {
+    var bar = document.getElementById("sx-bar"), img = document.querySelector(".hero-art img"), hero = $("top");
+    if (!bar || !img || !hero) return;
+    var tick = false;
+    function draw() { tick = false;
+      var h = hero.offsetHeight || 1, t = Math.min(1, Math.max(0, scrollY / h));
+      bar.classList.toggle("solid", scrollY > h - 70);
+      if (innerWidth < 900 && !still) { img.style.transform = "scale(" + (1 + t * 0.9).toFixed(3) + ")"; img.style.opacity = (1 - t * t).toFixed(3); }
+      else { img.style.transform = ""; img.style.opacity = ""; }
+    }
+    addEventListener("scroll", function () { if (!tick) { tick = true; requestAnimationFrame(draw); } }, { passive: true });
+    draw();
+  })();
+
+  // ---------- Reveal fallback for browsers without scroll-driven animations ----------
+  if (!CSS.supports("animation-timeline: view()") && "IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); }, { threshold: 0.15 });
+    all(".rv").forEach(function (el) { io.observe(el); });
+  }
+})();
+</script>
+
+</body>
+</html>

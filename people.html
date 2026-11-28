@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; form-action 'self'; object-src 'none'; base-uri 'self'">
+<script>if(window.top!==window.self){document.documentElement.style.display="none";try{window.top.location.replace(location.href)}catch(e){}}</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/people.css?v=03bd89046d">
+<link rel="stylesheet" href="assets/staffnav.css?v=fc818d2ab5">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+<title>People · Subduction</title>
+</head>
+<body>
+<nav class="snav" aria-label="Staff pages"><a class="m" href="/" aria-label="Subduction home"><img src="assets/logo-64.webp" alt="" width="20" height="20"></a><a class="l" href="admin.html">Staff</a><a class="l" href="people.html" aria-current="page">People</a><a class="l" href="studio.html">Page studio</a><a class="l" href="shows-review.html">Listings</a></nav>
+<header class="top">
+  <a class="brand" href="admin.html"><img src="assets/logo.png" alt=""><b>People</b></a>
+</header>
+<main>
+  <p class="msg" id="msg" role="status">Loading…</p>
+  <div id="app" hidden>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <div class="finder"><label class="sr" for="find">Search everyone and every show</label>
+      <input type="search" id="find" placeholder="Find anyone or any show" autocomplete="off" spellcheck="false">
+      <div class="found" id="found" hidden></div></div>
+    <div id="today" class="today" hidden></div>
+    <div id="list">
+    <p class="what" id="what"></p>
+    <div class="tools">
+      <label class="sr" for="q">Search</label>
+      <input type="search" id="q" placeholder="Search name, email, show…" autocomplete="off" spellcheck="false">
+      <label class="sr" for="own">Whose</label>
+      <select id="own"></select>
+      <button type="button" id="csv">Export</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="count" id="count"></p>
+    <div class="scroll"><table id="t"></table></div>
+    </div>
+  </div>
+</main>
+<script src="assets/stack.js?v=9942b2fd78"></script>
+<script src="assets/people.js?v=02454d2a34"></script>
+</body>
+</html>

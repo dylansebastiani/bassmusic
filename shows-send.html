@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; form-action 'self'; object-src 'none'; base-uri 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>List a show free</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="stylesheet" href="/assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="/assets/chrome.css?v=d80d05c2a2">
+<link rel="stylesheet" href="/assets/shows.css?v=3862e9b290">
+<link rel="stylesheet" href="/assets/shows-send.css?v=ad01edb7d6">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<header class="sx-bar sx-over" id="sx-bar">
+  <a class="sx-brand" href="/" aria-label="Subduction home"><img src="/assets/logo-64.webp" width="26" height="26" alt=""><b>Subduction</b></a>
+  <nav class="sx-nav" aria-label="Site"><a href="/shows">Shows</a><a href="/artists.html">Artists</a><a href="/me.html">My account</a><a href="/collection.html" id="mine" hidden>My collection</a></nav>
+  <a class="sx-go" href="/promoter.html">Sell tickets</a>
+  <details class="sx-menu"><summary aria-label="Menu"><i></i><i></i><i></i></summary><nav aria-label="Menu"><a href="/shows">Shows</a><a href="/artists.html">Artists</a><a href="/me.html">My account</a><a href="/promoter.html">Sell tickets</a></nav></details>
+</header><script>(function(){var b=document.getElementById("sx-bar");if(!b)return;function f(){b.classList.toggle("sx-solid",(window.scrollY||0)>4)}addEventListener("scroll",f,{passive:true});f()})()</script>
+<main class="wrap">
+  <p class="kick">Free listing</p>
+  <h1 class="disp">List it <em>free.</em></h1>
+  <p class="fine">Selling tickets somewhere else? We list your show on Find a show. To sell on Subduction, <a href="/promoter.html">start here</a>.</p>
+  <span class="laser" aria-hidden="true"></span>
+  <ol class="steps" id="steps" aria-label="Steps">
+    <li data-n="1">Link</li><li data-n="2">Check</li><li data-n="3">Promo</li><li data-n="4">Email</li><li data-n="5">Done</li>
+  </ol>
+
+  <section class="step" id="s1" data-step="1">
+    <h2 class="disp">Link or <em>flyer.</em></h2>
+    <form id="f1" novalidate>
+      <label for="link">Ticket link</label>
+      <input id="link" type="url" inputmode="url" maxlength="400" placeholder="https://" autocomplete="off" spellcheck="false">
+      <p class="fine">Posh, Eventbrite, DICE and RA links fill in the next step for you.</p>
+      <label class="drop small" for="flyer">
+        <img id="flyerprev" alt="" hidden>
+        <span id="flyercopy"><b>Or add a flyer</b><small>JPEG, PNG or WebP. Under 1.5 MB.</small></span>
+        <input class="file" id="flyer" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <button class="btn" id="go1" type="submit">Next</button>
+      <button class="btn ghost" id="typeit" type="button">I'll type it in</button>
+      <p class="msg" id="m1" role="status"></p>
+    </form>
+  </section>
+
+  <section class="step" id="s2" data-step="2" hidden>
+    <h2 class="disp">Check <em>it.</em></h2>
+    <form id="f2" novalidate>
+      <label for="name">Show name</label>
+      <input id="name" type="text" maxlength="120" autocomplete="off"><small class="from" data-from="name"></small>
+      <div class="pair">
+        <div><label for="date">Date</label><input id="date" type="date"><small class="from" data-from="date"></small></div>
+        <div><label for="state">State</label>
+          <select id="state">
+            <option value="" selected disabled>State</option>
+            <option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option>
+            <option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MO">Missouri</option><option value="NE">Nebraska</option>
+            <option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="SD">South Dakota</option><option value="WI">Wisconsin</option>
+          </select><small class="from" data-from="state"></small></div>
+      </div>
+      <label for="city">City</label>
+      <input id="city" type="text" maxlength="80" autocomplete="address-level2"><small class="from" data-from="city"></small>
+      <label for="venue">Venue</label>
+      <input id="venue" type="text" maxlength="120" autocomplete="off"><small class="from" data-from="venue"></small>
+      <label for="lineup">Lineup</label>
+      <input id="lineup" type="text" maxlength="600" autocomplete="off"><small class="from" data-from="lineup"></small>
+      <label for="price">Price</label>
+      <input id="price" type="text" maxlength="60" placeholder="$25" autocomplete="off"><small class="from" data-from="price"></small>
+      <label for="ticket">Ticket link</label>
+      <input id="ticket" type="url" inputmode="url" maxlength="400" placeholder="https://" autocomplete="off" spellcheck="false"><small class="from" data-from="ticket"></small>
+      <p class="fine">Lineup and venue stay with us. They are never on the public list.</p>
+      <button class="btn" type="submit">Looks right</button>
+      <button class="btn ghost" type="button" data-back="1">Back</button>
+      <p class="msg" id="m2" role="status"></p>
+    </form>
+  </section>
+
+  <section class="step" id="s3" data-step="3" hidden>
+    <h2 class="disp">Promo <em>details.</em></h2>
+    <form id="f3" novalidate>
+      <p class="fine">All optional. Each one helps us promote the show.</p>
+      <fieldset><legend>Sound (up to 3)</legend>
+        <div class="chipset" id="sounds"></div><small class="from">Helps us promote the show.</small></fieldset>
+      <label for="socials">Artist socials</label>
+      <input id="socials" type="text" maxlength="300" placeholder="@artist, @artist2" autocomplete="off"><small class="from">Helps us promote the show.</small>
+      <label for="pig">Promoter Instagram</label>
+      <input id="pig" type="text" maxlength="60" placeholder="@yourpage" autocomplete="off" autocapitalize="off"><small class="from">Helps us promote the show.</small>
+      <label for="age">Age</label>
+      <select id="age"><option value="">Not sure yet</option><option value="all">All ages</option><option value="18">18+</option><option value="21">21+</option></select><small class="from">Helps us promote the show.</small>
+      <label class="check" for="secret"><input id="secret" type="checkbox"> Secret location. The public list says Secret location until the reveal time. Add a separate public flyer below, or the public card shows no art.</label>
+      <div id="revealbox" hidden>
+        <label for="reveal">Reveal time (Chicago time)</label>
+        <input id="reveal" type="datetime-local"><small class="from">Helps us promote the show.</small>
+      </div>
+      <label class="drop small" for="pubflyer">
+        <img id="pubprev" alt="" hidden>
+        <span id="pubcopy"><b>Public flyer</b><small>Optional. If this one is different from the flyer you gave us. A secret-location show needs its own public flyer, or the public card shows no art. Helps us promote the show.</small></span>
+        <input class="file" id="pubflyer" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <p class="fine">This is exactly what the public card will show:</p>
+      <div id="card" class="card-preview" aria-live="polite"></div>
+      <button class="btn" id="go3" type="submit">Next</button>
+      <button class="btn ghost" type="button" data-back="2">Back</button>
+      <p class="msg" id="m3" role="status"></p>
+    </form>
+  </section>
+
+  <section class="step" id="s4" data-step="4" hidden>
+    <h2 class="disp">Your <em>email.</em></h2>
+    <form id="f4" novalidate>
+      <p class="lead">We send one link. It reopens this show so you can edit it. No account, no password.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
+      <input class="hp" type="text" id="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn" id="go4" type="submit">Send my link</button>
+      <button class="btn ghost" type="button" data-back="3">Back</button>
+      <p class="msg" id="m4" role="status"></p>
+      <p class="fine">The link works once and stops after 7 days. You can ask for a new one any time. <a href="/privacy">Privacy</a>.</p>
+    </form>
+  </section>
+
+  <section class="step" id="s5" data-step="5" hidden>
+    <h2 class="disp" id="t5">Got <em>it.</em></h2>
+    <ol class="track" id="track"></ol>
+    <p class="fine" id="mailnote"></p>
+    <div class="kit" id="kit"></div>
+    <div class="actions">
+      <button class="btn" type="button" id="editbtn">Edit my show</button>
+      <button class="btn ghost" type="button" id="another">Send another show</button>
+    </div>
+    <p class="msg" id="m5" role="status"></p>
+  </section>
+
+  <section class="step" id="sx" hidden>
+    <h2 class="disp" id="tx">That link <em>ran out.</em></h2>
+    <p class="lead" id="px">Links work once and stop after 7 days. Type your email and we'll send a new one.</p>
+    <form id="fx" novalidate>
+      <label for="emailx">Email</label>
+      <input id="emailx" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
+      <input class="hp" type="text" id="hp_x" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn" type="submit">Send me a new link</button>
+      <p class="msg" id="mx" role="status"></p>
+    </form>
+  </section>
+  <p class="fine" id="again" hidden><a href="#" id="relink">Lost your link? Get a new one.</a></p>
+</main>
+<footer class="sx-foot" id="foot">
+  <div class="sx-close">
+    <p class="sx-kick">Ticketing for the underground</p>
+    <p class="sx-big">Run the night.<br>Keep the <em>money.</em></p>
+    <div class="sx-ctas"><a class="sx-cta" href="/promoter.html">Sell tickets</a><a class="sx-ghost" href="/shows">Find a show</a></div>
+  </div>
+  <nav class="sx-links" aria-label="Footer"><a href="/shows">Shows</a><a href="/me.html">My account</a><a href="/collection.html">My collection</a><a href="/promoter.html">Sell tickets</a><a href="/fees.html">Fees</a><a href="/demo.html">Try a test ticket</a><a href="/artists.html">Artist waitlist</a></nav>
+  <div class="sx-base">
+    <nav class="sx-legal" aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:hello@subduction.art" class="contact">Contact</a></nav>
+    <nav class="fsocial" id="fsocial" aria-label="Social"></nav>
+    <p class="sx-copy" id="foot-cat">&copy; 2026 Subduction</p>
+  </div>
+  <a class="sx-giant" href="/" aria-label="Subduction home"><img src="/assets/logo-64.webp" width="64" height="64" alt="" loading="lazy"><b>Subduction</b></a>
+</footer>
+<script src="/assets/shows-send.js?v=637582070c"></script>
+</body>
+</html>

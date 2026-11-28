@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://hxfuelulxsituzcgsvhg.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#0a0a0a;color:#f4f1ee;font-family:"Archivo",system-ui,sans-serif}
+main{max-width:440px;margin:0 auto;padding:28px 18px 60px;text-align:center}
+.by{font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#9a958f}
+h1{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;font-size:38px;line-height:1.02;text-transform:uppercase;margin:10px 0 8px}
+.where{color:#c9c4bd;font-size:15px;line-height:1.5;margin:0 0 20px}.where a{color:#f4f1ee}
+.card{border:1px solid #2b2927;background:#111110;padding:18px 16px}
+.card.void{opacity:.45}
+.kind{font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9a958f}
+h2{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;font-size:26px;text-transform:uppercase;margin:6px 0 2px}
+.name{color:#c9c4bd;font-size:14px}
+.qr{background:#fff;padding:10px;margin:16px auto 12px;width:min(100%,300px)}.qr img{display:block;width:100%;height:auto}
+.code{font-family:"Space Mono",ui-monospace,monospace;font-size:24px;letter-spacing:.14em}
+.row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #2b2927;margin-top:12px;padding-top:12px;font-size:14px;text-align:left;color:#c9c4bd}
+.row b{color:#f4f1ee;white-space:nowrap}
+.fine{color:#9a958f;font-size:13px;line-height:1.5;margin-top:18px}
+.msg{color:#9a958f}
+</style>
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+<title>Your ticket</title>
+</head>
+<body>
+<main>
+  <p class="msg" id="msg" role="status">Loading your ticket...</p>
+  <div id="tk" hidden>
+    <div class="by" id="by"></div>
+    <h1 id="ename"></h1>
+    <p class="where" id="ewhere"></p>
+    <div class="card" id="card">
+      <div class="kind" id="kind">Ticket</div>
+      <h2 id="ttype"></h2><div class="name" id="tname"></div>
+      <div class="qr"><img id="qr" alt="Ticket QR code" width="300" height="300"></div>
+      <div class="code" id="tcode"></div>
+      <div id="rows"></div>
+    </div>
+    <p class="fine">Show this code at the door. It works once per night. Screenshot it in case there's no signal, but don't share it: the first scan wins.</p>
+  </div>
+</main>
+<script src="assets/pass.js?v=dadd551789"></script>
+</body>
+</html>

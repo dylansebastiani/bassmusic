@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<link rel="preload" href="assets/fonts/bungee-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/app.css?v=cfbbab4977">
+<link rel="stylesheet" href="assets/tix.css?v=84d42d7dd4">
+<style>
+body.pro-ticket{background:#000;color:#f4f1ee}
+body.pro-ticket .byline{font-family:"Space Mono",ui-monospace,monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#b6ff00;margin:0}
+body.pro-ticket h1.show-name{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(36px,10vw,56px);line-height:.95;color:#f4f1ee;margin:8px 0 0}
+</style>
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script><script src="/assets/player.js?v=694bd2118b" defer></script>
+<title>Your ticket</title>
+</head>
+<body class="toftu">
+<main class="wrap tix toftu">
+  <div class="brand"><img class="wm" src="assets/toftu/wordmark.webp" alt="T.O.F.T.U." width="1400" height="373" style="width:min(60%,260px)"></div>
+  <p class="msg" id="msg" role="status">Loading your ticket...</p>
+  <div id="tk" hidden>
+    <div class="mono" id="kind">Ticket</div>
+    <h1 class="ftu-img" style="margin-top:8px"><img src="assets/toftu/ftu.webp" alt="" width="1736" height="112"><span class="sr" id="ename"></span></h1>
+    <p class="where2" id="ewhere"></p>
+    <div class="ticket" id="card">
+      <div class="hd"><h2 id="ttype"></h2><div class="mono" id="tname"></div></div>
+      <div class="qrbox"><img id="qr" alt="Ticket QR code" width="300" height="300"></div>
+      <div class="cd" id="tcode"></div>
+      <div id="rows"></div>
+    </div>
+    <a class="btn" id="pdf" href="#" target="_blank" rel="noopener" style="margin-top:16px">Download PDF ticket</a>
+    <p class="fineprint">Show this QR code at the door. It works once per night. Screenshot it in case the venue has no signal, but don't share it: the first scan wins.</p>
+  </div>
+</main>
+<script src="assets/ticket.js?v=785e0acc6f"></script>
+</body>
+</html>

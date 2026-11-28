@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; form-action 'self'; object-src 'none'; base-uri 'self'">
+<script>if(window.top!==window.self){document.documentElement.style.display="none";try{window.top.location.replace(location.href)}catch(e){}}</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta property="og:title" content="Your Subduction account">
+<meta property="og:description" content="Your tickets, your shows and your crews in one place.">
+<meta property="og:image" content="https://subduction.art/assets/og-collection.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Your Subduction account">
+<meta name="twitter:description" content="Your tickets, your shows and your crews in one place.">
+<meta name="twitter:image" content="https://subduction.art/assets/og-collection.jpg">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/app.css?v=cfbbab4977">
+<link rel="stylesheet" href="assets/me.css?v=c620cf3984">
+<link rel="stylesheet" href="assets/fan.css?v=5da75e4953">
+<link rel="stylesheet" href="assets/chrome.css?v=d80d05c2a2">
+<style>.art{display:block;width:100%;height:auto;margin:0 0 18px;border:1px solid var(--line);background:#000}</style>
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script><script src="/assets/player.js?v=694bd2118b" defer></script>
+<title>My account</title>
+</head>
+<body>
+<main class="wrap me">
+  <div class="top"><a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo-64.webp" width="26" height="26" alt=""><b>Subduction</b></a><button type="button" id="signout" hidden>Sign out</button></div>
+
+  <section id="signin" hidden>
+    <img class="art" src="assets/art/fans-burst.webp" width="960" height="400" alt="" decoding="async">
+    <h1 class="disp">Your <em>account</em></h1>
+    <p class="lead">Tickets, the shows you play and the crews you run, all in one place. Enter your email and we'll send a one-tap sign-in button. First time here, that same button makes your account.</p>
+    <label for="semail" class="sr">Email</label>
+    <form class="unit" id="sf" novalidate><input id="semail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="you@email.com" aria-label="Email"><button class="btn" type="submit" id="sgo">Send it</button></form>
+    <div id="ts"></div>
+    <p class="msg" id="smsg" role="status"></p>
+    <form class="codef" id="cf" hidden novalidate>
+      <label for="ccode">Or type the 6-digit code from the email</label>
+      <div class="unit"><input id="ccode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456"><button class="btn" type="submit" id="cgo">Sign in</button></div>
+    </form>
+  </section>
+
+  <section id="home" hidden>
+    <h1 class="disp" id="hi">Hey</h1>
+    <p class="mono" id="who"></p>
+    <nav class="mtabs" id="tabs" role="tablist"></nav>
+    <div id="panes"></div>
+  </section>
+  <p class="msg" id="msg" role="status"></p>
+  <nav class="sx-home" aria-label="Site"><a href="/">Home</a><a href="/shows">Shows</a><a href="/collection.html">My collection</a></nav>
+  <p class="sx-hooks">Free tracks live in <a href="/collection.html">your collection</a>. <a href="/promoter.html">Run your show on Subduction</a>. Artists can <a href="/artists.html">join the waitlist</a>.</p>
+</main>
+<script src="assets/stack.js?v=9942b2fd78"></script>
+<script src="assets/fees.js?v=966ab0079e"></script>
+<script src="assets/savings.js?v=4a42b82b48"></script>
+<script src="assets/fan.js?v=f4b7d0d752" defer></script>
+<script src="assets/me.js?v=3120c54984" defer></script>
+</body>
+</html>

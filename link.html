@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; form-action 'self'; object-src 'none'; base-uri 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/app.css?v=cfbbab4977">
+<style>
+body{background:#000;color:#f4f1ee}
+.wrap{max-width:480px}
+h1{font-size:clamp(40px,10vw,64px)}
+.stat{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-size:64px;line-height:1;color:#b6ff00;margin:8px 0}
+.note{color:#9a9490}
+</style>
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script><script src="/assets/player.js?v=694bd2118b" defer></script>
+<title>Street team</title>
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><a href="./"><img src="assets/logo.png" alt="Home"></a></div>
+  <p class="mono" id="label">Street team</p>
+  <h1 class="disp" id="show">Loading</h1>
+  <p class="stat" id="count"></p>
+  <p class="note" id="owed"></p>
+  <p><a class="btn" id="go" href="./">Get tickets</a></p>
+  <p class="msg" id="msg" role="status"></p>
+</main>
+<script src="assets/stack.js?v=9942b2fd78"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var e = (q.get("e") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  var c = (q.get("c") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  var $ = function (id) { return document.getElementById(id); };
+  if (e === "underground" || !e || !c) { $("show").textContent = "That link isn't here."; $("go").hidden = true; return; }
+  var base = ((window.STACK || {}).supabaseUrl || "") + "/functions/v1/promoter?a=link&e=" + encodeURIComponent(e) + "&c=" + encodeURIComponent(c);
+  fetch(base).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Not found"); return j; }); }).then(function (d) {
+    document.title = d.label + " · " + d.show;
+    $("label").textContent = d.label;
+    $("show").textContent = d.show;
+    $("count").textContent = String(d.tickets || 0);
+    $("owed").textContent = (d.tickets === 1 ? "paid ticket" : "paid tickets");
+    $("go").href = d.link || ("/" + d.slug);
+  }).catch(function () { $("show").textContent = "That link isn't here."; $("go").hidden = true; });
+})();
+</script>
+</body>
+</html>

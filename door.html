@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/app.css?v=cfbbab4977">
+<link rel="stylesheet" href="assets/admin.css?v=1a9e3c20ae">
+<link rel="stylesheet" href="assets/tix.css?v=84d42d7dd4">
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script>
+<title>Door</title>
+</head>
+<body class="toftu">
+<main class="wrap admin door toftu">
+  <div class="top"><span class="mono" id="ename">Door</span><button type="button" id="signout" hidden>Sign out</button></div>
+
+  <section id="login" hidden>
+    <h1 class="disp">Door <em>sign in</em></h1>
+    <p class="lead">Enter the door PIN for this show.</p>
+    <form id="pf" novalidate><label class="sr" for="pin">PIN</label>
+      <div class="unit"><input type="password" id="pin" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button type="submit" class="btn">Open</button></div></form>
+    <p class="msg" id="lmsg" role="status"></p>
+    <p class="fineprint">Running the show? <a href="admin.html" style="color:var(--hot)">Sign in as staff</a>, then come back here for sales and the guest list.</p>
+  </section>
+
+  <section class="app" id="app" hidden>
+    <div class="nightpick" id="nights"></div>
+    <div class="count" id="count"></div>
+
+    <div class="panel" id="p-scan" role="tabpanel">
+      <div class="cam" id="cam"><video id="video" playsinline muted></video><div class="aim" hidden id="aim"></div>
+        <div class="start" id="startCam"><button type="button" class="btn" style="width:auto">Start camera</button></div></div>
+      <form class="manual" id="mf" novalidate><label class="sr" for="mcode">Ticket code</label>
+        <input type="text" id="mcode" placeholder="Type code" autocomplete="off" maxlength="12"><button type="submit">Check</button></form>
+      <p class="msg" id="smsg" role="status"></p>
+    </div>
+
+    <div class="panel" id="p-find" role="tabpanel" hidden>
+      <label class="sr" for="fq">Search</label>
+      <div class="unit"><input type="text" id="fq" placeholder="Search name, email or code" autocomplete="off"></div>
+      <div class="ffilter" id="ffilter" role="group" aria-label="Show">
+        <button type="button" data-f="all" aria-pressed="true">All <span id="fcAll">0</span></button>
+        <button type="button" data-f="out" aria-pressed="false">Not in <span id="fcOut">0</span></button>
+        <button type="button" data-f="in" aria-pressed="false">In <span id="fcIn">0</span></button>
+      </div>
+      <div class="people" id="found"></div>
+    </div>
+
+    <div class="panel" id="p-guests" role="tabpanel" hidden>
+      <h2 class="disp">Guest list</h2>
+      <form class="form" id="gf" novalidate>
+        <label for="gtype">Night</label><select id="gtype"></select>
+        <label for="glist">Whose list</label><input type="text" id="glist" placeholder="Dylan, Mook, artist name..." maxlength="40">
+        <label for="gnames">Names, one per line. Add an email after a comma to send them a ticket.</label>
+        <textarea id="gnames" placeholder="Jane Doe, jane@email.com&#10;John Smith"></textarea>
+        <button type="submit" class="btn">Add to list</button>
+        <p class="msg" id="gmsg" role="status"></p>
+      </form>
+      <div class="people" id="guests"></div>
+    </div>
+
+    <div class="panel" id="p-sales" role="tabpanel" hidden>
+      <h2 class="disp">Sales</h2>
+      <div class="stats" id="sstats"></div>
+      <div id="stypes"></div>
+      <div class="switch"><span id="salesState"></span><button type="button" class="btn ghost" id="salesBtn"></button></div>
+      <form class="form" id="pinf" novalidate>
+        <label for="newpin">Door PIN (4 to 8 digits). Setting a new one signs out every door phone.</label>
+        <input type="password" id="newpin" inputmode="numeric" maxlength="8" autocomplete="new-password">
+        <button type="submit" class="btn ghost">Save PIN</button>
+      </form>
+      <div class="sub mono">Promo and street team codes</div>
+      <div class="tablewrap"><table id="ptable"><thead><tr><th>Code</th><th>Who</th><th class="num">Off</th><th class="num">Orders</th><th class="num">Tix</th></tr></thead><tbody></tbody></table></div>
+      <form class="form" id="promof" novalidate>
+        <label for="pcode">New code</label><input type="text" id="pcode" maxlength="30" placeholder="e.g. HARLEY">
+        <label for="plabel">Who it's for</label><input type="text" id="plabel" maxlength="60">
+        <label for="poff">Dollars off per ticket (0 = just tracking)</label><input type="number" id="poff" min="0" step="1" value="0">
+        <button type="submit" class="btn ghost">Save code</button>
+        <p class="msg" id="pmsg" role="status"></p>
+      </form>
+      <div class="sub mono">Latest orders</div>
+      <div class="tablewrap"><table id="otable"><thead><tr><th>Name</th><th class="num">Tix</th><th class="num">Paid</th><th>Code</th><th>When</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <nav class="tabs" id="tabs" hidden>
+    <button type="button" data-tab="scan" aria-selected="true">Scan</button>
+    <button type="button" data-tab="find" aria-selected="false">Find</button>
+    <button type="button" data-tab="guests" aria-selected="false" class="adm">Guests</button>
+    <button type="button" data-tab="sales" aria-selected="false" class="adm">Sales</button>
+  </nav>
+  <div class="result" id="result" hidden role="alert"></div>
+</main>
+<script src="assets/door.js?v=fab0404751"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://*.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Subduction">
+<meta name="description" content="Tickets on Subduction.">
+<meta name="theme-color" content="#050505">
+<link rel="preconnect" href="https://hxfuelulxsituzcgsvhg.supabase.co" crossorigin>
+<link rel="preconnect" href="https://js.stripe.com">
+<link rel="preconnect" href="https://api.stripe.com">
+<link rel="stylesheet" href="assets/fonts.css?v=2504955dab">
+<link rel="stylesheet" href="assets/app.css?v=cfbbab4977">
+<link rel="stylesheet" href="assets/show.css?v=84e9d242c0">
+<style id="customCss"></style>
+<script>window.STACK={"labelName":"Subduction","membershipName":"Subduction","siteUrl":"https://subduction.art","fromName":"Dylan @ Subduction","fromEmail":"hello@subduction.art","replyTo":"","contactEmail":"hello@subduction.art","mailingAddress":"802 South Morris Avenue, Bloomington, IL 61701","social":{"instagram":"","tiktok":"","facebook":""},"headlines":{"A":"Get in early.","B":"Hear it first."},"subhead":"Subduction sells tickets for underground and bass promoters, gives every booked artist a free page, and gives every ticket buyer free unreleased tracks.","cta":"GET IN","microcopy":"Free. No spam. Unsubscribe anytime.","eventHeadline":"Location confirmed: {{EVENT_NAME}}.","eventSubhead":"The track you just heard is already below. Going under puts it in your collection.","perks":[{"icon":"01","title":"Unreleased tracks","body":"Free, and only for members. Every track lands on your page the moment you unlock it."},{"icon":"02","title":"Your collection","body":"One page with every track you've unlocked. Play it there or download the WAV."},{"icon":"03","title":"Shows first","body":"Members hear where and when before it's posted anywhere."},{"icon":"04","title":"Out in the wild","body":"We leave something behind at every show. Find it, scan it, and the track is yours."}],"smsConsentText":"Text me drops and show alerts from {{LABEL_NAME}}. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out. Consent not required to join.","ageText":"I'm 13 or older.","socialProofMin":100,"referralTiers":[{"referrals":1,"tier":"entries_x2","label":"First look at the next drop"},{"referrals":3,"tier":"early_file","label":"An unreleased track, 48 hours before members"},{"referrals":10,"tier":"merch","label":"Merch on us"}],"logoUrl":"assets/logo.png","supabaseUrl":"https://hxfuelulxsituzcgsvhg.supabase.co","turnstileSiteKey":"0x4AAAAAAFZadT27taMa0fvL"};</script><script src="/assets/player.js?v=694bd2118b" defer></script><script>(function(){
+var P={"m":"2127463657899244","g":"G-X6VM4P4QXW","t":"DC4UH0RC77U703IGPCMG"},FULL=true,T=window.Trk={};
+try{if(localStorage.getItem("stack_admin"))return}catch(e){}
+var q=new URLSearchParams(location.search),first=location.pathname.split("/")[1]||"";
+if(q.get("preview")==="1"||q.get("test")==="1")return;
+if(FULL&&(first==="underground"||q.get("e")==="underground"))return;
+var OK={e:1,ref:1,src:1,utm_source:1,utm_medium:1,utm_campaign:1,utm_content:1,utm_term:1,fbclid:1,gclid:1,ttclid:1};
+function bad(k,v){return !OK[k]||/@|cs_/i.test(v)}
+function isClean(){var ok=true;q.forEach(function(v,k){if(bad(k,v))ok=false});
+if(/[=@]/.test(location.hash))ok=false;
+if(document.referrer.indexOf(location.origin)===0&&/[?#]/.test(document.referrer))ok=false;return ok}
+function cleanUrl(){var u=new URLSearchParams();q.forEach(function(v,k){if(!bad(k,v))u.append(k,v)});var s=u.toString();return location.origin+location.pathname+(s?"?"+s:"")}
+var ref=document.referrer;if(ref.indexOf(location.origin)===0)ref=location.origin+ref.slice(location.origin.length).split(/[?#]/)[0];
+var slug=(first&&!/\./.test(first)?first:q.get("e")||"").replace(/[^a-z0-9-]/gi,"").toLowerCase()||"show";
+var gOn=false,pOn=false;
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
+gtag("js",new Date());
+gtag("config",P.g,{send_page_view:false,allow_ad_personalization_signals:false});
+gtag("event","page_view",{page_location:cleanUrl(),page_referrer:ref,page_title:document.title});
+var gs=document.createElement("script");gs.async=true;gs.src="https://www.googletagmanager.com/gtag/js?id="+P.g;document.head.appendChild(gs);gOn=true;
+T.pix=function(){
+if(pOn||!isClean())return;pOn=true;
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");
+fbq("set","autoConfig",false,P.m);fbq("init",P.m);fbq("track","PageView");
+!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var s=d.createElement("script");s.type="text/javascript";s.async=!0;s.src=r+"?sdkid="+e+"&lib="+t;var x=d.getElementsByTagName("script")[0];x.parentNode.insertBefore(s,x)};ttq.load(P.t);ttq.page()}(window,document,"ttq");
+};
+T.pix();
+if(FULL){
+T.view=function(){if(!pOn){gtag("event","view_item",{items:[{item_id:slug,item_name:slug}]});return}
+fbq("track","ViewContent",{content_type:"product",content_ids:[slug],content_name:slug});
+ttq.track("ViewContent",{content_type:"product",content_id:slug,content_name:slug});
+gtag("event","view_item",{items:[{item_id:slug,item_name:slug}]})};
+T.checkout=function(){if(pOn){fbq("track","InitiateCheckout",{content_type:"product",content_ids:[slug]});ttq.track("InitiateCheckout",{content_type:"product",content_id:slug})}
+gtag("event","begin_checkout",{items:[{item_id:slug,item_name:slug}]})};
+T.purchase=function(cents){var v=Math.round(Number(cents)||0)/100;
+if(pOn){fbq("track","Purchase",{value:v,currency:"USD"});ttq.track("CompletePayment",{value:v,currency:"USD"})}
+gtag("event","purchase",{value:v,currency:"USD"})};
+}
+})();</script>
+<script>(function(){var m=location.pathname.match(/^\/go\/([a-z0-9]{1,24})\/?$/i);if(m&&window.STACK&&STACK.supabaseUrl)location.replace(STACK.supabaseUrl+"/functions/v1/artist-sales?go="+m[1].toLowerCase());})();</script>
+<script>/* Ask for the show while the rest of the page loads (not for draft previews, which need the staff sign-in). */
+/* The show is named by ?e=<slug>, or by the address itself: subduction.art/<slug>. */
+try{var _q=new URLSearchParams(location.search),_p=location.pathname.replace(/^\/+|\/+$/g,""),_e=(_q.get("e")||(/^[a-z0-9-]+$/i.test(_p)&&!/^(show|404)$/i.test(_p)?_p:"")).replace(/[^a-z0-9-]/gi,"").toLowerCase();window.__SHOW_SLUG=_e;
+var _tok="";try{_tok=localStorage.getItem("stack_admin")||"";}catch(e){}
+if(_e&&_q.get("preview")!=="1"&&!_tok){var _g=function(f){return fetch((window.STACK||{}).supabaseUrl+"/functions/v1/"+f+"?e="+_e).then(function(r){return r.json().then(function(j){if(!r.ok){var x=new Error(j.error||"Not found");x.status=r.status;throw x}return j})})};window.__tix=_g("checkout").catch(function(x){if(x.status!==404)throw x;return _g("tickets")});window.__tix.catch(function(){})}}catch(e){}</script>
+<title>Tickets · Subduction</title>
+</head>
+<body class="show">
+<div class="preview-bar" id="preview" hidden>Draft preview · not live yet</div>
+<main class="wrap" id="page"><p class="msg" role="status">Loading...</p></main>
+<script src="assets/stack.js?v=9942b2fd78"></script>
+<script src="assets/show.js?v=1d8f0c5ea0"></script>
+<script src="assets/lineup.js?v=2139531746" defer></script>
+</body>
+</html>
