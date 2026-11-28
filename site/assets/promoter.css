@@ -104,3 +104,6 @@ body.pro{min-height:100vh;background:#000}
 .pro h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:18px;margin:18px 0 4px}
 .pro details.sec{margin-top:18px}.pro details.sec>summary{font-family:var(--disp);text-transform:uppercase;font-size:22px}
 .pro .pts{margin:0 0 16px;padding-left:18px;color:var(--fg);font-size:15px;line-height:1.7}
+/* shared site header and footer: signed-out start screen only */
+.pro.in .sx-bar,.pro.in .sx-foot{display:none}
+

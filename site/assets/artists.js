@@ -6,11 +6,11 @@
   S.pageview("/artists");
   // Same move as the homepage: fly into the art as the first screen scrolls away, and the bar goes solid after it.
   (function () {
-    var img = document.querySelector(".hero-art img"), hero = document.querySelector(".hero"), bar = document.querySelector(".bar");
+    var img = document.querySelector(".hero-art img"), hero = document.querySelector(".hero"), bar = document.getElementById("sx-bar");
     var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches, tick = false;
     function draw() { tick = false;
       var h = hero.offsetHeight || 1, t = Math.min(1, Math.max(0, scrollY / h));
-      bar.classList.toggle("solid", scrollY > h - 70);
+      if (bar) bar.classList.toggle("solid", scrollY > h - 70);
       if (innerWidth < 900 && !still) { img.style.transform = "scale(" + (1 + t * 0.9).toFixed(3) + ")"; img.style.opacity = (1 - t * t).toFixed(3); }
       else { img.style.transform = ""; img.style.opacity = ""; }
     }
