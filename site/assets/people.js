@@ -7,11 +7,22 @@
   var day = function (s) { if (!s) return ""; var d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); };
   var usd = function (n) { return n ? "$" + Number(n).toFixed(2) : ""; };
   // Email and phone are tap targets, so a lead is one tap from a call.
+  // A mailto link is built only for a plain address. Anything with ? # & spaces or control characters
+  // (which could prefill a subject or body) stays plain text.
+  var SIMPLE_EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+  function mail(e) {
+    e = String(e);
+    return SIMPLE_EMAIL.test(e) ? '<a href="mailto:' + esc(encodeURIComponent(e)) + '">' + esc(e) + "</a>" : esc(e);
+  }
+  function call(p) {
+    var tel = String(p).replace(/[^\d+]/g, "");
+    return tel ? '<a href="tel:' + esc(tel) + '">' + esc(p) + "</a>" : esc(p);
+  }
+  window.PeopleLinks = { mail: mail, call: call };
   function who(r) {
-    var tel = r.phone ? String(r.phone).replace(/[^\d+]/g, "") : "";
     return '<td class="who"><b>' + esc(r.name || r.full_name || "(no name)") + "</b><span>" +
-      (r.email ? '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + "</a>" : "") +
-      (r.phone ? (r.email ? " · " : "") + (tel ? '<a href="tel:' + esc(tel) + '">' + esc(r.phone) + "</a>" : esc(r.phone)) : "") + "</span></td>";
+      (r.email ? mail(r.email) : "") +
+      (r.phone ? (r.email ? " · " : "") + call(r.phone) : "") + "</span></td>";
   }
   function tag(t, hot) { return t ? '<span class="tag' + (hot ? " hot" : "") + '">' + esc(t) + "</span>" : ""; }
   function td(v, cls) { return "<td" + (cls ? ' class="' + cls + '"' : "") + ">" + esc(v == null ? "" : v) + "</td>"; }
