@@ -21,15 +21,18 @@ for (const f of WITH) {
   assert.deepEqual([...menu.matchAll(/>([^<]+)<\/a>/g)].map((m) => m[1]), ["Shows", "Artists", "My account", "Sell tickets"], f + ": phone menu");
   const foot = (html.match(/<footer class="sx-foot[^"]*" id="foot">([\s\S]*?)<\/footer>/) || [])[1];
   assert.ok(foot, f + ": shared footer");
-  for (const g of ["Find a show", "Your tickets", "For crews", "For artists", "Legal"]) assert.ok(foot.includes(`<p class="sx-h">${g}</p>`), f + ": footer group " + g);
+  assert.match(foot, /<a class="sx-cta" href="\/promoter\.html">Sell tickets<\/a><a class="sx-ghost" href="\/shows">Find a show<\/a>/, f + ": footer buttons");
+  for (const l of ["Shows", "My account", "My collection", "Artist waitlist"]) assert.ok(foot.includes(`>${l}</a>`), f + ": footer link " + l);
   assert.match(foot, /<a href="\/promoter\.html">Sell tickets<\/a><a href="\/fees\.html">Fees<\/a><a href="\/demo\.html">Try a test ticket<\/a>/, f + ": crew links");
-  assert.match(foot, /class="contact"/, f + ": contact link");
+  assert.match(foot, /<nav class="sx-legal"[^>]*><a href="\/privacy\.html">Privacy<\/a><a href="\/terms\.html">Terms<\/a><a href="[^"]+" class="contact">Contact<\/a><\/nav>/, f + ": legal row");
   assert.match(foot, /id="fsocial"/, f + ": social row kept");
   assert.doesNotMatch(foot, /instagram/i, f + ": Instagram stays out");
   assert.doesNotMatch(bar + foot, /Fee calculator|Pricing|Promoter sign in|href="\/?demo(\.html)?">Sell/, f + ": one label each in the chrome");
   assert.doesNotMatch(html, /Powered by Subduction/, f + ": no Powered by");
   assert.match(html, /assets\/chrome\.css/, f + ": chrome.css linked");
 }
+// Floating headers (over the hero art) turn solid black once the page scrolls.
+for (const f of ["index.html", "shows.html", "artists.html", "shows-send.html"]) assert.match(built(f), /<\/header><script>[^<]*sx-solid/, f + ": floating header turns solid on scroll");
 // The homepage keeps the ids its scripts need.
 for (const id of ["mine", "fsocial", "foot-cat"]) assert.match(built("index.html"), new RegExp(`id="${id}"`), "homepage id " + id);
 assert.doesNotMatch(built("index.html"), />Fee calculator</, "homepage says Fees");
