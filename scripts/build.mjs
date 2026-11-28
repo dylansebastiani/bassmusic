@@ -86,7 +86,7 @@ for (const f of readdirSync(out)) {
   const p = join(out, f);
   // The music bar rides along on every public page. Staff pages (door, admin, people) stay quiet.
   // The homepage is promoter-first, so it stays quiet too, except for fans arriving from a show QR or friend link.
-  const bar = /^(door|admin|studio|promoter|demo|pass|people|fees|artists)\.html$/.test(f) ? ""
+  const bar = /^(door|admin|studio|promoter|demo|pass|people|fees|artists|shows-review)\.html$/.test(f) ? ""
     : f === "index.html" ? '<script>if(/[?&](e|r|src)=/.test(location.search)){var s=document.createElement("script");s.src="/assets/player.js";s.defer=true;document.head.appendChild(s);}</script>'
     : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
@@ -145,6 +145,10 @@ writeFileSync(join(out, "_redirects"), [
   "/promoter /promoter.html 200",
   "/ticket /ticket.html 200",
   "/door /door.html 200",
+  "/shows/review /shows-review.html 200",
+  "/shows /shows.html 200",
+  "/shows/ /shows.html 200",
+  "/shows/:city /shows.html 200",
   "/fees /fees.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,
   `/u/:token ${fn}/unsubscribe?u=:token 302`,
@@ -193,16 +197,21 @@ async function showPages() {
   let shows = [];
   try { shows = (await (await fetch(`${fn}/shows`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
   catch (e) { console.warn("build: could not fetch the show list, short links fall back to the 404 page:", e.message); return; }
-  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">');
+  // The page's own generic title and description are dropped, so each built page prints exactly one of each.
+  const base = readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">')
+    .replace(/<meta name="description"[^>]*>\s*/, "").replace(/<title>[^<]*<\/title>\s*/, "");
   const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let n = 0;
   for (const s of shows) {
     if (!/^[a-z0-9-]{1,80}$/.test(s.slug || "")) continue;
+    if (s.slug === "underground" || s.id === "63b511f3-d838-404f-9c2e-5d4b98fbf013") continue;
     if (s.review_status && s.review_status !== "approved") { console.warn(`build: show "${s.slug}" is not approved, skipped`); continue; }
     // Never let a show's name shadow a real page or folder of the site.
     if (existsSync(join(out, s.slug)) || existsSync(join(out, s.slug + ".html"))) { console.warn(`build: show "${s.slug}" clashes with a site page, skipped`); continue; }
-    const tags = `<title>${esc(s.name)}</title>\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">` +
-      (s.share_url ? `\n<meta property="og:image" content="${esc(s.share_url)}">\n<meta name="twitter:card" content="summary_large_image">` : "") +
+    const image = s.image || s.share_url || s.poster_url || `${pub.siteUrl}/assets/og.jpg`;
+    // A show with a secret location never puts its written description in a public preview.
+    const desc = ((s.location_secret !== false ? "" : s.description) || `Tickets for ${s.name || "this show"}.`).slice(0, 200);
+    const tags = `<title>${esc(s.name)}</title>\n<meta name="description" content="${esc(desc)}">\n<meta property="og:title" content="${esc(s.name)}">\n<meta property="og:description" content="${esc(desc)}">\n<meta property="og:url" content="${pub.siteUrl}/${s.slug}">\n<meta property="og:image" content="${esc(image)}">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="${esc(s.name)}">\n<meta name="twitter:description" content="${esc(desc)}">\n<meta name="twitter:image" content="${esc(image)}">` +
       eventSchemaTag(s);
     mkdirSync(join(out, s.slug), { recursive: true });
     writeFileSync(join(out, s.slug, "index.html"), base.replace('<meta property="og:type" content="website">', '<meta property="og:type" content="website">\n' + tags));
@@ -285,7 +294,65 @@ async function trackPages() {
   }
   console.log("built", n, "track preview pages");
 }
+// One page per city that already has an upcoming show, so a link like /shows/peoria-il
+// has its own title. If the directory function is not up yet, the main /shows page still works.
+const DIR_STATE = { IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", MI: "Michigan", MN: "Minnesota", MO: "Missouri", NE: "Nebraska", ND: "North Dakota", OH: "Ohio", SD: "South Dakota", WI: "Wisconsin" };
+async function directoryPages() {
+  if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
+  let shows = [];
+  try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
+  catch (e) { console.warn("build: could not fetch the show directory, city pages wait for the next build:", e.message); return; }
+  const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
+  const by = {};
+  for (const s of shows) {
+    if (!/^[a-z0-9-]{1,48}$/.test(s.path || "") || s.path === "review") continue;
+    (by[s.path] ||= []).push(s);
+  }
+  let n = 0;
+  for (const path of Object.keys(by)) {
+    const list = by[path];
+    const sample = list[0];
+    const where = [sample.city, DIR_STATE[sample.state] || sample.state].filter(Boolean).join(", ");
+    const title = where ? `Bass shows in ${where}` : "Midwest bass shows";
+    const desc = where ? `Upcoming bass shows in ${where}.` : "Upcoming bass shows across the Midwest, by city and date.";
+    const ogTitle = sample.city ? `${sample.city}${sample.state ? ", " + sample.state : ""} bass shows` : "Midwest bass shows";
+    const pageUrl = `${pub.siteUrl}/shows/${path}`;
+    const cards = list.map((s) => {
+      const href = esc(s.url);
+      const own = s.source === "subduction";
+      const ext = /^https:\/\//.test(s.url || "");
+      const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
+      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>$1.50 fee</small>" : "Tickets"}</span>`;
+      const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
+      // A secret location never prints the venue name, here or anywhere else on the page.
+      const venue = s.secret ? "Secret location" : (s.venue || "");
+      const city = [s.city, s.state].filter(Boolean).join(", ");
+      const names = (s.lineup || []).length ? `<span class="lineup">${esc(s.lineup.join(", "))}</span>` : "";
+      return `<article class="cell"><a class="poster${img ? "" : " noart"}" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}>${frame}<span class="meta"><span class="when">${esc(s.when || "")}${s.fresh ? ' <span class="new">Just added</span>' : ""}</span><h3>${esc(s.name)}</h3>${venue ? `<span class="venue">${esc(venue)}</span>` : ""}<span class="city">${esc(city)}</span>${names}</span></a></article>`;
+    }).join("");
+    let html = baseHtml
+      .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
+      .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${esc(ogTitle)}">`)
+      .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${esc(ogTitle)}">`)
+      .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where || "Midwest")}</p>`)
+      .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(sample.city || "Bass")} <em>shows.</em></h1>`)
+      .replaceAll("Upcoming bass shows across the Midwest, by city and date.", desc)
+      .replaceAll("https://subduction.art/shows", pageUrl)
+      .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, () => `<div id="list" class="wall">${cards}</div>`)
+      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
+    if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
+    mkdirSync(join(out, "shows", path), { recursive: true });
+    writeFileSync(join(out, "shows", path, "index.html"), html);
+    n++;
+  }
+  console.log(`built ${n} city page(s)`);
+}
 await trackPages();
 await showPages();
 await goPages();
+await directoryPages();
+// Trailing-slash and review links need real files: GitHub Pages ignores _redirects.
+mkdirSync(join(out, "shows", "review"), { recursive: true });
+writeFileSync(join(out, "shows", "index.html"), readFileSync(join(out, "shows.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
+if (existsSync(join(out, "shows-review.html"))) writeFileSync(join(out, "shows", "review", "index.html"), readFileSync(join(out, "shows-review.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 console.log("built dist/ with", Object.keys(cfg).length, "config keys");
