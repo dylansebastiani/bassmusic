@@ -77,27 +77,38 @@
   function drawToday() {
     var t = data.today;
     if (!t) { $("today").innerHTML = '<p class="empty">Today needs the latest owner update. Everything else below still works.</p>'; return; }
-    var m = t.money.map(function (x) {
-      return '<div class="tile"><span class="lab">Last ' + x.days + ' days</span><b>' + money(x.fees) + '</b><span class="cap">Subduction fees</span>' +
-        '<span class="sm">' + money(x.gross) + " sold · " + x.tickets.toLocaleString() + (x.tickets === 1 ? " ticket" : " tickets") + "</span></div>";
-    }).join("");
+    var w = t.money[0], mo = t.money[1] || t.money[0];
+        // Hero: the month's fees, poster size. Then the week and the volume behind it.
+    var hero = '<section class="hero"><p class="lab">' + "Your fees · last " + mo.days + " days</p>" +
+      '<b class="big">' + money(mo.fees) + "</b>" +
+      '<div class="strip">' +
+        '<div><b>' + money(w.fees) + "</b><span>" + w.days + "-day fees</span></div>" +
+        '<div><b>' + money(mo.gross) + "</b><span>" + mo.days + "-day sales</span></div>" +
+        '<div><b>' + mo.tickets.toLocaleString() + "</b><span>" + mo.days + "-day tickets</span></div>" +
+      "</div></section>";
     var list = todo();
-    var needs = list.length ? list.map(function (x) {
+    var needs = list.length ? list.map(function (x, i) {
       var go = x[2], href = go && go.charAt(0) === "@" ? go.slice(1) : null;
-      var inner = "<b>" + x[0].toLocaleString() + "</b><span>" + esc(x[1]) + "</span>" + (go ? '<i aria-hidden="true">→</i>' : "");
-      return href ? '<a class="need" href="' + esc(href) + '">' + inner + "</a>"
-        : go ? '<button type="button" class="need" data-go="' + go + '">' + inner + "</button>"
-        : '<div class="need warn">' + inner + "</div>";
+      var inner = '<b class="nb">' + x[0].toLocaleString() + "</b><span>" + esc(x[1]) + "</span>" + (go ? '<i aria-hidden="true">→</i>' : "");
+      var cls = "need" + (i === 0 ? " top" : "") + (go ? "" : " warn");
+      return href ? '<a class="' + cls + '" href="' + esc(href) + '">' + inner + "</a>"
+        : go ? '<button type="button" class="' + cls + '" data-go="' + go + '">' + inner + "</button>"
+        : '<div class="' + cls + '">' + inner + "</div>";
     }).join("") : '<p class="clear">Nothing needs you right now.</p>';
+    var most = Math.max.apply(null, [1].concat(t.upcoming.map(function (e) { return e.tickets; })));
     var up = t.upcoming.length ? t.upcoming.map(function (e) {
-      return '<a class="show" href="admin.html#shows" title="Open in Staff"><span class="d">' + esc(showDay(e.starts_at)) + "</span>" +
-        '<span class="n"><b>' + esc(e.name) + "</b><span>" + esc([e.city, e.belongs_to].filter(Boolean).join(" · ")) + "</span></span>" +
-        '<span class="k"><b>' + e.tickets.toLocaleString() + "</b><span>" + (e.last7 ? "+" + e.last7 + " this week" : "sold") + "</span></span></a>";
+      var d = new Date(e.starts_at), ok = !isNaN(d);
+      return '<a class="show" href="admin.html#shows" title="Open in Staff">' +
+        '<span class="cal"><small>' + (ok ? esc(d.toLocaleDateString(undefined, { month: "short" })) : "") + "</small><b>" + (ok ? d.getDate() : "") + "</b><small>" + (ok ? esc(d.toLocaleDateString(undefined, { weekday: "short" })) : "") + "</small></span>" +
+        '<span class="n"><b>' + esc(e.name) + "</b><span>" + esc([e.city, e.belongs_to].filter(Boolean).join(" · ")) + "</span>" +
+        '<span class="bar"><i style="width:' + Math.round(100 * e.tickets / most) + '%"></i></span></span>' +
+        '<span class="k"><b>' + e.tickets.toLocaleString() + "</b><span" + (e.last7 ? ' class="up"' : "") + ">" + (e.last7 ? "+" + e.last7 + " this week" : "sold") + "</span></span></a>";
     }).join("") : '<p class="clear">No upcoming shows.</p>';
-    $("today").innerHTML = '<div class="tiles">' + m + "</div>" +
-      '<h2 class="kick">Needs you</h2><div class="needs">' + needs + "</div>" +
-      '<h2 class="kick">Upcoming shows</h2><div class="shows">' + up + "</div>" +
-      '<p class="fine">Fees are the buyer fee on paid orders. Payouts go straight to each promoter\'s own Stripe.</p>';
+    $("today").innerHTML = hero +
+      '<h2 class="sec">Needs <em>you.</em>' + (list.length ? '<span class="cnt">' + list.length + "</span>" : "") + "</h2>" +
+      '<div class="needs">' + needs + "</div>" +
+      '<h2 class="sec">On <em>sale.</em></h2><div class="shows">' + up + "</div>" +
+      '<p class="fine">Fees are the buyer fee on paid orders. Ticket money goes straight to each promoter\'s own Stripe.</p>';
   }
   $("today").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (b) { tab = b.getAttribute("data-go"); $("q").value = ""; tabs(); owners(); draw(); scrollTo(0, 0); } });
 
