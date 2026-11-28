@@ -201,11 +201,19 @@ html:not(.js) .rv{opacity:1;transform:none}
   .price-big{font-size:clamp(110px,10vw,180px)}
 }
 /* promoters: a sample of the real product (page, ticket, door) instead of decorative art */
-.art.sample{order:0;height:auto;margin:6px 0 0;pointer-events:auto;-webkit-mask-image:none;mask-image:none;overflow:visible}
-.art.sample img{height:auto;object-fit:fill;border:1px solid var(--line);background:#000}
-.sample figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:10px}
+.art.sample{order:0;height:auto;margin:10px 0 0;pointer-events:auto;-webkit-mask-image:none;mask-image:none;overflow:visible}
+.pv{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.pv li{display:grid;grid-template-columns:104px 1fr;gap:16px;align-items:center;padding:10px 14px 10px 10px;border:1px solid var(--line);background:#000}
+.pv .shot{width:104px;height:140px;display:flex;align-items:center;justify-content:center;background:#000}
+.pv img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;display:block}
+.pv div{display:grid;gap:4px;text-align:left}
+.pv i{font-style:normal;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--hot)}
+.pv b{font-family:var(--disp);font-weight:400;font-size:24px;line-height:1;letter-spacing:.02em;text-transform:uppercase;color:var(--fg)}
+.pv span{font-size:14px;line-height:1.45;color:var(--mute);text-wrap:pretty}
+.sample figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:12px;text-align:left}
 .sample figcaption a{color:var(--hot);text-underline-offset:3px}
-@media (min-width:900px){.art.sample{top:0;bottom:0;right:0;width:46%;display:flex;flex-direction:column;justify-content:center;margin:0}}
+@media (min-width:900px){.art.sample{top:0;bottom:0;right:0;width:46%;display:flex;flex-direction:column;justify-content:center;margin:0}
+  .pv li{grid-template-columns:120px 1fr;gap:22px}.pv .shot{width:120px;height:160px}.pv b{font-size:28px}.pv span{font-size:15px}}
 </style>
 <link rel="stylesheet" href="/assets/chrome.css">
 <!--CONFIG-->
@@ -237,7 +245,14 @@ html:not(.js) .rv{opacity:1;transform:none}
     <li class="rv"><i>04</i><h3>Get paid</h3><p>Every sale goes straight to your own Stripe. We never hold your money.</p></li>
   </ol>
   </div>
-  <figure class="art sample" id="sample"><img src="assets/promoter-preview.webp" width="960" height="560" alt="Sample show: the show page, a phone ticket with a QR code, and the door check-in screen" loading="lazy" decoding="async"><figcaption>Sample show. Your page, their ticket, your door. <a href="demo.html">Try a test ticket</a></figcaption></figure>
+  <figure class="art sample" id="sample">
+    <ol class="pv">
+      <li class="rv"><span class="shot"><img src="assets/pv-page.webp" width="296" height="530" alt="Sample show page for Fault Line with ticket prices" loading="lazy" decoding="async"></span><div><i>01</i><b>Your page</b><span>Your flyer, lineup and prices. Fans buy on their phone.</span></div></li>
+      <li class="rv"><span class="shot"><img src="assets/pv-ticket.webp" width="298" height="432" alt="Sample phone ticket with a QR code" loading="lazy" decoding="async"></span><div><i>02</i><b>Their ticket</b><span>A QR code lands in their email. No app needed.</span></div></li>
+      <li class="rv"><span class="shot"><img src="assets/pv-door.webp" width="298" height="162" alt="Door check-in screen showing IN in green" loading="lazy" decoding="async"></span><div><i>03</i><b>Your door</b><span>Scan it at the door. Green means in.</span></div></li>
+    </ol>
+    <figcaption>Sample show. <a href="demo.html">Try a test ticket</a></figcaption>
+  </figure>
   </div>
   <div class="yours rv">
     <h3 class="disp">Your brand. <em>Not ours.</em></h3>

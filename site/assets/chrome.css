@@ -2,7 +2,9 @@
    Self-contained: brand colors are written out so it looks the same on every page's own stylesheet. */
 .sx-bar{position:relative;z-index:45;display:flex;align-items:center;gap:14px;background:#000;border-bottom:1px solid #1C1C1C;
   padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));font-family:"Archivo",system-ui,sans-serif}
-.sx-bar.sx-over{position:fixed;top:0;left:0;right:0;border-bottom:0;background:linear-gradient(to bottom,rgba(0,0,0,.92),rgba(0,0,0,.6) 70%,rgba(0,0,0,0))}
+.sx-bar.sx-over{position:fixed;top:0;left:0;right:0;border-bottom:1px solid transparent;background:linear-gradient(to bottom,rgba(0,0,0,.92),rgba(0,0,0,.6) 70%,rgba(0,0,0,0));transition:background-color .2s,border-color .2s}
+/* Once the page scrolls the floating header is solid, so headlines never show through behind it. */
+.sx-bar.sx-over.sx-solid{background:#000;border-bottom-color:#1C1C1C}
 .sx-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#F4F1EE;line-height:1}
 .sx-brand img{display:block;width:26px;height:26px}
 .sx-brand b{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:20px;letter-spacing:.08em;color:#F4F1EE}
@@ -22,19 +24,24 @@
 .sx-menu nav a:last-child{border-bottom:0;color:#B6FF00}
 @media (min-width:760px){.sx-nav{display:flex}.sx-go{margin-left:8px}.sx-menu{display:none}}
 
-.sx-foot{position:relative;z-index:2;background:#000;border-top:1px solid #1C1C1C;color:#F4F1EE;font-family:"Archivo",system-ui,sans-serif;display:grid;gap:28px;justify-items:start;
-  padding:44px max(18px,env(safe-area-inset-right,0px)) max(44px,calc(env(safe-area-inset-bottom,0px) + 32px)) max(18px,env(safe-area-inset-left,0px));text-align:left}
+.sx-foot{position:relative;z-index:2;background:#000;border-top:1px solid #1C1C1C;color:#F4F1EE;font-family:"Archivo",system-ui,sans-serif;display:grid;gap:26px;justify-items:stretch;
+  padding:32px max(18px,env(safe-area-inset-right,0px)) max(28px,calc(env(safe-area-inset-bottom,0px) + 20px)) max(18px,env(safe-area-inset-left,0px));text-align:left}
+.sx-top{display:grid;gap:10px;justify-items:start}
 .sx-foot .sx-brand img{width:28px;height:28px}
-.sx-groups{display:grid;grid-template-columns:1fr 1fr;gap:24px 28px;width:100%}
-.sx-g{display:grid;gap:9px;align-content:start}
-.sx-h{margin:0;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9A9490}
-.sx-g a{color:#F4F1EE;font-size:14px;letter-spacing:0;text-transform:none;text-decoration:none}
-.sx-g a:hover,.sx-foot .fsocial a:hover{color:#B6FF00}
-.sx-foot .fsocial{display:flex;gap:22px;flex-wrap:wrap}
+.sx-tag{margin:0;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9A9490}
+.sx-groups{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:16px;width:100%}
+.sx-g{display:grid;gap:10px;align-content:start}
+.sx-h{margin:0 0 2px;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#B6FF00}
+.sx-g a{color:#F4F1EE;font-size:14px;line-height:1.3;letter-spacing:0;text-transform:none;text-decoration:none;white-space:nowrap}
+.sx-g a:hover,.sx-legal a:hover,.sx-foot .fsocial a:hover{color:#B6FF00}
+.sx-base{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding-top:18px;border-top:1px solid #2A2627;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.sx-legal,.sx-foot .fsocial{display:flex;gap:18px;flex-wrap:wrap}
 .sx-foot .fsocial:empty{display:none}
-.sx-foot .fsocial a{color:#F4F1EE;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
-.sx-copy{margin:0;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#9A9490;text-transform:uppercase}
-@media (min-width:900px){.sx-foot{grid-template-columns:auto 1fr;align-items:start;column-gap:64px;padding-inline:max(40px,5vw)}.sx-groups{grid-template-columns:repeat(5,minmax(0,1fr))}.sx-foot .fsocial,.sx-copy{grid-column:2}}
+.sx-legal a,.sx-foot .fsocial a{color:#CFC9C5;text-decoration:none;font-size:11px;font-weight:400;letter-spacing:.12em}
+.sx-copy{margin:0 0 0 auto;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;color:#9A9490;text-transform:uppercase}
+@media (max-width:359px){.sx-groups{grid-template-columns:1fr 1fr}}
+@media (min-width:900px){.sx-foot{grid-template-columns:minmax(220px,1fr) minmax(0,2fr);column-gap:64px;row-gap:28px;padding:44px max(40px,5vw) 32px}
+  .sx-groups{justify-content:start;column-gap:72px}.sx-base{grid-column:1 / -1}}
 
 /* Small "way home" strip for signed-in fan pages (me, collection, t). No marketing chrome there. */
 .sx-home{display:flex;flex-wrap:wrap;gap:8px 18px;margin:28px 0 0;padding-top:14px;border-top:1px solid #2A2627;font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
