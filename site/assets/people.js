@@ -6,7 +6,13 @@
   var data = null, tab = "today";
   var day = function (s) { if (!s) return ""; var d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); };
   var usd = function (n) { return n ? "$" + Number(n).toFixed(2) : ""; };
-  function who(r) { return '<td class="who"><b>' + esc(r.name || r.full_name || "(no name)") + "</b><span>" + esc(r.email || "") + (r.phone ? " · " + esc(r.phone) : "") + "</span></td>"; }
+  // Email and phone are tap targets, so a lead is one tap from a call.
+  function who(r) {
+    var tel = r.phone ? String(r.phone).replace(/[^\d+]/g, "") : "";
+    return '<td class="who"><b>' + esc(r.name || r.full_name || "(no name)") + "</b><span>" +
+      (r.email ? '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + "</a>" : "") +
+      (r.phone ? (r.email ? " · " : "") + (tel ? '<a href="tel:' + esc(tel) + '">' + esc(r.phone) + "</a>" : esc(r.phone)) : "") + "</span></td>";
+  }
   function tag(t, hot) { return t ? '<span class="tag' + (hot ? " hot" : "") + '">' + esc(t) + "</span>" : ""; }
   function td(v, cls) { return "<td" + (cls ? ' class="' + cls + '"' : "") + ">" + esc(v == null ? "" : v) + "</td>"; }
 
@@ -111,6 +117,10 @@
     $("count").textContent = list.length === all ? all + noun : list.length + " of " + all;
     $("t").innerHTML = "<thead><tr>" + T.head.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr></thead><tbody>" +
       (list.length ? list.map(function (r) { return "<tr>" + T.row(r) + "</tr>"; }).join("") : '<tr><td class="empty" colspan="' + T.head.length + '">Nobody here yet.</td></tr>') + "</tbody>";
+    // On a phone each row becomes a card. Every cell carries its column name for the label.
+    Array.prototype.forEach.call($("t").querySelectorAll("tbody tr"), function (tr) {
+      Array.prototype.forEach.call(tr.children, function (c, i) { if (T.head[i] && !c.classList.contains("empty")) c.setAttribute("data-l", T.head[i]); });
+    });
   }
   function tabs() {
     $("tabs").innerHTML = '<button type="button" role="tab" data-k="today" aria-selected="' + (tab === "today") + '">Today</button>' + Object.keys(TABS).map(function (k) { return '<button type="button" role="tab" data-k="' + k + '" aria-selected="' + (k === tab) + '">' + TABS[k].label + "<b>" + (data[k] || []).length + "</b></button>"; }).join("");
