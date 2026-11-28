@@ -24,6 +24,9 @@ import QRCode from "npm:qrcode@1.5.4";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
 const CONTACT = "hello@subduction.art";
+// ilike() treats % and _ as wildcards, and EMAIL_RE allows both, so an address like john_smith@x.com would also
+// match john.smith@x.com. Escape them so an email lookup only ever finds that exact address (any letter case).
+const likeExact = (v: string) => v.replace(/[\\%_]/g, "\\$&");
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/, UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type, x-admin-token", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS } });
@@ -183,7 +186,7 @@ async function home(m: { id: string; email: string; first_name: string | null; l
   const email = String(m.email).toLowerCase();
   const [{ data: orders }, { data: invites }, { data: staff }] = await Promise.all([
     db.from("ticket_orders").select("id,event_id,status,comp_list,artist_invite_id").eq("email", email).in("status", ["paid", "comp"]).order("created_at", { ascending: false }).limit(100),
-    db.from("artist_invites").select("id,event_id,name,token,claimed_at,bio,hometown,genre,links,photo_path,sell_ref,sell_promo_id").ilike("email", email).is("revoked_at", null).order("created_at", { ascending: false }),
+    db.from("artist_invites").select("id,event_id,name,token,claimed_at,bio,hometown,genre,links,photo_path,sell_ref,sell_promo_id").ilike("email", likeExact(email)).is("revoked_at", null).order("created_at", { ascending: false }),
     db.from("company_staff").select("company_id,role").eq("subscriber_id", m.id),
   ]);
   const orderIds = (orders || []).map((o) => o.id);
@@ -543,7 +546,7 @@ Deno.serve(async (req) => {
         if (list.includes(String(m.email).toLowerCase())) return refuse();
         const { data: staff, error: se } = await db.from("company_staff").select("company_id").eq("subscriber_id", m.id).limit(1);
         if (se || !staff || staff.length) return refuse();   // crew and staff carry promoter powers, so they use the email sign-in
-        const { data: inv, error: ie } = await db.from("artist_invites").select("id").ilike("email", String(m.email).toLowerCase()).limit(1);
+        const { data: inv, error: ie } = await db.from("artist_invites").select("id").ilike("email", likeExact(String(m.email).toLowerCase())).limit(1);
         if (ie || !inv || inv.length) return refuse();   // anyone with an artist invite signs in with their email
         const token = hex(32);
         // Lower trust than an email sign-in: 24 hours, and home() hides tickets and passes for it.
@@ -567,7 +570,7 @@ Deno.serve(async (req) => {
         const { data: cur } = await db.from("artist_profiles").select("photo_path").eq("subscriber_id", me.id).maybeSingle();
         await db.from("artist_profiles").upsert({ subscriber_id: me.id, name, ...patch, photo_path: cur?.photo_path || null, updated_at: new Date().toISOString() }, { onConflict: "subscriber_id" });
         // Copy onto every show they're booked on. The billing name on each show stays the promoter's.
-        await db.from("artist_invites").update(patch).ilike("email", email).is("revoked_at", null);
+        await db.from("artist_invites").update(patch).ilike("email", likeExact(email)).is("revoked_at", null);
         return json({ saved: true });
       }
       if (b.a === "door_pin" || b.a === "door_open") {

@@ -92,4 +92,13 @@ assert.match(mig, /pg_advisory_xact_lock/);
 assert.match(mig, /if exists \(select 1 from public\.company_staff where subscriber_id = p_subscriber\)/);
 assert.match(mig, /grant execute[\s\S]*service_role/);
 
+// Email lookups in account escape the ilike wildcards (% and _), so john_smith@x.com can't read or change
+// john.smith@x.com's artist passes. Every ilike on email there must go through likeExact().
+assert.match(account, /const likeExact = \(v: string\) => v\.replace\(\/\[\\\\%_\]\/g, "\\\\\$&"\)/);
+assert.equal((account.match(/\.ilike\("email", (?!likeExact\()/g) || []).length, 0, "account: every email ilike must use likeExact()");
+const likeExact = (v) => v.replace(/[\\%_]/g, "\\$&");
+assert.equal(likeExact("john_smith@x.com"), "john\\_smith@x.com");
+assert.equal(likeExact("a%b@x.com"), "a\\%b@x.com");
+assert.equal(likeExact("a\\b@x.com"), "a\\\\b@x.com");
+
 console.log("security hardening ok");
