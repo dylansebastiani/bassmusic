@@ -20,15 +20,16 @@ const fee = at("$1.50 flat buyer fee");
 at("You keep your full ticket price.");
 const pitch = at("<p class=pitch>");
 const fig = at("<figure class=preview");
-const img = at('src="assets/promoter-preview.webp"');
-if (!/promoter-preview\.webp" width="960" height="560"/.test(s)) fail("preview image needs width 960 and height 560");
+const img = at('src="assets/pv-page.webp"');
+for (const [f, w, h] of [["pv-page", 296, 530], ["pv-ticket", 298, 432], ["pv-door", 298, 162]]) if (!new RegExp(f + '\\.webp" width="' + w + '" height="' + h + '"').test(s)) fail(f + " needs width " + w + " and height " + h);
+for (const l of ["Your page", "Their ticket", "Your door"]) at("<b>" + l + "</b>");
 for (const [n, i] of [["pitch", pitch], ["fee line", fee], ["preview", fig], ["preview image", img]]) if (i > form) fail(n + " must sit above the email form");
 if (!/Sample show/.test(s)) fail("preview must be labeled as a sample");
 // Sign-in stays the same: honeypot, Turnstile on focus, same endpoint action.
 at("hp_field"); at('loadTurnstile, { once: true }'); at('a: "open"');
 
-const webp = join(dist, "assets/promoter-preview.webp");
-if (!existsSync(webp)) fail("dist/assets/promoter-preview.webp is missing");
+const webp = join(dist, "assets/pv-page.webp");
+if (!existsSync(webp)) fail("dist/assets/pv-page.webp is missing");
 const buf = readFileSync(webp);
 if (buf.toString("ascii", 0, 4) !== "RIFF" || buf.toString("ascii", 8, 12) !== "WEBP") fail("preview is not a webp");
 if (buf.length > 60000) fail("preview image is over 60KB");
