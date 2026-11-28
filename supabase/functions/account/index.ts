@@ -16,6 +16,7 @@
 //                                   artists (pass status + sell links), playlist (x-admin-token)
 //   GET  ?a=qr&e=<slug>             a QR code of the show's public link (public: it's the same link anyone can see)
 //   POST {a:"profile", ...}         save your one artist profile; copied onto every show you're booked on (preview only for now)
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -38,7 +39,7 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
   return (data?.value as T) ?? fallback;
 }
 async function ipHash(req: Request, tag: string) {
-  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  const ip = ipFromHeaders((h: string) => req.headers.get(h));
   return sha256(ip + "|" + (await setting("ip_salt", "unset")) + "|" + tag);   // hashed, never stored raw
 }
 const LINK_HOSTS: Record<string, string[]> = {
@@ -76,10 +77,10 @@ async function who(req: Request) {
 }
 
 // Bot check for sign-in (Cloudflare Turnstile). Inline on purpose: this file imports nothing from _shared.
-// No TURNSTILE_SECRET set means allow, same as the signup form.
+// No TURNSTILE_SECRET set means refuse (fail closed) and log it.
 async function botCheck(token: unknown, ip: string) {
   const secret = Deno.env.get("TURNSTILE_SECRET");
-  if (!secret) return true;
+  if (!secret) { console.error("account: TURNSTILE_SECRET is not set, so every sign-in bot check is refused. Set it in the function secrets."); return false; }
   if (typeof token !== "string" || !token || token.length > 2048) return false;
   const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -462,7 +463,7 @@ Deno.serve(async (req) => {
         // Second, tighter limit on every call (new email or not), so the answer never depends on who has an account.
         const { data: n2 } = await db.rpc("bump_rate_limit", { p_ip_hash: await ipHash(req, "account-new") });
         if ((n2 ?? 0) > 3) return no("Too many tries. Wait a minute and try again.", 429);
-        const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+        const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim();
         if (!(await botCheck(b.turnstile, ip))) return no("Bot check failed. Refresh and try again.", 403);
         await sendSignin(email);
         return json({ sent: true });   // same answer either way, so this can't be used to find out who's here

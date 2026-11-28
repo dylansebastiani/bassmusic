@@ -13,6 +13,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
+// Same rule as _shared/client_ip.mjs (this file imports nothing shared): cf-connecting-ip, else last x-forwarded-for hop, else x-real-ip.
+const clientIp = (req: Request) => (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim()
+  || (req.headers.get("x-forwarded-for") || "").split(",").map((h) => h.trim()).filter(Boolean).pop()
+  || (req.headers.get("x-real-ip") || "").trim() || "unknown";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
 const FN = (Deno.env.get("SUPABASE_URL") || "") + "/functions/v1/demo";
@@ -202,7 +206,7 @@ Deno.serve(async (req) => {
   if (b.a === "signin") {
     const email = clean(b.email, 254).toLowerCase();
     if (!EMAIL_RE.test(email)) return no("That email doesn't look right.");
-    const ipRaw = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+    const ipRaw = clientIp(req);
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|signin") });
     if ((n ?? 0) > 6) return no("Too many tries. Wait a minute and try again.", 429);
     await sendSigninLink(email);
@@ -211,7 +215,7 @@ Deno.serve(async (req) => {
 
   if (b.a !== "start") return no("Bad request");
   if (clean(b.website, 200)) return json({ ok: true });   // honeypot: bots fill it, people never see it
-  const ipRaw = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  const ipRaw = clientIp(req);
   const ip = await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|demo");   // hashed, never stored raw
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 8) return no("Too many tries. Wait a minute and try again.", 429);

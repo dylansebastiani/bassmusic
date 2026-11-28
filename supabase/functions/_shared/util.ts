@@ -1,4 +1,5 @@
 import { CONFIG } from "./config.ts";
+import { ipFromHeaders } from "./client_ip.mjs";
 const ORIGIN = Deno.env.get("SITE_URL") || "*";
 export const CORS = {
   "Access-Control-Allow-Origin": ORIGIN,
@@ -22,8 +23,9 @@ export async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+// cf-connecting-ip, else the last x-forwarded-for hop, else x-real-ip (see client_ip.mjs). Never one shared bucket.
 export function clientIp(req: Request) {
-  return (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  return ipFromHeaders((h: string) => req.headers.get(h));
 }
 // Never store a raw IP: hash it with a server-side salt kept in settings.ip_salt.
 export const ipHash = async (req: Request, salt: string) => sha256(clientIp(req) + "|" + salt);
@@ -44,7 +46,7 @@ export function e164(raw: string | null) {
 }
 export async function verifyTurnstile(token: string | null, ip: string, clientErr?: string | null) {
   const secret = Deno.env.get("TURNSTILE_SECRET");
-  if (!secret) return true; // not configured yet: allow, the honeypot + rate limit still apply
+  if (!secret) { console.error("turnstile: TURNSTILE_SECRET is not set, so every bot check is refused. Set it in the function secrets."); return false; }
   // clientErr is the widget's own error code from the page (e.g. 110200 = domain not allowed).
   if (!token) { console.warn("turnstile: no token sent", clientErr || ""); return false; }
   const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
