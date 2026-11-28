@@ -152,6 +152,14 @@ export function isFresh(reviewedAt, now) {
   return Number.isFinite(t) && Number.isFinite(n) && n - t >= 0 && n - t <= 7 * 86400000;
 }
 
+// Secret location stays on until the reveal time passes. Even then the card carries no venue.
+export function secretNow(row, now) {
+  if (!row.venue_secret) return false;
+  const at = row.secret_reveal_at ? new Date(row.secret_reveal_at).getTime() : NaN;
+  const t = (now instanceof Date ? now : new Date(now || Date.now())).getTime();
+  return !(Number.isFinite(at) && t >= at);
+}
+
 export function externalCard(row, today, now) {
   if (!row || row.status !== "approved") return null;
   const dates = upcomingDates([row.show_date], today);
@@ -164,7 +172,7 @@ export function externalCard(row, today, now) {
     name: cleanText(row.name, 120) || "Show",
     dates,
     when: whenLabel(dates),
-    secret: !!row.venue_secret,
+    secret: secretNow(row, now),
     city: cleanText(row.city, 80),
     state: cleanText(row.state, 2).toUpperCase(),
     url,
@@ -214,11 +222,12 @@ export function leadMail(show) {
     "City: " + [show.city, show.state].filter(Boolean).join(", "),
     "Tickets: " + show.ticket_url,
     "From: " + show.from,
+    ...(show.extra ? ["", ...show.extra] : []),
     "",
     "Open it: " + show.review_url,
   ];
   return {
-    subject: ("New show listing: " + show.name).slice(0, 140),
+    subject: ((show.subjectTag || "New show listing") + ": " + show.name).slice(0, 140),
     text: lines.join("\n"),
     fromName: "Subduction leads",
     tag: "lead",
