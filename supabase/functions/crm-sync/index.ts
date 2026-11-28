@@ -7,6 +7,7 @@
 //   POST ?a=run   (x-runner-secret)   sync whoever is new since the last run
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { smsNumber, subscriberRole } from "../artist-waitlist/contact.mjs";
+import { sameSecret } from "../_shared/secret.ts";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
@@ -22,7 +23,7 @@ type Person = { email: string; name: string | null; phone: string | null; role: 
 
 Deno.serve(async (req) => {
   const secret = await setting<string | null>("runner_secret", null);
-  if (!secret || req.headers.get("x-runner-secret") !== secret) return json({ error: "Not allowed" }, 401);
+  if (!sameSecret(req.headers.get("x-runner-secret"), secret)) return json({ error: "Not allowed" }, 401);
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) return json({ error: "BREVO_API_KEY not set" }, 500);
   const H = { "api-key": key, "Content-Type": "application/json", "Accept": "application/json" };

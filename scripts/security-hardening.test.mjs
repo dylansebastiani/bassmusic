@@ -10,7 +10,7 @@ const demo = read("supabase/functions/demo/index.ts");
 const waitlist = read("supabase/functions/artist-waitlist/index.ts");
 const crm = read("supabase/functions/crm-sync/index.ts");
 const guard = read("supabase/functions/_shared/signin_guard.ts");
-const mig = read("supabase/migrations/0055_provision_once.sql");
+const mig = read("supabase/migrations/0057_provision_once.sql");
 
 // The code between two markers, so a check can't be satisfied by a different handler.
 const between = (src, from, to) => {
