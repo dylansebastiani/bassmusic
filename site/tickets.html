@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://hxfuelulxsituzcgsvhg.supabase.co https://*.stripe.com https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com; connect-src 'self' https://hxfuelulxsituzcgsvhg.supabase.co https://api.stripe.com https://*.stripe.com https://*.stripe.network https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com; frame-src https://js.stripe.com https://*.stripe.com https://*.stripe.network; media-src 'self' blob: https://hxfuelulxsituzcgsvhg.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="icon" type="image/png" href="assets/favicon.png">
@@ -10,16 +10,16 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="T.O.F.T.U.">
 <meta property="og:url" content="https://subduction.art/underground/">
-<meta property="og:title" content="T.O.F.T.U. · For The Underground · Jan 8 + 9 · Peoria, IL">
-<meta property="og:description" content="Two nights underground. Fri Jan 8 + Sat Jan 9 · Secret location, Peoria IL · 21+. Get tickets.">
+<meta property="og:title" content="T.O.F.T.U. (TOFTU) – This One Is For The Underground | Jan 8–9, 2027 | Peoria, IL">
+<meta property="og:description" content="T.O.F.T.U. – two nights of heavy underground bass in Peoria, IL. Jan 8–9, 2027. Secret location, 21+. Doors 6 PM–1 AM. Get tickets.">
 <meta property="og:image" content="https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg">
 <meta property="og:image:secure_url" content="https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="T.O.F.T.U. For The Underground, Fri Jan 8 + Sat Jan 9, secret location, Peoria IL">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="T.O.F.T.U. · For The Underground · Jan 8 + 9 · Peoria, IL">
-<meta name="twitter:description" content="Two nights underground. Fri Jan 8 + Sat Jan 9 · Secret location, Peoria IL · 21+. Get tickets.">
+<meta name="twitter:title" content="T.O.F.T.U. (TOFTU) – This One Is For The Underground | Jan 8–9, 2027 | Peoria, IL">
+<meta name="twitter:description" content="T.O.F.T.U. – two nights of heavy underground bass in Peoria, IL. Jan 8–9, 2027. Secret location, 21+. Doors 6 PM–1 AM. Get tickets.">
 <meta name="twitter:image" content="https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg">
-<meta name="description" content="T.O.F.T.U. For The Underground: two nights of bass, Jan 8 + 9, secret location in Peoria, IL. Tickets here.">
+<meta name="description" content="T.O.F.T.U. – two nights of heavy underground bass in Peoria, IL. Jan 8–9, 2027. Secret location, 21+. Doors 6 PM–1 AM. Get tickets.">
 <meta name="theme-color" content="#050505">
 <link rel="preload" href="assets/fonts/bungee-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://hxfuelulxsituzcgsvhg.supabase.co" crossorigin>
@@ -31,13 +31,14 @@
 <script>/* Ask for the show and tickets while the rest of the page is still loading. */
 try{var _e=(new URLSearchParams(location.search).get("e")||"underground").replace(/[^a-z0-9-]/gi,"").toLowerCase();
 window.__tix=fetch((window.STACK||{}).supabaseUrl+"/functions/v1/tickets?e="+_e).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||"Not found");return j})});window.__tix.catch(function(){})}catch(e){}</script>
-<title>T.O.F.T.U. · For The Underground · Tickets</title>
+<title>T.O.F.T.U. (TOFTU) – This One Is For The Underground | Jan 8–9, 2027 | Peoria, IL</title>
+<script type="application/ld+json">[{"@type": "Event", "name": "T.O.F.T.U. (TOFTU) – This One Is For The Underground, Night 1", "startDate": "2027-01-08T18:00:00-06:00", "endDate": "2027-01-09T01:00:00-06:00", "eventStatus": "https://schema.org/EventScheduled", "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode", "location": {"@type": "Place", "name": "Secret Location", "address": {"@type": "PostalAddress", "addressLocality": "Peoria", "addressRegion": "IL", "addressCountry": "US"}}, "offers": {"@type": "Offer", "url": "https://subduction.art/underground/"}, "image": "https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg", "description": "T.O.F.T.U. – two nights of heavy underground bass in Peoria, IL. Jan 8–9, 2027. Secret location, 21+. Doors 6 PM–1 AM. Get tickets.", "url": "https://subduction.art/underground/"}, {"@type": "Event", "name": "T.O.F.T.U. (TOFTU) – This One Is For The Underground, Night 2", "startDate": "2027-01-09T18:00:00-06:00", "endDate": "2027-01-10T01:00:00-06:00", "eventStatus": "https://schema.org/EventScheduled", "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode", "location": {"@type": "Place", "name": "Secret Location", "address": {"@type": "PostalAddress", "addressLocality": "Peoria", "addressRegion": "IL", "addressCountry": "US"}}, "offers": {"@type": "Offer", "url": "https://subduction.art/underground/"}, "image": "https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg", "description": "T.O.F.T.U. – two nights of heavy underground bass in Peoria, IL. Jan 8–9, 2027. Secret location, 21+. Doors 6 PM–1 AM. Get tickets.", "url": "https://subduction.art/underground/"}]</script>
 </head>
 <body class="toftu">
 <main class="wrap tix toftu" id="page">
   <div id="ev">
     <div class="brand"><img class="wm" src="assets/toftu/wordmark.webp" alt="T.O.F.T.U." width="1400" height="373">
-      <h1 class="ftu-img"><img src="assets/toftu/ftu.webp" alt="" width="1736" height="112"><span class="sr" id="name">This one is for the underground</span></h1></div>
+      <h1 class="ftu-img"><img src="assets/toftu/ftu.webp" alt="" width="1736" height="112"><span class="sr" id="name">T.O.F.T.U. – This one is for the underground</span></h1></div>
     <div class="hero"><img src="assets/toftu/hero.webp" srcset="assets/toftu/hero-sm.webp 720w, assets/toftu/hero.webp 1200w" sizes="(max-width:760px) 100vw, 760px" alt="" width="1200" height="670" fetchpriority="high"></div>
     <img class="poster" id="poster" alt="" hidden>
     <div class="where2" id="where"><div class="dates"><span class="d1">Fri Jan 8</span> <span class="plus">+</span> <span class="d2">Sat Jan 9</span></div><div class="infoline">Secret location · Peoria, IL · 21+</div><div class="addr">The address comes with your tickets.</div></div>

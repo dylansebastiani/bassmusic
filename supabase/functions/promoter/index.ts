@@ -3,12 +3,15 @@ import { json, preflight, EMAIL_RE, clean, ipHash, UUID_RE, sha256, clientIp, ve
 import { sendSignin, MEMBER_COLS, codeHash, type SigninMember } from "../_shared/signin.ts";
 import { isAdminEmail, newSession } from "../_shared/admin.ts";
 import { staffAuth, canSee, canManage, loadCompany } from "../_shared/company.ts";
+import { isLimitedSession } from "../_shared/session_trust.mjs";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
 import { SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
+import { paidSales } from "../_shared/paid_sales.ts";
+import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
@@ -388,8 +391,9 @@ Deno.serve(async (req) => {
     // A signed-in address that asked for a promoter account but has no crew yet gets it now.
     const tk0 = (req.headers.get("x-admin-token") || "").trim();
     if (/^[0-9a-f]{64}$/.test(tk0)) {
-      const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(tk0)).maybeSingle();
-      if (s0 && new Date(s0.expires_at).getTime() > Date.now()) {
+      const { data: s0 } = await db.from("admin_sessions").select("subscriber_id,expires_at,created_at").eq("token_hash", await sha256(tk0)).maybeSingle();
+      // Member-key sessions are limited and never start a promoter crew.
+      if (s0 && new Date(s0.expires_at).getTime() > Date.now() && !isLimitedSession(s0.created_at, s0.expires_at)) {
         const { data: m0 } = await db.from("subscribers").select("email,status").eq("id", s0.subscriber_id).maybeSingle();
         if (m0 && m0.status !== "deleted" && await provision(s0.subscriber_id, m0.email, b.referral_code)) st = await staffAuth(req);
       }
@@ -459,6 +463,7 @@ Deno.serve(async (req) => {
     const { data: shows } = await db.from("events").select("id,slug,name,company_id,review_status,review_note,sales_open,kit,page,page_draft,city,venue,age,location_secret,address_reveal_at,starts_at")
       .in("company_id", (cos || []).map((c) => c.id).concat(["00000000-0000-0000-0000-000000000000"])).order("created_at", { ascending: false });
     const sIds = (shows || []).map((s) => s.id).concat(["00000000-0000-0000-0000-000000000000"]);
+    const sales = await paidSales(db, (shows || []).filter((s) => canSeeSalesInPromoter(canManage(st, s.company_id))).map((s) => s.id));
     const [{ data: nights }, { data: types }, referral] = await Promise.all([
       db.from("ticket_nights").select("id,event_id,slug,label,starts_at,ends_at,sort").in("event_id", sIds).order("sort"),
       db.from("ticket_types").select("id,event_id,slug,name,night_ids,tiers,on_sale,sort").in("event_id", sIds).order("sort"),
@@ -474,6 +479,7 @@ Deno.serve(async (req) => {
           city: s.city, venue: s.venue, age: s.age, secret: s.location_secret, reveal_at: s.address_reveal_at, kit,
           nights: ns.map((n) => ({ id: n.id, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at })),
           tickets: ts.map((t) => ({ name: t.name, nights: t.night_ids.map((id: string) => ns.findIndex((n) => n.id === id)), tiers: t.tiers })),
+          ...(canSeeSalesInPromoter(canManage(st, s.company_id)) ? { sales: sales[s.id] || { count: 0, face_cents: 0, by_price: [] } } : {}),
           checklist: { details: ns.length > 0 && ts.length > 0, art: !!(kit.flyers || []).some(Boolean) || !!kit.hero || !!kit.links, submitted: s.review_status !== "draft" } };
       }) });
   }
