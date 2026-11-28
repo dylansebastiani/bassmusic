@@ -9,6 +9,9 @@ import { sha256 } from "../_shared/util.ts";
 // Staff signed in on /admin can also see sales, run the guest list and change settings.
 const SLUG = /^[a-z0-9-]{1,80}$/;
 const CORS_DOOR = { "Access-Control-Allow-Headers": "content-type, x-admin-token, x-door-token" };
+// Offline door mode (door phones keep a copy of the list and save check-ins when signal drops).
+// On unless the DOOR_OFFLINE secret is "off". Turning it off makes door phones forget the list and work online only.
+const OFFLINE = (Deno.env.get("DOOR_OFFLINE") || "").toLowerCase() !== "off";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_DOOR } }); }
@@ -131,7 +134,7 @@ Deno.serve(async (req) => {
 
   // ---- what the door page needs on load ----
   if (a === "me") {
-    return ok({ admin: who.admin, event: { slug: ev.slug, name: ev.name, sales_open: ev.sales_open, has_pin: !!ev.door_pin_hash },
+    return ok({ admin: who.admin, offline: OFFLINE, event: { slug: ev.slug, name: ev.name, sales_open: ev.sales_open, has_pin: !!ev.door_pin_hash },
       nights: nights.map((n) => ({ id: n.id, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at })),
       types: types.map((t) => ({ slug: t.slug, name: t.name, night_ids: t.night_ids })) });
   }
@@ -165,6 +168,64 @@ Deno.serve(async (req) => {
     if (a === "checkin") return ok(await checkIn(t, n.id));
     await db.from("ticket_scans").delete().eq("ticket_id", t.id).eq("night_id", n.id);
     return ok({ result: "undone" });
+  }
+
+  // ---- offline list: everything a door phone needs to check tickets with no signal ----
+  // The QR secret never leaves the server. Phones get the first 32 hex of its sha256, enough to match a scan, useless to make a ticket.
+  // No emails or phones. Door staff can already see these names and codes on the Find tab.
+  if (a === "offline") {
+    if (!OFFLINE) return no("Offline mode is off.", 404);
+    const page = async <T,>(q: (from: number, to: number) => PromiseLike<{ data: T[] | null }>) => {
+      const all: T[] = [];
+      for (let from = 0; from < 20000; from += 1000) {
+        const { data } = await q(from, from + 999);
+        all.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      return all;
+    };
+    const [rows, scans, orders] = await Promise.all([
+      page<{ id: string; code: string; token: string; holder_name: string | null; type_id: string; order_id: string; status: string; is_comp: boolean }>((f, t) =>
+        db.from("tickets").select("id,code,token,holder_name,type_id,order_id,status,is_comp").eq("event_id", ev.id).order("id").range(f, t)),
+      page<{ ticket_id: string; night_id: string; scanned_at: string }>((f, t) =>
+        db.from("ticket_scans").select("ticket_id,night_id,scanned_at").in("night_id", nights.map((n) => n.id)).order("id").range(f, t)),
+      page<{ id: string; comp_list: string | null }>((f, t) =>
+        db.from("ticket_orders").select("id,comp_list").eq("event_id", ev.id).not("comp_list", "is", null).order("id").range(f, t)),
+    ]);
+    const lists = new Map(orders.map((o) => [o.id, o.comp_list]));
+    const tickets = await Promise.all(rows.map(async (r) => ({
+      id: r.id, code: r.code, h: (await sha256(r.token)).slice(0, 32), name: r.holder_name, type: r.type_id,
+      comp: r.is_comp, list: r.is_comp ? lists.get(r.order_id) || null : null, status: r.status,
+    })));
+    return ok({ at: new Date().toISOString(), tickets, scans,
+      nights: nights.map((n) => ({ id: n.id, label: n.label, starts_at: n.starts_at, ends_at: n.ends_at })),
+      types: types.map((t) => ({ id: t.id, slug: t.slug, name: t.name, night_ids: t.night_ids })) });
+  }
+
+  // ---- sync: check-ins a door phone saved while it had no signal ----
+  // Same rules as a live scan. The one-scan-per-ticket-per-night key still decides: if someone was already
+  // let in, the phone is told when and by whom, so the door can see the clash.
+  if (a === "sync") {
+    const items = (Array.isArray(b.scans) ? b.scans : []).slice(0, 100) as Record<string, unknown>[];
+    const ids = [...new Set(items.map((i) => clean(i.ticket_id, 40) || "").filter((x) => /^[0-9a-f-]{36}$/i.test(x)))];
+    const { data: tix } = ids.length ? await db.from("tickets").select("id,holder_name,status,type_id").eq("event_id", ev.id).in("id", ids) : { data: [] };
+    const byId = new Map((tix || []).map((t) => [t.id, t]));
+    const results = [];
+    for (const i of items) {
+      const key = clean(i.key, 60) || "", t = byId.get(clean(i.ticket_id, 40) || ""), n = night(i.night);
+      if (!t || !n) { results.push({ key, result: "not_found" }); continue; }
+      const base = { key, ticket_id: t.id, name: t.holder_name };
+      if (t.status !== "valid") { results.push({ ...base, result: "void" }); continue; }
+      if (!nightIds(t.type_id).includes(n.id)) { results.push({ ...base, result: "wrong_night" }); continue; }
+      // Keep the real time it happened at the door (never in the future, never more than 3 days back).
+      const ms = Date.parse(String(i.at || "")), now = Date.now();
+      const at = new Date(Number.isFinite(ms) ? Math.min(now, Math.max(ms, now - 72 * 3600_000)) : now).toISOString();
+      const { error } = await db.from("ticket_scans").insert({ ticket_id: t.id, night_id: n.id, scanned_by: who.by + " (offline)", scanned_at: at });
+      if (!error) { results.push({ ...base, result: "ok" }); continue; }
+      const { data: s } = await db.from("ticket_scans").select("scanned_at,scanned_by").eq("ticket_id", t.id).eq("night_id", n.id).maybeSingle();
+      results.push({ ...base, result: "used", scanned_at: s?.scanned_at || null, offline_at: at });
+    }
+    return ok({ results });
   }
 
   // ---- search by name, email or code; shows whether each is in yet ----

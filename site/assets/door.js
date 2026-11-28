@@ -9,9 +9,14 @@
   var DKEY = "stack_door_" + slug, admin = null, door = null;
   try { admin = localStorage.getItem("stack_admin"); door = localStorage.getItem(DKEY); } catch (e) {}
   var me = null, night = null, tab = "scan";
+  // Offline mode (door-offline.js): only used when the server turns it on and a request fails for lack of signal.
+  var OFF = window.DoorOffline ? window.DoorOffline(slug) : null, offOn = false;
+  var netErr = function (err) { return offOn && OFF.ready() && !err.status; };
 
-  function call(a, body, params) {
+  function call(a, body, params, ms) {
     var o = { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" } };
+    // A scan in a weak-signal doorway shouldn't hang: with offline mode ready, give up after ms and check the copy on the phone.
+    if (ms && window.AbortController) { var ac = new AbortController(); o.signal = ac.signal; setTimeout(function () { ac.abort(); }, ms); }
     if (admin) o.headers["x-admin-token"] = admin;
     if (door) o.headers["x-door-token"] = door;
     if (body) o.body = JSON.stringify(body);
@@ -30,7 +35,10 @@
     if (!silent) { location.reload(); return; }
     $("app").hidden = true; $("tabs").hidden = true; $("login").hidden = false;
   }
-  $("signout").addEventListener("click", function () { signOut(false); });
+  $("signout").addEventListener("click", function () {
+    if (OFF && OFF.pending() && !confirm(OFF.pending() + " check-ins on this phone haven't been sent yet. They send after you sign back in. Sign out?")) return;
+    signOut(false);
+  });
 
   $("pf").addEventListener("submit", function (e) {
     e.preventDefault(); $("lmsg").textContent = "Checking...";
@@ -52,8 +60,20 @@
   }
 
   function boot() {
-    call("me").then(function (d) {
-      me = d; $("login").hidden = true; $("app").hidden = false; $("tabs").hidden = false; $("signout").hidden = !door;
+    call("me").then(start).catch(function (err) {
+      // No signal at sign-in: a phone that was signed in and has the list opens from its copy.
+      var cm = OFF && OFF.ready() && (door || admin) && !err.status ? OFF.cachedMe() : null;
+      if (cm) { offOn = true; start(cm, true); return; }
+      if (err.status === 401 || err.status === 403) { $("login").hidden = false; $("lmsg").textContent = admin ? "Your staff sign-in doesn't cover this. Use the door PIN." : ""; admin = null; }
+      else { $("login").hidden = false; $("lmsg").textContent = err.message; }
+    });
+  }
+  function start(d, fromCopy) {
+      me = d;
+      if (OFF && !fromCopy) {
+        if (d.offline) { offOn = true; OFF.saveMe(d); getList(); keepPage(true); }
+        else { offOn = false; OFF.forget(); keepPage(false); }
+      } $("login").hidden = true; $("app").hidden = false; $("tabs").hidden = false; $("signout").hidden = !door;
       $("ename").textContent = d.event.name + (d.admin ? " · staff" : " · door");
       Array.prototype.forEach.call(document.querySelectorAll(".adm"), function (b) { b.hidden = !d.admin; });
       if (!d.admin) $("tabs").style.gridTemplateColumns = "1fr 1fr";
@@ -62,12 +82,8 @@
         return '<button type="button" class="' + (i % 2 ? "n2" : "") + '" data-n="' + n.id + '" aria-pressed="' + (n.id === night) + '"><img class="eye" src="assets/toftu/eye-' + (i % 2 ? "sat" : "fri") + '.webp" alt="" width="240" height="240">' + esc(n.label) + "</button>";
       }).join("");
       $("gtype").innerHTML = d.types.map(function (t) { return '<option value="' + t.slug + '">' + esc(t.name) + "</option>"; }).join("");
-      count();
+      count(); offBar();
       if (d.admin) { guests(); sales(); }
-    }).catch(function (err) {
-      if (err.status === 401 || err.status === 403) { $("login").hidden = false; $("lmsg").textContent = admin ? "Your staff sign-in doesn't cover this. Use the door PIN." : ""; admin = null; }
-      else { $("login").hidden = false; $("lmsg").textContent = err.message; }
-    });
   }
   $("nights").addEventListener("click", function (e) {
     var b = e.target.closest("[data-n]"); if (!b) return;
@@ -76,9 +92,8 @@
     count(); if (tab === "find") find();
   });
   function count() {
-    call("count", null, { n: night }).then(function (c) {
-      $("count").innerHTML = "<span>In <b>" + c.inside + "</b> / " + c.expected + "</span><span>Guest list " + c.comps + "</span>";
-    }).catch(function () {});
+    var draw = function (c) { $("count").innerHTML = "<span>In <b>" + c.inside + "</b> / " + c.expected + "</span><span>Guest list " + c.comps + "</span>"; };
+    call("count", null, { n: night }).then(draw).catch(function (err) { if (netErr(err)) draw(OFF.count(night)); });
   }
   setInterval(function () { if (me && !document.hidden) count(); }, 20000);
 
@@ -101,13 +116,15 @@
     else if (r.result === "used") { cls = "warn"; h = "Used"; p = r.name || ""; s = "Already scanned" + (r.scanned_at ? " at " + new Date(r.scanned_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : ""); }
     else if (r.result === "wrong_night") { h = "Wrong night"; p = r.name || ""; s = "Good for " + (r.good_for || "another night"); }
     else if (r.result === "void") { h = "Void"; p = r.name || ""; s = "Refunded or removed"; }
-    else { h = "Not found"; s = "Not a ticket for this show. Try typing the code."; }
+    else { h = "Not found"; s = r.offline ? "Not on this phone's list. New tickets show up once signal is back." : "Not a ticket for this show. Try typing the code."; }
+    if (r.offline && r.result === "ok") s += (s ? " · " : "") + "saved on this phone";
     var el = $("result");
     el.className = "result " + cls; el.innerHTML = "<h2>" + esc(h) + "</h2><p>" + esc(p) + "</p><small>" + esc(s) + "</small><small style='margin-top:20px;opacity:.7'>Tap to keep going</small>";
     el.hidden = false;
     try { navigator.vibrate && navigator.vibrate(r.result === "ok" ? 80 : [200, 80, 200]); } catch (e) {}
     clearTimeout(hideT); hideT = setTimeout(hide, r.result === "ok" ? 1600 : 4000);
     if (r.result === "ok") count();
+    offBar();
   }
   function hide() { $("result").hidden = true; }
   $("result").addEventListener("click", hide);
@@ -117,8 +134,18 @@
     if (busy || !q) return;
     if (q === last && Date.now() - lastAt < 4000) return;
     busy = true; last = q; lastAt = Date.now();
-    call("scan", { night: night, q: q }).then(show).catch(function (err) { $("smsg").textContent = err.message + " (no signal? use Find by name)"; })
-      .then(function () { busy = false; });
+    var n = night, off = offOn && OFF.ready();
+    // Offline ready: a ticket this phone let in but hasn't sent yet is Used, and no signal at all skips the wait.
+    var first = off ? OFF.queued(q, n) : Promise.resolve(null);
+    first.then(function (held) {
+      if (held) return show(held);
+      if (off && navigator.onLine === false) return OFF.scan(q, n, false).then(show);
+      return call("scan", { night: n, q: q }, null, off ? 6000 : 0).then(function (r) { if (OFF) OFF.noteLive(r, n); show(r); })
+        .catch(function (err) {
+          if (netErr(err)) return OFF.scan(q, n, true).then(show);
+          $("smsg").textContent = err.message + " (no signal? use Find by name)";
+        });
+    }).then(function () { busy = false; }, function () { busy = false; });
   }
   $("mf").addEventListener("submit", function (e) { e.preventDefault(); scan($("mcode").value); $("mcode").value = ""; });
 
@@ -189,7 +216,10 @@
     var qv = $("fq").value.trim();
     if (qv.length === 1) return;
     call("search", null, { n: night, q: qv }).then(function (d) { fRows = d.results || []; drawFound(); })
-      .catch(function (err) { $("found").innerHTML = '<div class="empty">' + esc(err.message) + "</div>"; });
+      .catch(function (err) {
+        if (netErr(err)) { fRows = OFF.search(qv, night); drawFound(); return; }
+        $("found").innerHTML = '<div class="empty">' + esc(err.message) + "</div>";
+      });
   }
   $("ffilter").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
@@ -199,10 +229,17 @@
   });
   $("found").addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
-    var id = b.getAttribute("data-in") || b.getAttribute("data-undo");
+    var id = b.getAttribute("data-in") || b.getAttribute("data-undo"), isIn = !!b.getAttribute("data-in"), n = night;
     b.disabled = true;
-    call(b.getAttribute("data-in") ? "checkin" : "undo", { night: night, ticket_id: id }).then(function (r) { if (r.result !== "undone") show(r); count(); find(); })
-      .catch(function (err) { b.disabled = false; alertMsg(err.message); });
+    var done = function (r) { if (r.result !== "undone") show(r); count(); find(); };
+    // Undo a check-in this phone hasn't sent yet: just drop it, nothing to tell the server.
+    if (!isIn && OFF && OFF.undo(id, n)) { done({ result: "undone" }); offBar(); return; }
+    call(isIn ? "checkin" : "undo", { night: n, ticket_id: id }, null, offOn && OFF.ready() ? 6000 : 0)
+      .then(function (r) { if (OFF) OFF.noteLive(r.result === "undone" ? { result: "undone", ticket_id: id } : r, n); done(r); })
+      .catch(function (err) {
+        if (netErr(err) && isIn) return OFF.checkin(id, n, true).then(done);
+        b.disabled = false; alertMsg(netErr(err) ? "Undo needs signal." : err.message);
+      });
   });
   function alertMsg(m) { $("smsg").textContent = m; }
 
@@ -272,6 +309,49 @@
       $("pcode").value = ""; $("plabel").value = ""; $("poff").value = "0"; sales();
     }).catch(function (err) { $("pmsg").textContent = err.message; });
   });
+
+  // ---------- offline mode ----------
+  // Keep a fresh copy of the list while there's signal (every 2 minutes), and send saved check-ins as soon as it's back.
+  function getList() {
+    if (!offOn || document.hidden) return;
+    call("offline").then(function (d) { OFF.setList(d); offBar(); }).catch(function () {});
+  }
+  setInterval(getList, 120000);
+  var syncing = false;
+  function sendSaved() {
+    if (!OFF || syncing || !OFF.pending() || !(door || admin) || navigator.onLine === false) return;
+    syncing = true;
+    OFF.sync(function (body) { return call("sync", body); })
+      .then(function (n) { syncing = false; offBar(); if (n) { count(); if (tab === "find") find(); if (OFF.pending()) sendSaved(); } },
+            function () { syncing = false; offBar(); });
+  }
+  setInterval(sendSaved, 15000);
+  window.addEventListener("online", function () { sendSaved(); getList(); count(); offBar(); });
+  window.addEventListener("offline", offBar);
+  // The bar under the count shows only when something is off: no signal, check-ins waiting, or a clash to look at.
+  function offBar() {
+    var el = $("offbar"); if (!el || !OFF) return;
+    var p = OFF.pending(), cl = OFF.clashes(), parts = [];
+    if (offOn && navigator.onLine === false) parts.push("<b>No signal.</b> Checking tickets against this phone's list" + (OFF.listAt() ? " from " + new Date(OFF.listAt()).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "") + ".");
+    if (p) parts.push(p + " check-in" + (p === 1 ? "" : "s") + " saved on this phone. " + (navigator.onLine === false ? "They send when signal is back." : "Sending..."));
+    if (cl.length) parts.push("<b>" + cl.length + " flagged after sending:</b> " + cl.slice(-5).map(function (c) {
+      return esc(c.name || "Someone") + (c.result === "used" ? " was already in" + (c.first_at ? " at " + new Date(c.first_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "")
+        : c.result === "void" ? " had a void ticket" : c.result === "wrong_night" ? " had a ticket for another night" : " wasn't found");
+    }).join(", ") + ' <button type="button" id="offok">OK</button>');
+    el.innerHTML = parts.join("<br>"); el.hidden = !parts.length;
+  }
+  document.addEventListener("click", function (e) { if (e.target && e.target.id === "offok") { OFF.clearClashes(); offBar(); } });
+  // Save the door page itself on the phone so it opens with no signal. Turned off with offline mode.
+  function keepPage(on) {
+    if (!("serviceWorker" in navigator)) return;
+    if (!on) { navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { if (/door-sw\.js/.test((r.active || r.installing || r.waiting || {}).scriptURL || "")) r.unregister(); }); }).catch(function () {}); return; }
+    navigator.serviceWorker.register("door-sw.js", { scope: "./door" }).then(function () { return navigator.serviceWorker.ready; }).then(function (reg) {
+      // The page, everything it loaded (scripts, styles, fonts, images) and the QR reader iPhones use.
+      var urls = [location.href, "assets/vendor/jsqr.min.js", "assets/toftu/eye-fri.webp", "assets/toftu/eye-sat.webp"];
+      try { performance.getEntriesByType("resource").forEach(function (e) { if (e.name.indexOf(location.origin + "/") === 0) urls.push(e.name); }); } catch (e) {}
+      if (reg.active) reg.active.postMessage({ cache: urls.map(function (u) { return new URL(u, location.href).href; }) });
+    }).catch(function () {});
+  }
 
   if (admin || door) boot(); else $("login").hidden = false;
 })();

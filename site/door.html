@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="assets/app.css">
 <link rel="stylesheet" href="assets/admin.css">
 <link rel="stylesheet" href="assets/tix.css">
+<style>.door .offbar{border:1px solid #B6FF00;background:#1D2A00;color:#F4F1EE;font-size:14px;line-height:1.4;padding:10px 12px;margin-bottom:12px}.door .offbar b{color:#B6FF00}.door .offbar button{margin-left:6px;background:#B6FF00;color:#000;border:0;padding:4px 10px;font-weight:700}</style>
 <!--CONFIG-->
 <title>Door</title>
 </head>
@@ -31,6 +32,7 @@
   <section class="app" id="app" hidden>
     <div class="nightpick" id="nights"></div>
     <div class="count" id="count"></div>
+    <div class="offbar" id="offbar" hidden role="status"></div>
 
     <div class="panel" id="p-scan" role="tabpanel">
       <div class="cam" id="cam"><video id="video" playsinline muted></video><div class="aim" hidden id="aim"></div>
@@ -96,6 +98,7 @@
   </nav>
   <div class="result" id="result" hidden role="alert"></div>
 </main>
+<script src="assets/door-offline.js"></script>
 <script src="assets/door.js"></script>
 </body>
 </html>
