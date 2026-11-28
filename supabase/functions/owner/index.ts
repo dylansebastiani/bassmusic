@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     db.from("artist_invites").select("id,event_id,name,full_name,email,phone,guest_spots,claimed_at,revoked_at,created_at").order("created_at", { ascending: false }).limit(5000),
     db.from("companies").select("id,slug,name,status,contact_email,stripe_charges_enabled,legacy_stripe,platform_fee_cents,created_at").order("created_at", { ascending: false }).limit(1000),
     db.from("company_staff").select("company_id,subscriber_id,role").limit(5000),
-    db.from("events").select("id,slug,name,company_id,starts_at").limit(2000),
+    db.from("events").select("id,slug,name,company_id,starts_at,ends_at,city").limit(2000),
     db.from("artist_waitlist").select("email,artist_name,full_name,phone,created_at").order("created_at", { ascending: false }).limit(10000),
     db.from("demo_leads").select("email,full_name,crew,phone,emailed_at,opened_at,scanned_at,created_at").order("created_at", { ascending: false }).limit(10000),
   ]);
@@ -99,8 +99,50 @@ Deno.serve(async (req) => {
   const leads = (demo.data ?? []).map((d) => ({ name: d.crew, full_name: d.full_name, email: d.email, phone: d.phone, from: "Demo page",
     status: d.scanned_at ? "Finished the demo" : d.opened_at ? "Opened the ticket" : d.emailed_at ? "Got the ticket" : "Signed up", when: d.created_at }));
 
-  await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:people_view", meta: {} });
   // Read-only here. Marking a row paid happens in the promoter dashboard and sends no money.
   const referrals = (await referralAdminRows()) || [];
-  return json({ fans, buyers, promoters, artists, waitlist, leads, referrals });
+
+  // Today: the money, the upcoming shows and the short list of things that need a person.
+  // Extra counts are soft: if one fails, that line is left out and the page still loads.
+  const since = (days: number) => Date.now() - days * 864e5;
+  const paid = (orders.data ?? []).filter((o) => o.status === "paid");
+  const sum = (rows: typeof paid, days: number, k: "total_cents" | "platform_fee_cents") =>
+    rows.filter((o) => new Date(o.paid_at || o.created_at).getTime() >= since(days)).reduce((s, o) => s + (o[k] ?? 0), 0) / 100;
+  const tixIn = (rows: typeof paid, days: number) =>
+    rows.filter((o) => new Date(o.paid_at || o.created_at).getTime() >= since(days)).reduce((s, o) => s + (count[o.id] || 0), 0);
+  const upcoming = (events.data ?? [])
+    .filter((e) => e.starts_at && new Date(e.ends_at || e.starts_at).getTime() > Date.now())
+    .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())
+    .slice(0, 8)
+    .map((e) => {
+      const mine = paid.filter((o) => o.event_id === e.id);
+      return { name: e.name, slug: e.slug, city: e.city, starts_at: e.starts_at, belongs_to: ownerOf(e.id) || "Subduction",
+        tickets: mine.reduce((s, o) => s + (count[o.id] || 0), 0), last7: tixIn(mine, 7),
+        gross: mine.reduce((s, o) => s + (o.total_cents ?? 0), 0) / 100 };
+    });
+  const soft = async (q: PromiseLike<{ count: number | null; error: unknown }>) => { try { const r = await q; return r.error ? null : (r.count ?? 0); } catch { return null; } };
+  const [listings, failedEmails, stuckEmails] = await Promise.all([
+    soft(db.from("directory_listings").select("id", { count: "exact", head: true }).eq("status", "pending")),
+    soft(db.from("email_queue").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", new Date(since(7)).toISOString())),
+    soft(db.from("email_queue").select("id", { count: "exact", head: true }).eq("status", "pending").lt("send_after", new Date(Date.now() - 3600e3).toISOString())),
+  ]);
+  const today = {
+    money: [7, 30].map((days) => ({ days, gross: sum(paid, days, "total_cents"), fees: sum(paid, days, "platform_fee_cents"), tickets: tixIn(paid, days) })),
+    upcoming,
+    counts: {
+      leads_finished: leads.filter((l) => l.status === "Finished the demo" && new Date(l.when).getTime() >= since(30)).length,
+      leads_new: leads.filter((l) => new Date(l.when).getTime() >= since(7)).length,
+      waitlist_new: waitlist.filter((w) => new Date(w.when).getTime() >= since(7)).length,
+      fans_new: fans.filter((f) => new Date(f.when).getTime() >= since(7)).length,
+      promoters_no_stripe: promoters.filter((p) => p.status !== "suspended" && p.payouts === "Stripe not connected yet").length,
+      promoters_no_show: promoters.filter((p) => p.status !== "suspended" && !p.shows).length,
+      listings_waiting: listings,
+      emails_failed: failedEmails,
+      emails_stuck: stuckEmails,
+      referrals_owed: referrals.filter((r) => r.status === "Pending").length,
+    },
+  };
+
+  await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:people_view", meta: {} });
+  return json({ today, fans, buyers, promoters, artists, waitlist, leads, referrals });
 });
