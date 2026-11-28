@@ -54,6 +54,10 @@ input:focus{border-color:#fff}
 .sources p+p{margin-top:10px}
 .sources a{color:var(--hot)}
 footer a:hover{color:var(--hot)}
+.gets{border-top:1px solid var(--line);margin-top:28px;padding-top:18px}
+.checks{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}
+.checks li{position:relative;padding-left:26px;font-size:15px;line-height:1.45;color:#e6e1dd}
+.checks li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:7px;border-left:2px solid var(--hot);border-bottom:2px solid var(--hot);transform:rotate(-45deg)}
 </style>
 <!--CONFIG-->
 <title>Fee calculator · Subduction</title>
@@ -88,6 +92,19 @@ footer a:hover{color:var(--hot)}
   <div class="show" id="show">
     <p id="keep"></p>
     <p id="bulk"></p>
+  </div>
+
+  <div class="gets">
+    <p class="mono">Every show gets</p>
+    <ul class="checks">
+      <li>A custom page in your brand, no Subduction logo</li>
+      <li>Your own playlist playing on your page</li>
+      <li>Ticket tiers and promo codes</li>
+      <li>PDF tickets and emails in your look</li>
+      <li>A door scanner on any phone</li>
+      <li>Guest list and artist passes</li>
+      <li>Your buyer list, yours to export</li>
+    </ul>
   </div>
 
   <div class="sources">
