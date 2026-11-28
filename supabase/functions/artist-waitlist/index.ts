@@ -3,6 +3,7 @@
 // and tells Dylan once. Repeat signups update the same row and do not send another alert.
 // The artist is never emailed from here. Self-contained aside from the pure contact helper,
 // so a deploy of this function cannot pull in ticketing code.
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { artistContactBody, smsNumber } from "./contact.mjs";
 
@@ -22,7 +23,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
 async function ipHash(req: Request) {
-  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  const ip = ipFromHeaders((h: string) => req.headers.get(h));
   const { data } = await db.from("settings").select("value").eq("key", "ip_salt").maybeSingle();
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip + "|" + String(data?.value ?? "unset")));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");

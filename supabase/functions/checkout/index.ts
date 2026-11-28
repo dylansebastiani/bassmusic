@@ -8,8 +8,10 @@
 //   GET  ?a=ticket&t=token    one ticket, for the ticket page
 //   GET  ?a=qr&t=token        that ticket's QR code
 //   POST ?a=hook              Stripe's own confirmation for promoter accounts (backup for a closed tab)
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
+import { addressHeld } from "./reveal.mjs";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const SITE = (Deno.env.get("SITE_URL") || "https://subduction.art").replace(/\/$/, "");
@@ -219,12 +221,12 @@ Deno.serve(async (req) => {
     if (!ev || !co || co.legacy_stripe) return no("Not found", 404);
     const { data: nights } = await db.from("ticket_nights").select("id,label,starts_at,ends_at").in("id", ty?.night_ids || []).order("sort");
     // A secret-location show keeps its address off the ticket until the reveal time has passed.
-    const held = !!ev.location_secret && (!ev.address_reveal_at || Date.parse(ev.address_reveal_at) > Date.now());
+    const held = addressHeld(ev);
     const address = held ? null : ev.address;
     return json({
       by: co.name,
       ticket: { code: tk.code, token: tk.token, name: tk.holder_name, type: ty?.name, tier: tk.tier, status: tk.status, comp: tk.is_comp, artist: ty?.slug === "artist" },
-      event: { slug: ev.slug, name: ev.name, venue: held ? null : ev.venue, city: ev.city, address, age: ev.age, address_later: !address && !!ev.location_secret },
+      event: { slug: ev.slug, name: ev.name, venue: held ? null : ev.venue, city: ev.city, address, age: ev.age, address_later: !address && held },
       nights: (nights || []).map((n) => ({ label: n.label, starts_at: n.starts_at, ends_at: n.ends_at, used_at: scans?.find((s) => s.night_id === n.id)?.scanned_at || null })),
     });
   }
@@ -304,7 +306,7 @@ Deno.serve(async (req) => {
 
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return no("Bad request"); }
   if (b.a !== "checkout") return no("Bad request");
-  const ipRaw = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  const ipRaw = ipFromHeaders((h: string) => req.headers.get(h));
   const ip = await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|tickets");   // hashed, never stored raw
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 20) return no("Too many tries. Wait a minute and try again.", 429);

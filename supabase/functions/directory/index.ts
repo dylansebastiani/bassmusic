@@ -7,6 +7,7 @@
 //   GET  ?a=pending             the waiting list, staff session only (the same token /admin already stores)
 //   POST {a:approve|reject, id} staff session
 // The existing `shows` function is the build list of published pages. This function does not replace it.
+import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   MIDWEST, alertRecipients, canReplyTo, chicagoYmd, cleanText, dateOk, externalCard, formatDay,
@@ -41,7 +42,7 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
   return (data?.value as T) ?? fallback;
 }
 async function ipHash(req: Request) {
-  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0.0.0.0";
+  const ip = ipFromHeaders((h: string) => req.headers.get(h));
   return sha256(ip + "|" + String(await setting("ip_salt", "unset")) + "|directory");
 }
 function sniff(bytes: Uint8Array): string {
