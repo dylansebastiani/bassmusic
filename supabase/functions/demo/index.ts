@@ -10,6 +10,7 @@
 //                                                straight in; without it they're emailed a one-tap sign-in button.
 //   POST {a:"signin", email}                     email a promoter a one-tap sign-in button (no code to type). The link is the
 //                                                same kind the promoter app already accepts (#invite=...), good once, for 20 minutes.
+import { CONFIG } from "../_shared/config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -37,6 +38,11 @@ async function sha256(s: string) {
 async function setting<T>(key: string, fallback: T): Promise<T> {
   const { data } = await db.from("settings").select("value").eq("key", key).maybeSingle();
   return (data?.value as T) ?? fallback;
+}
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
 }
 const ticketUrl = (t: string) => `${SITE}/demo.html?t=${t}`;
 const admins = async () => ((await setting<unknown>("admin_emails", [])) as unknown[]).map((e) => String(e).toLowerCase()).filter((e) => EMAIL_RE.test(e));
@@ -127,7 +133,7 @@ async function sendTicket(l: Record<string, any>) {
 <td style="padding:12px 12px 12px 0;${F};color:#f4f1ee"><div style="font-size:17px;font-weight:bold">General Admission</div><div style="font-size:13px;line-height:1.5;color:#9a958f">${esc(l.full_name || "")}</div>
 <div style="font-family:Courier,monospace;font-size:18px;letter-spacing:2px;padding-top:6px">${esc(l.code)}</div></td></tr></table></td></tr>
 <tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:15px;font-weight:bold;text-align:center;text-decoration:none;padding:15px 12px;text-transform:uppercase;letter-spacing:1px">Open the ticket and scan it</a></td></tr>
-<tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">You asked for this test ticket at subduction.art/demo. Don't want to hear from us again? Just reply and say so.<br>Subduction · ${esc(await setting("mailing_address", "PO Box TBD, Bloomington, IL 61701"))}</td></tr>
+<tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">You asked for this test ticket at subduction.art/demo. Don't want to hear from us again? Just reply and say so.<br>Subduction · ${esc(await mailingAddress())}</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [`Test ticket (not a real show): Demo Night, ${by}`, "", `Hi ${first}, you're in. This is the email your buyers get the second they pay, with your crew's name on it.`, "",
     `General Admission · ${l.full_name || ""}`, `Code ${l.code}`, "", "Open the ticket and scan it:", url, "",

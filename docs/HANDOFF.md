@@ -96,10 +96,10 @@ Right now a drop announcement or show email has to be written and sent inside Br
 
 - Brevo list not yet picked on the staff page, so members are not flowing into Brevo yet.
 - Brevo sender domain authentication should be confirmed so emails land in inboxes, not spam.
-- Mailing address in the footer is still a placeholder ("PO Box TBD").
+- Mailing address is set: 802 South Morris Avenue, Bloomington, IL 61701 (config/stack.json). Functions use the database `mailing_address` setting only when it holds a real address. The checkout and reveal functions still have an old placeholder fallback (held, needs Dylan's OK to change).
 - Facebook Messenger sometimes shows no cover art for one track link; the server is right, Facebook's cache is stale.
 - 9 members in the database, most of them test accounts.
-- Social links: only Instagram is filled in.
+- Social links: none are filled in. Instagram is off for now.
 
 ## What "hands off and growing" actually needs
 
