@@ -137,3 +137,26 @@ html:has(.show){background:var(--bg)}
 .s-faq summary{cursor:pointer;font-weight:600;list-style:none}
 .s-faq summary::-webkit-details-marker{display:none}
 .s-faq p{color:var(--mute);margin-top:6px;white-space:pre-line}
+
+/* wide desktop (issue #70 item 2): flyer and details on the left, the buy module beside them and sticky.
+   Every rule is scoped to .show #page with a tickets section, so the missing-show page and every other
+   page that uses .wrap from app.css keep the phone column. Phones and tablets (under 1100px) do not change. */
+@media (min-width:1100px){
+  .show #page:has(.s-tickets){max-width:1180px;padding:0 32px;display:grid;grid-template-columns:minmax(0,1fr) 400px;column-gap:56px;align-items:start}
+  .show #page:has(.s-tickets)>*{grid-column:1;min-width:0}
+  .show #page:has(.s-tickets)>.s-tickets,.show #page:has(.s-tickets)>#done{grid-column:2;grid-row:1/span 40;align-self:start}
+  .show #page:has(.s-tickets)>.s-tickets{position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:auto;margin-top:22px;padding:4px 20px 18px;border:1px solid var(--line);background:var(--bg)}
+  .show #page:has(.s-tickets)>.s-tickets:has(#payWrap:not([hidden])){position:static;max-height:none;overflow:visible}
+  .show #page:has(.s-tickets)>.s-tickets .sec{margin-top:14px}
+  .show #page:has(.s-tickets)>#done{margin-top:22px}
+  .show #page:has(.s-tickets)>.s-hero{margin:16px 0 4px}
+  .show #page:has(.s-tickets)>.s-brand .name{font-size:clamp(56px,5.4vw,84px)}
+  .show #page:has(.s-tickets)>.s-dates .dates{font-size:clamp(30px,2.6vw,40px)}
+  .show #page:has(.s-tickets)>.s-tickets .type{grid-template-columns:1fr auto;justify-items:start;text-align:left;padding:12px 14px}
+  .show #page:has(.s-tickets)>.s-tickets .type h4{font-size:20px;justify-content:flex-start}
+  .show #page:has(.s-tickets)>.s-tickets .type .price{grid-column:2;grid-row:1;justify-self:end;text-align:right;font-size:22px}
+  .show #page:has(.s-tickets)>.s-tickets .type .qty{grid-column:2;justify-self:end;margin-top:0}
+  .show #page:has(.s-tickets)>.s-tickets .buy{gap:4px;margin-top:12px}
+  .show #page:has(.s-tickets)>.s-tickets .buy input{padding:11px 12px;font-size:16px}
+  .show #page:has(.s-tickets)>.s-nights.v-cards{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+}
