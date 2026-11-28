@@ -193,14 +193,18 @@ async function tellShowSent(show: { slug: string; name: string; starts_at?: stri
     tag: "lead",
   });
   if (!EMAIL_RE.test(who)) return;
-  const confirmText = [`${name} is in. Dylan is finishing it.`, "", `Date: ${when}`].join("\n");
+  const ticketLink = `${SITE_URL}/${encodeURIComponent(show.slug)}`;
+  const next = "We build your page, usually within a day, and email you a preview.";
+  const confirmText = [`${name} is in. Subduction is finishing it.`, "", `Date: ${when}`, `Your ticket link: ${ticketLink}`, "", `What happens next: ${next}`].join("\n");
   const F = "font-family:Arial,Helvetica,sans-serif";
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${escMail(name)} is in</title></head>
 <body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
 <tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">${escMail(name)} is in</td></tr>
-<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Dylan is finishing it.</td></tr>
-<tr><td style="padding:12px 24px 26px;${F};font-size:14px;line-height:1.6;color:#9a958f">Date: ${escMail(when)}</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Subduction is finishing it.</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:14px;line-height:1.6;color:#9a958f">Date: ${escMail(when)}</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:14px;line-height:1.6;color:#9a958f">Your ticket link: <a href="${escMail(ticketLink)}" style="color:#f4f1ee">${escMail(ticketLink)}</a></td></tr>
+<tr><td style="padding:16px 24px 26px;${F};font-size:15px;line-height:1.6;color:#d9d5cf">What happens next: ${escMail(next)}</td></tr>
 </table></td></tr></table></body></html>`;
   await sendOnce({ to: [who], subject: `${name} is in`, text: confirmText, html, fromName: "Subduction", tag: "show-sent" });
 }
