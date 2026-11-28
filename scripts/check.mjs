@@ -52,6 +52,7 @@ execSync("node scripts/event-schema.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/promoter-home.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/site-nav.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/homepage-clean.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/artists-copy.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/promoter-start.test.mjs", { cwd: root, stdio: "inherit" });
 if (bad) { console.error(`${bad} problem(s)`); process.exit(1); }
 console.log("check passed");
