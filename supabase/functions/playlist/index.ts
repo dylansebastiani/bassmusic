@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
     const { data: tr } = await db.from("playlist_tracks").select("id,path,title,artist,free_download,invite_id,event_id").eq("id", id).maybeSingle();
     if (!tr || !tr.free_download) return json({ error: "This track isn't a free download right now." }, 404);
     const { data: salt } = await db.from("settings").select("value").eq("key", "ip_salt").maybeSingle();
-    const ip = ipFromHeaders((h) => req.headers.get(h));
+    const ip = ipFromHeaders((h: string) => req.headers.get(h));
     const ipHash = await sha256(ip + "|" + String(salt?.value ?? "unset") + "|dl");
     const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ipHash });
     if ((n ?? 0) > 30) return json({ error: "Too many tries. Wait a minute and try again." }, 429);

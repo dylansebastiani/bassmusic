@@ -333,7 +333,7 @@ Deno.serve(async (req) => {
     const go = (u.searchParams.get("go") || "").toLowerCase();
     if (go) {
       if (!TAG.test(go)) return Response.redirect(SITE, 302);
-      const ipRaw = ipFromHeaders((h) => req.headers.get(h));
+      const ipRaw = ipFromHeaders((h: string) => req.headers.get(h));
       const ua = req.headers.get("user-agent") || "";
       // Link-preview robots (iMessage, Instagram, Facebook...) open links too; they don't count as taps.
       const human = !/bot|crawl|spider|preview|facebookexternalhit|slackbot|whatsapp|telegram|discord|twitterbot|linkedin|embedly|curl|wget/i.test(ua);
@@ -361,7 +361,7 @@ Deno.serve(async (req) => {
       const key = Deno.env.get("BUILD_REFS_KEY") || "";
       const sent = req.headers.get("x-build-key") || "";
       if (key && sameSecret(key, sent)) {
-        return json({ refs: [...(data || []).map((r) => r.sell_ref), ...(tls || []).map((r) => r.tag)].filter((r) => TAG.test(r)) });
+        return json({ refs: [...(data || []).map((r) => r.sell_ref), ...(tls || []).map((r) => r.tag)].filter((r) => TAG.test(r)), full: true });
       }
       const ids = [...new Set([...(data || []), ...(tls || [])].map((r) => r.event_id).filter(Boolean))];
       const { data: evs } = ids.length ? await db.from("events").select("id,slug,review_status,company_id").in("id", ids) : { data: [] };

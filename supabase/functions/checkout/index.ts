@@ -306,7 +306,7 @@ Deno.serve(async (req) => {
 
   let b: Record<string, unknown>; try { b = await req.json(); } catch { return no("Bad request"); }
   if (b.a !== "checkout") return no("Bad request");
-  const ipRaw = ipFromHeaders((h) => req.headers.get(h));
+  const ipRaw = ipFromHeaders((h: string) => req.headers.get(h));
   const ip = await sha256(ipRaw + "|" + (await setting("ip_salt", "unset")) + "|tickets");   // hashed, never stored raw
   const { data: n } = await db.rpc("bump_rate_limit", { p_ip_hash: ip });
   if ((n ?? 0) > 20) return no("Too many tries. Wait a minute and try again.", 429);

@@ -39,7 +39,7 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
   return (data?.value as T) ?? fallback;
 }
 async function ipHash(req: Request, tag: string) {
-  const ip = ipFromHeaders((h) => req.headers.get(h));
+  const ip = ipFromHeaders((h: string) => req.headers.get(h));
   return sha256(ip + "|" + (await setting("ip_salt", "unset")) + "|" + tag);   // hashed, never stored raw
 }
 const LINK_HOSTS: Record<string, string[]> = {

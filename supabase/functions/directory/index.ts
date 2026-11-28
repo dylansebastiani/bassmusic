@@ -42,7 +42,7 @@ async function setting<T>(key: string, fallback: T): Promise<T> {
   return (data?.value as T) ?? fallback;
 }
 async function ipHash(req: Request) {
-  const ip = ipFromHeaders((h) => req.headers.get(h));
+  const ip = ipFromHeaders((h: string) => req.headers.get(h));
   return sha256(ip + "|" + String(await setting("ip_salt", "unset")) + "|directory");
 }
 function sniff(bytes: Uint8Array): string {

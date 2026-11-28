@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { refsProblem } from "./refs-check.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const cfg = JSON.parse(readFileSync(join(root, "config/stack.json"), "utf8"));
@@ -223,15 +224,15 @@ async function showPages() {
 // then forwards to the show with ?ref=<tag>. Links made between builds still work through the 404 page.
 async function goPages() {
   if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
-  let refs = [];
-  try { refs = (await (await fetch(`${fn}/artist-sales?a=refs`, { headers: process.env.BUILD_REFS_KEY ? { "x-build-key": process.env.BUILD_REFS_KEY } : {}, signal: AbortSignal.timeout(15000) })).json()).refs || []; }
+  let refs = [], body = null;
+  try { body = await (await fetch(`${fn}/artist-sales?a=refs`, { headers: process.env.BUILD_REFS_KEY ? { "x-build-key": process.env.BUILD_REFS_KEY } : {}, signal: AbortSignal.timeout(15000) })).json(); refs = body.refs || []; }
   catch (e) {
     if (process.env.CI) throw new Error(`build: could not fetch artist links (${e.message}); refusing to ship without /go/ pages`);
     console.warn("build: could not fetch artist links, /go/ falls back to the 404 page:", e.message); return;
   }
   // Live /go/ links must never 404. In CI a missing key or an empty list fails the build instead of quietly building zero pages.
-  if (process.env.CI && !process.env.BUILD_REFS_KEY) throw new Error("build: BUILD_REFS_KEY is not set; refusing to build without the full /go/ list");
-  if (process.env.CI && !refs.length) throw new Error("build: the artist link list came back empty; refusing to build zero /go/ pages");
+  const problem = refsProblem(body, { ci: !!process.env.CI, hasKey: !!process.env.BUILD_REFS_KEY });
+  if (problem) throw new Error(`build: ${problem}`);
   let n = 0;
   for (const r of refs) {
     if (!/^[a-z0-9]{1,24}$/.test(r)) continue;

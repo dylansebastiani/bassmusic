@@ -25,7 +25,7 @@ export async function sha256(s: string) {
 }
 // cf-connecting-ip, else the last x-forwarded-for hop, else x-real-ip (see client_ip.mjs). Never one shared bucket.
 export function clientIp(req: Request) {
-  return ipFromHeaders((h) => req.headers.get(h));
+  return ipFromHeaders((h: string) => req.headers.get(h));
 }
 // Never store a raw IP: hash it with a server-side salt kept in settings.ip_salt.
 export const ipHash = async (req: Request, salt: string) => sha256(clientIp(req) + "|" + salt);

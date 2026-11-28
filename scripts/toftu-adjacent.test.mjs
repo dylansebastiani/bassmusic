@@ -69,8 +69,17 @@ assert.match(sales, /sameSecret\(key, sent\)/);
 
 // 3c. In CI the build refuses to run without the refs key or with an empty list.
 const build = read("scripts/build.mjs");
-assert.match(build, /process\.env\.CI && !process\.env\.BUILD_REFS_KEY\) throw/);
-assert.match(build, /process\.env\.CI && !refs\.length\) throw/);
+assert.match(build, /refsProblem\(body/);
+assert.match(build, /if \(problem\) throw/);
+const { refsProblem } = await import("./refs-check.mjs");
+assert.ok(refsProblem({ refs: ["a"] }, { ci: true, hasKey: true }), "public list (no full:true) must fail in CI");
+assert.ok(refsProblem({ refs: ["a"], full: false }, { ci: true, hasKey: true }));
+assert.equal(refsProblem({ refs: ["a"], full: true }, { ci: true, hasKey: true }), null);
+assert.ok(refsProblem({ refs: [], full: true }, { ci: true, hasKey: true }), "empty list fails in CI");
+assert.ok(refsProblem({ refs: ["a"], full: true }, { ci: true, hasKey: false }), "missing key fails in CI");
+assert.equal(refsProblem({ refs: ["a"] }, { ci: false, hasKey: false }), null);
+assert.match(sales, /full: true/);
+assert.equal((sales.match(/full: true/g) || []).length, 1, "only the build-key path may set full");
 
 // 4. Turnstile fails closed with no secret, and says so in the log.
 const util = read("supabase/functions/_shared/util.ts");
