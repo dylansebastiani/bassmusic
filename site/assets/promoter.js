@@ -39,9 +39,9 @@
     var home = tok ? '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>' : "";
     return '<div class="top">' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : home) + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>";
   }
-  // Setup is one straight line: 1 Your show, 2 Your flyer, 3 Get paid, then send. Every screen says where you are.
-  function stepHead(n, label, extra) {
-    return '<div class=wiz>' + [1, 2, 3].map(function (i) { return '<i class="' + (i <= n ? "on" : "") + '"></i>'; }).join("") + '</div><div class=qnum>Step ' + n + " of 3 · " + label + (extra ? " · " + extra : "") + "</div>";
+  // Setup is one straight line, the same four steps on every screen: 1 Your show, 2 Your flyer, 3 Get paid, 4 Send it.
+  function stepHead(n, label) {
+    return '<div class=wiz>' + [1, 2, 3, 4].map(function (i) { return '<i class="' + (i <= n ? "on" : "") + '"></i>'; }).join("") + '</div><div class=qnum>Step ' + n + " of 4 · " + label + "</div>";
   }
   function firstShow() { var co = company(); return co ? me.shows.filter(function (s) { return s.company_id === co.id; })[0] : null; }
   function wireTop() { var o = document.getElementById("out"); if (o) o.onclick = signOut; }
@@ -148,93 +148,115 @@
     if (pe) { em.value = pe; showSent(pe, true); }
   }
 
-  // ---------- home: the checklist ----------
+  // ---------- home ----------
+  // Setting up: one card for the show, one button for the next step, the four steps. Once it's sent: the show card with
+  // the numbers and the three things a promoter does every day (copy the link, open the page, run the door).
+  // Everything optional lives on one More screen.
+  function setupSteps(co, s) {
+    return [
+      { t: "Your show", d: s ? esc(s.name) : "Name, date, place, ticket prices.", done: !!(s && s.checklist.details), href: "#show/" + (s ? s.id : "new") + "/1" },
+      { t: "Your flyer", d: s && s.checklist.art ? "Added." : "Drop it in. Any size works.", done: !!(s && s.checklist.art), href: s ? "#art/" + s.id : "#show/new/1" },
+      { t: "Get paid", d: co.paid_ready ? "Bank connected." : "Connect your bank so ticket money goes straight to you.", done: co.paid_ready, href: "#paid" },
+      { t: "Send it", d: s && s.checklist.submitted ? (s.live ? "Live." : "We're building your page.") : "One tap. We build your page.", done: !!(s && s.checklist.submitted), href: s ? "#send/" + s.id : "#show/new/1" },
+    ];
+  }
+  function stepList(steps, nextI, plain) {
+    return '<ol class="steps' + (plain ? " plain" : "") + '">' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '"' + (plain ? "" : ' data-href="' + x.href + '"') + '><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>";
+  }
+  function copyBtn(el, text) {
+    if (el) el.onclick = function () { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { el.textContent = "Copied"; }, function () { say(text); }); };
+  }
   function home() {
     var co = company();
     // No promoter crew here: their crew may run on the original account (it has its own view on My account),
     // or they're a fan or artist. Same saved sign-in, so My account opens already signed in.
     if (!co) { location.replace("me.html"); return; }
     var shows = me.shows.filter(function (s) { return s.company_id === co.id; });
-    var brandDone = !!(co.brand.logo || (co.brand.colors && co.brand.colors.main));
     var s = shows[0];
-    var steps = [
-      { key: "show", t: "Your show", d: s ? esc(s.name) : "5 quick questions: dates, place, age, tickets.", done: !!(s && s.checklist.details), href: "#show/" + (s ? s.id : "new") + "/1" },
-      { key: "art", t: "Your flyer", d: "Drop in your flyer. Any size works.", done: !!(s && s.checklist.art), href: s ? "#art/" + s.id : "#show/new/1" },
-      { key: "paid", t: "Get paid", d: "Connect where ticket money goes. Takes about 5 minutes.", done: co.paid_ready, href: "#paid" },
-      { key: "send", t: "Send it", d: s && s.checklist.submitted ? (s.live ? "Live!" : "We're building your page.") : "One tap. We build your page and tell you when it's live.", done: !!(s && s.checklist.submitted), href: s ? "#send/" + s.id : "#show/new/1" },
-    ];
-    var doneN = steps.filter(function (x) { return x.done; }).length, nextI = steps.findIndex(function (x) { return !x.done; });
+    var steps = setupSteps(co, s), nextI = steps.findIndex(function (x) { return !x.done; });
     if (!s && !me.owner) {
-      app.innerHTML = top() + "<div class=qnum>Welcome</div><h1>" + esc(co.name) + ", you're in.</h1><p class=lead>Three quick things and your show is ready to sell. About 5 minutes.</p>" +
-        '<ol class="steps plain"><li><span class=n>1</span><span><b>Your show</b><small>Name, date, place, ticket prices.</small></span></li><li><span class=n>2</span><span><b>Your flyer</b><small>Drop it in. Any size.</small></span></li><li><span class=n>3</span><span><b>Get paid</b><small>Connect your bank so ticket money goes straight to you.</small></span></li></ol>' +
-        '<a class=btn href="#show/new/1">Start with my show</a><p class=note>You can stop any time. It saves as you go.</p>' + referralHtml(co) + '<p class=msg role=status></p>';
-      wireTop(); wireReferral(co); return;
+      app.innerHTML = top() + "<div class=qnum>Welcome</div><h1>" + esc(co.name) + ", you're in.</h1><p class=lead>Four steps and your show is ready to sell. About 5 minutes.</p>" +
+        stepList(steps, -1, true) + '<a class=btn href="#show/new/1">Start with my show</a><p class=note>You can stop any time. It saves as you go.</p><p class=msg role=status></p>';
+      wireTop(); return;
     }
-    var sec = function (title, inner, fold) { return fold ? "<details class=sec><summary>" + title + "</summary>" + inner + "</details>" : "<h2>" + title + "</h2>" + inner; };
-    var summary = "";
+    var sent = !!(s && s.checklist.submitted);
+    var card = "";
     if (s) {
-      var sl = s.sales || { count: 0, face_cents: 0 }, status = s.live ? "Live" : s.review_status === "draft" ? "Draft" : "With Subduction";
-      summary = '<div class="card sumcard"><b>' + esc(s.name) + '</b><span class=pill>' + status + "</span>" +
-        '<div class=lbl>Ticket link</div><div class=linkrow><span class=streetcode>subduction.art/' + esc(s.slug) + '</span><button type=button class=ghostbtn id=copylink>Copy</button></div>' +
-        (!s.sales ? "<div class=lbl>Sales</div><small>Sales show for the crew's owner.</small>" : sl.count ? '<div class=stats><div><span class=lbl>Tickets sold</span><b>' + sl.count + '</b></div><div><span class=lbl>Gross face value</span><b>' + money(sl.face_cents) + "</b></div></div>" +
+      var sl = s.sales || { count: 0, face_cents: 0 }, status = s.live ? "Live" : sent ? "We're building it" : "Not sent yet";
+      var nums = !s.sales ? "<small>Sales show for the crew's owner.</small>"
+        : sl.count ? '<div class=stats><div><span class=lbl>Tickets sold</span><b>' + sl.count + '</b></div><div><span class=lbl>Ticket money</span><b>' + money(sl.face_cents) + "</b></div></div>" +
             ((sl.by_price || []).length ? "<small>" + sl.by_price.map(function (r) { return r[1] + " at " + money(r[0]); }).join(", ") + "</small>" : "")
-          : '<div class=lbl>Sales</div><small>No sales yet</small>') + "</div>";
+        : sent ? "<small>No sales yet.</small>" : "";
+      card = '<div class="card sumcard"><b>' + esc(s.name) + '</b><span class=pill>' + status + "</span>" + nums +
+        (sent ? '<div class=lbl>Ticket link' + (s.live ? "" : ", works once live") + '</div><div class=linkrow><span class=streetcode>subduction.art/' + esc(s.slug) + '</span><button type=button class=ghostbtn id=copylink>Copy</button></div>' +
+          (s.live ? '<div class=acts><a class=ghostbtn href="/' + encodeURIComponent(s.slug) + '" target=_blank rel=noopener>View my page</a><a class=ghostbtn href="me.html#show=' + encodeURIComponent(s.slug) + '">Door and guest list</a></div>' : "") : "") +
+        "</div>";
     }
-    var payCard = co.paid_ready
-      ? '<div class=card id=paycard><b>&#10003; Bank connected</b><small>' + StackSavings.stripeNote() + "</small></div>"
-      : '<div class=card id=paycard><b>Bank not connected</b><small>Ticket money goes straight to your own Stripe account. Subduction never holds it.</small>' +
+    var main = "";
+    if (!sent && !me.owner) {
+      // Setting up: one green button, the four steps under it.
+      main = (nextI >= 0 ? '<a class=btn href="' + steps[nextI].href + '">Next: ' + steps[nextI].t + "</a>" : "") +
+        "<h2>Your setup</h2>" + stepList(steps, nextI, false);
+    } else {
+      // Sent: the bank is the only step that still matters, and only until it's done.
+      if (!co.paid_ready) main += '<div class=card id=paycard><b>Connect your bank</b><small>You need this before tickets go on sale. Ticket money goes straight to your own Stripe account.</small>' +
         (co.can_manage ? '<button class=btn type=button id=hconnect>Connect my bank</button>' : "<small>Only the crew's owner can do this step.</small>") + "</div>";
-    var kept = shows.some(function (x) { return x.sales && x.sales.count; }) ? shows.filter(function (x) { return x.sales; }).map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "";
-    var share = (shows.length ? '<h3>Street team</h3>' + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
-      (shows.length ? "<h3>Message my crowd</h3>" + shows.filter(function (x) { return x.review_status !== "draft"; }).map(function (x) { return '<div class=card data-href="#crowd/' + x.id + '"><b>' + esc(x.name) + "</b><small>Email the people who bought tickets.</small></div>"; }).join("") : "") +
-      (s ? '<h3>Ad pixel</h3><p class=note>Off until you paste a Meta pixel id. Only that pixel hears about visits and purchases on this show.</p><label for=px>Pixel id</label><input id=px inputmode=numeric autocomplete=off value="' + esc((s.kit && s.kit.pixel) || "") + '"><button class=ghost type=button id=pxsave>Save pixel</button>' : "") +
-      referralHtml(co).replace("<h2>Referral link</h2>", "<h3>Referral link</h3>");
-    var look = '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and the page starts in acid green.</small></div>' +
-      (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "");
+      if (s) main += "<h2>Sell more</h2>" +
+        '<div class=card data-href="#links/' + s.id + '"><b>Street team</b><small>A link for each seller. See who sold what.</small></div>' +
+        '<div class=card data-href="#crowd/' + s.id + '"><b>Message my crowd</b><small>Email the people who bought tickets.</small></div>' +
+        (s.sales ? '<button class=ghost type=button id=buyers>Download buyers</button>' : "") +
+        (s.sales && s.sales.count ? '<div class=card>' + StackSavings.line(s.sales) + "</div>" : "");
+    }
+    var others = shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#send/' + x.id + '"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "We're building it") + "</small></div>"; }).join("") : "";
     app.innerHTML = top(me.owner ? "#" : "") + (me.owner ? '<div class=qnum>Setting up for</div>' : "") +
-      "<h1>" + esc(co.name) + "</h1>" + summary +
-      (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
-      sec("Your show", '<div class=progress>' + doneN + " of " + steps.length + " done</div>" +
-        '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
-        (shows.length > 1 ? shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
-        (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "")) +
-      (s ? sec("Sales", kept + (s ? '<button class=ghost type=button id=buyers>Download buyers</button>' : ""), false) : "") +
-      sec("Get paid", payCard, false) +
-      (s ? sec("Share and promote", share, true) : sec("Share and promote", referralHtml(co).replace("<h2>Referral link</h2>", "<h3>Referral link</h3>"), true)) +
-      sec("Page look", look, true) +
+      "<h1>" + esc(co.name) + "</h1>" + card + main + others +
+      (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
+      '<div class=card data-href="#more"><b>More</b><small>Your brand, show music, ad pixel, referral link' + (co.paid_ready ? ", payouts" : "") + ".</small></div>" +
       (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
         '<label for=ie>Their email</label><input type=email id=ie autocapitalize=off inputmode=email value="' + esc(co.contact_email || "") + '"><button class=btn type=button id=inv>' + (co.contact_email ? "Send invite again" : "Send invite") + "</button>" : "") +
       "<p class=msg role=status></p>";
     wireTop();
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     if (flash) { say(flash); flash = ""; }
-    wireReferral(co);
-    var cl = document.getElementById("copylink");
-    if (cl && s) cl.onclick = function () { var t = "https://subduction.art/" + s.slug; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { cl.textContent = "Copied"; }, function () { cl.textContent = "Copy"; say(t); }); };
+    if (s) copyBtn(document.getElementById("copylink"), "https://subduction.art/" + s.slug);
     var hc = document.getElementById("hconnect");
     if (hc) hc.onclick = function () {
       say("Opening Stripe…");
       api(CONNECT, { a: "start", company: co.id }).then(function (r) { location.href = r.url; }).catch(function (x) {
-        // Bank setup not open on our side: say so plainly and keep sending the show possible.
+        // Bank setup not open on our side: say so plainly.
         if (!/platform profile|dashboard\.stripe|Connect|isn't open/i.test(x.message)) return say(x.message, true);
         var pc = document.getElementById("paycard");
-        if (pc) pc.innerHTML = "<b>Bank setup isn't open yet</b><small>We'll email you when it opens. You can still send your show now.</small>" + (s ? '<a class=btn href="#send/' + s.id + '">Send my show</a>' : "");
+        if (pc) pc.innerHTML = "<b>Bank setup isn't open yet</b><small>We'll email you when it opens.</small>";
         say("");
       });
     };
     var buyers = document.getElementById("buyers");
     if (buyers && s) buyers.onclick = function () { downloadBuyers(s.id, s.slug); };
+    var inv = document.getElementById("inv");
+    if (inv) inv.onclick = function () {
+      var em = document.getElementById("ie").value.trim(); say("Sending…");
+      call("invite", { company: co.id, email: em }).then(function (r) { co.contact_email = r.invited; flash = "Invite sent to " + r.invited + "."; home(); }).catch(function (x) { say(x.message, true); });
+    };
+  }
+
+  // ---------- More: everything optional, in one place ----------
+  function more() {
+    var co = company(); if (!co) return go(homeHref());
+    var s = firstShow(), brandDone = !!(co.brand.logo || (co.brand.colors && co.brand.colors.main));
+    app.innerHTML = top(homeHref()) + "<h1>More</h1>" +
+      '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Your logo and colors on every show. Skip it and the page starts in acid green.</small></div>' +
+      (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Your own tracks on your page, or Subduction tracks.</small></div>' : "") +
+      (co.paid_ready ? '<div class=card><b>&#10003; Bank connected</b><small>' + StackSavings.stripeNote() + "</small></div>" : "") +
+      (s ? '<h2>Ad pixel</h2><p class=note>Off until you paste a Meta pixel id. Only that pixel hears about visits and purchases on this show.</p><label for=px>Pixel id</label><input type=text id=px inputmode=numeric autocomplete=off value="' + esc((s.kit && s.kit.pixel) || "") + '"><button class=ghost type=button id=pxsave>Save pixel</button>' : "") +
+      referralHtml(co) + "<p class=msg role=status></p>";
+    wireTop(); wireReferral(co);
+    app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     var px = document.getElementById("pxsave");
     if (px && s) px.onclick = function () {
       say("Saving…");
       call("pixel-save", { show: s.id, pixel: document.getElementById("px").value }).then(function (r) {
         s.kit = s.kit || {}; if (r.pixel) s.kit.pixel = r.pixel; else delete s.kit.pixel; say("Saved.");
       }).catch(function (x) { say(x.message, true); });
-    };
-    var inv = document.getElementById("inv");
-    if (inv) inv.onclick = function () {
-      var em = document.getElementById("ie").value.trim(); say("Sending…");
-      call("invite", { company: co.id, email: em }).then(function (r) { co.contact_email = r.invited; flash = "Invite sent to " + r.invited + "."; home(); }).catch(function (x) { say(x.message, true); });
     };
   }
 
@@ -302,7 +324,7 @@
       app.innerHTML = top(homeHref()) + "<h1>Your brand</h1><p class=lead>Upload it once. Every show you run starts looking like you.</p>" +
         drop("logo", "Logo", "logo", b.logo) + drop("partners", "Partner & sound logos", "partners", b.partners) +
         b.figures.map(function (u, i) { return drop("fig" + i, "Signature art " + (i + 1), "figure", u); }).join("") + (b.figures.length < 6 ? drop("fig" + b.figures.length, "Signature art (characters, cutouts)", "figure", "") : "") +
-        "<h2>Your colors</h2><div class=colors>" + [["main", "Main", "#ff5a1f"], ["second", "Second", "#8a2be2"], ["background", "Background", "#050505"]].map(function (c) {
+        "<h2>Your colors</h2><div class=colors>" + [["main", "Main", "#b6ff00"], ["second", "Second", "#f4f1ee"], ["background", "Background", "#000000"]].map(function (c) {
           return '<div><label for="c-' + c[0] + '">' + c[1] + '</label><input type=color id="c-' + c[0] + '" value="' + esc(b.colors[c[0]] || c[2]) + '"></div>'; }).join("") + "</div>" +
         '<label for=ig>Instagram</label><input type=text id=ig placeholder="@yourcrew" value="' + esc(b.socials.instagram || "") + '"><label for=tt>TikTok</label><input type=text id=tt placeholder="@yourcrew" value="' + esc(b.socials.tiktok || "") + '">' +
         '<button class=btn type=button id=save>Save my brand</button><p class=msg role=status></p>';
@@ -338,7 +360,7 @@
   function question(id, step) {
     startDraft(id);
     var d = draft, n = +step || 1, body = "";
-    var head = top(n > 1 ? "#show/" + id + "/" + (n - 1) : homeHref()) + stepHead(1, "Your show", n + " of 5");
+    var head = top(n > 1 ? "#show/" + id + "/" + (n - 1) : homeHref()) + stepHead(1, "Your show");
     if (n === 1) body = "<h1>What's the show called?</h1><label for=q>Show name</label><input type=text id=q maxlength=100 value=\"" + esc(d.name) + '" placeholder="e.g. Basement Frequencies Vol. 3">';
     if (n === 2) body = "<h1>When is it?</h1><p class=lead>One block per night. Times are Central.</p>" + d.nights.map(function (x, i) {
       return '<div class=night-row><b>Night ' + (i + 1) + '</b><label for="nd' + i + '">Date</label><input type=date id="nd' + i + '" value="' + esc(x.date) + '"><div class=row2><div><label for="no' + i + '">Doors</label><input type=time id="no' + i + '" value="' + esc(x.doors) + '"></div><div><label for="ne' + i + '">Ends</label><input type=time id="ne' + i + '" value="' + esc(x.ends) + '"></div></div>' +
@@ -521,7 +543,7 @@
   function doneScreen(s, co) {
     var money = function (c) { return "$" + (c / 100).toFixed(c % 100 ? 2 : 0); };
     var when = s.nights.map(function (n) { var d = n.starts_at ? new Date(n.starts_at) : null;
-      return esc(n.label) + (d ? " · doors " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "") : ""); }).join("<br>");
+      return esc(n.label) + (d ? " · doors " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).replace(":00", "") + " Central" : ""); }).join("<br>");
     var where = s.secret ? "Secret location" + (s.city ? ", " + esc(s.city) : "") : [s.venue, s.city].filter(Boolean).map(esc).join(", ");
     var tix = s.tickets.map(function (t) { return t.tiers.map(function (r) { return esc(t.name) + (t.tiers.length > 1 ? " · " + esc(r.name) : "") + " · " + money(r.price_cents) + (r.qty ? " <span class=dim>(" + r.qty + ")</span>" : ""); }).join("<br>"); }).join("<br>");
     var link = "subduction.art/" + s.slug, kit = s.kit || {};
@@ -538,8 +560,8 @@
         (when ? "<div><span class=lbl>When</span>" + when + "</div>" : "") + (where ? "<div><span class=lbl>Where</span>" + where + (s.age ? " · " + esc(s.age) : "") + "</div>" : "") +
         (tix ? "<div><span class=lbl>Tickets</span>" + tix + "</div>" : "") + "<div><span class=lbl>Flyer</span>" + (hasFlyer ? "Added" : "None yet. We'll start your page in acid green.") + "</div>" +
         '<a class=linkbtn href="#show/' + s.id + '/1">Change something</a></div>' +
+      (co.paid_ready ? "" : "<h2>Before tickets go on sale</h2>" + extra(false, "Get paid", "Connect your bank. Ticket money goes straight to you.", "#paid", "Connect my bank")) +
       "<h2>Make it yours <span class=dim>(optional)</span></h2>" +
-        extra(co.paid_ready, "Get paid", co.paid_ready ? "Your bank is connected. Ticket money goes straight to you." : "Connect your bank. You need this before tickets go on sale.", "#paid", "Connect my bank") +
         extra(hasFlyer, "Your flyer", hasFlyer ? "Added." : "Drop it in so your page uses your art.", "#art/" + s.id, "Add my flyer") +
         extra(brandDone, "Your logo and colors", brandDone ? "Added. Every page of yours uses them." : "So your page looks like you, not like us.", "#brand", "Add them") +
         extra(false, "Your show music", "Play your own tracks on your page, or a mix of ours.", "#music/" + s.id, "Pick music") +
@@ -552,7 +574,7 @@
     var line = function (ok, t, d, href) { return '<li class="' + (ok ? "done" : "") + '"' + (href ? ' data-href="' + href + '"' : "") + '><span class=n>' + (ok ? "&#10003;" : "!") + "</span><span><b>" + t + "</b><small>" + d + "</small></span></li>"; };
     app.innerHTML = top(homeHref()) + (s.checklist.submitted
       ? doneScreen(s, co)
-      : "<div class=qnum>Last thing</div><h1>Ready to send?</h1><p class=lead>We build your page and email you when it's ready to look over.</p><ol class=steps>" +
+      : stepHead(4, "Send it") + "<h1>Send your show</h1><p class=lead>We build your page and email you when it's ready to look over.</p><ol class=steps>" +
         line(!!s.checklist.details, "Your show", esc(s.name), "#show/" + s.id + "/1") +
         line(hasFlyer, "Your flyer", hasFlyer ? "Added" : "None yet. Your page starts in acid green.", "#art/" + s.id) +
         line(co.paid_ready, "Get paid", co.paid_ready ? "Bank connected" : "Not connected yet. You need this before tickets go on sale.", "#paid") + "</ol>" +
@@ -582,9 +604,9 @@
       }).join("");
       app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=note>" + esc(d.line || "") + "</p>" + rows +
         "<h2>Add a link</h2>" +
-        '<label for=sl-name>Name</label><input id=sl-name maxlength=60 placeholder="DJ Name">' +
-        '<label for=sl-code>Code</label><input id=sl-code maxlength=32 placeholder="djname" autocapitalize=off spellcheck=false>' +
-        '<label for=sl-pay>Payout per ticket, optional</label><input id=sl-pay inputmode=decimal placeholder="2.50">' +
+        '<label for=sl-name>Seller name</label><input type=text id=sl-name maxlength=60 placeholder="DJ Name">' +
+        '<label for=sl-code>Link code, optional</label><input type=text id=sl-code maxlength=32 placeholder="Made from the name if blank" autocapitalize=off spellcheck=false>' +
+        '<label for=sl-pay>Payout per ticket, optional</label><input type=text id=sl-pay inputmode=decimal placeholder="2.50">' +
         '<button class=btn type=button id=sl-save>Save link</button><p class=msg role=status></p>';
       wireTop();
       app.querySelectorAll("[data-copy]").forEach(function (b) {
@@ -638,7 +660,7 @@
     }
     function review(n) {
       var ok = n > 0;
-      app.innerHTML = top() + '<div class=qnum>Step 2 of 2 · Review</div><h1>Ready to send?</h1>' +
+      app.innerHTML = top() + '<div class=qnum>Step 2 of 2 · Review</div><h1>Check it, then send</h1>' +
         '<div class=card><small>Goes to</small><b>' + n + (n === 1 ? " person" : " people") + '</b><small>Buyers of ' + esc(s.name) + ' who are still subscribed.</small></div>' +
         (crowdDraft.next_date ? '<div class=card><small>Next date</small><b>' + esc(crowdDraft.next_date) + "</b></div>" : "") +
         '<div class=card><small>Subject</small><b>' + esc(crowdDraft.subject) + '</b></div>' +
@@ -681,6 +703,7 @@
     if (h[0] === "send") return send(h[1]);
     if (h[0] === "links") return links(h[1]);
     if (h[0] === "crowd") return crowd(h[1]);
+    if (h[0] === "more") return more();
     home();
   }
   window.addEventListener("hashchange", route);

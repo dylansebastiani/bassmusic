@@ -123,3 +123,7 @@ body.pro{min-height:100vh;background:#000}
 .pro .pv b{font-family:var(--disp);font-weight:400;font-size:22px;line-height:1;text-transform:uppercase;color:var(--fg)}
 .pro .pv span{font-size:14px;line-height:1.45;color:var(--mute);text-wrap:pretty}
 .pro .preview figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:8px}
+/* Home: the show card's two everyday buttons, and inputs written without a type (street team, pixel). */
+.pro .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}.pro .acts .ghostbtn{display:block;text-align:center;text-decoration:none;padding:12px 8px;font-size:14px}
+.pro input:not([type]),.pro input[type=tel],.pro input[type=url]{width:100%;background:#000;border:1px solid var(--line);color:var(--fg);font:inherit;font-size:17px;padding:14px;border-radius:0;color-scheme:dark;box-sizing:border-box}
+.pro .steps li.done .n{background:none;border-color:var(--hot);color:var(--hot)}
