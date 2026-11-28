@@ -15,8 +15,9 @@ for (const [n, s] of [["demo.html", demo], ["demo.js", read("dist/assets/demo.js
   if (/toftu|t\.o\.f\.t\.u|hangovers|\/underground\b|63b511f3/i.test(s)) fail(n + " references T.O.F.T.U.");
 }
 if (!/class="stag">Sample show</.test(demo)) fail("/demo.html sample show must be labeled as a sample");
-if (!/src="assets\/sample-flyer\.webp" width="640" height="480"/.test(demo)) fail("/demo.html sample flyer needs the webp with width and height");
-if (/id="burst"/.test(demo)) fail("the old light-burst placeholder is back on /demo.html");
+if (!/<div class="sflyer"><div class="burst" id="burst"><\/div>/.test(demo)) fail("/demo.html sample show lost its light-burst art");
+const djs = read("site/assets/demo.js");
+if (!/stroke="#00e5ff"/.test(djs) || !/stroke="#ff2bd6"/.test(djs)) fail("the sample show light-burst should be neon cyan and pink");
 
 const demoFn = read("supabase/functions/demo/index.ts");
 if (/Demo Night/.test(demoFn)) fail("the test ticket email still says Demo Night, it should match the page");
@@ -27,7 +28,7 @@ if (!/<figure class="art sample" id="sample"><img src="assets\/promoter-preview\
 if (!/<figcaption>Sample show\./.test(promo)) fail("homepage preview must be labeled as a sample");
 if (!/\$2\.61/.test(home)) fail("homepage lost the $2.61 buyer fee");
 
-for (const f of ["sample-flyer.webp", "promoter-preview.webp"]) {
+for (const f of ["promoter-preview.webp"]) {
   const b = readFileSync(join(root, "dist/assets", f));
   if (b.toString("ascii", 0, 4) !== "RIFF" || b.toString("ascii", 8, 12) !== "WEBP") fail(f + " is not a webp");
   if (b.length > 60000) fail(f + " is over 60KB");

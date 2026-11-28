@@ -6,6 +6,13 @@
   var KEY = "sub_demo", lead = null, claimKey = "";
   var time = function (iso) { return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); };
 
+  // The sample show's art: the neon light-burst, cyan up top and pink below.
+  (function () {
+    var L = "", i, x;
+    for (i = 0; i <= 40; i++) { x = (i / 40 * 800).toFixed(0); L += '<line x1="400" y1="210" x2="' + x + '" y2="0" stroke="#00e5ff"/><line x1="400" y1="210" x2="' + x + '" y2="420" stroke="#ff2bd6"/>'; }
+    $("burst").innerHTML = '<svg viewBox="0 0 800 420" aria-hidden="true" style="background:radial-gradient(ellipse at 50% 50%,#2a0a33,#050505 75%)"><g stroke-width="1" opacity=".75">' + L + "</g></svg>";
+  })();
+
   // The bars up top are buttons: tap any step you've already reached to go back (or forward again).
   var reached = 1;
   function go(n) {
