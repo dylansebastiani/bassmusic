@@ -6,7 +6,24 @@
   var data = null, tab = "today";
   var day = function (s) { if (!s) return ""; var d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); };
   var usd = function (n) { return n ? "$" + Number(n).toFixed(2) : ""; };
-  function who(r) { return '<td class="who"><b>' + esc(r.name || r.full_name || "(no name)") + "</b><span>" + esc(r.email || "") + (r.phone ? " · " + esc(r.phone) : "") + "</span></td>"; }
+  // Email and phone are tap targets, so a lead is one tap from a call.
+  // A mailto link is built only for a plain address. Anything with ? # & spaces or control characters
+  // (which could prefill a subject or body) stays plain text.
+  var SIMPLE_EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+  function mail(e) {
+    e = String(e);
+    return SIMPLE_EMAIL.test(e) ? '<a href="mailto:' + esc(encodeURIComponent(e)) + '">' + esc(e) + "</a>" : esc(e);
+  }
+  function call(p) {
+    var tel = String(p).replace(/[^\d+]/g, "");
+    return tel ? '<a href="tel:' + esc(tel) + '">' + esc(p) + "</a>" : esc(p);
+  }
+  window.PeopleLinks = { mail: mail, call: call };
+  function who(r) {
+    return '<td class="who"><b>' + esc(r.name || r.full_name || "(no name)") + "</b><span>" +
+      (r.email ? mail(r.email) : "") +
+      (r.phone ? (r.email ? " · " : "") + call(r.phone) : "") + "</span></td>";
+  }
   function tag(t, hot) { return t ? '<span class="tag' + (hot ? " hot" : "") + '">' + esc(t) + "</span>" : ""; }
   function td(v, cls) { return "<td" + (cls ? ' class="' + cls + '"' : "") + ">" + esc(v == null ? "" : v) + "</td>"; }
 
@@ -122,6 +139,10 @@
     $("count").textContent = list.length === all ? all + noun : list.length + " of " + all;
     $("t").innerHTML = "<thead><tr>" + T.head.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr></thead><tbody>" +
       (list.length ? list.map(function (r) { return "<tr>" + T.row(r) + "</tr>"; }).join("") : '<tr><td class="empty" colspan="' + T.head.length + '">Nobody here yet.</td></tr>') + "</tbody>";
+    // On a phone each row becomes a card. Every cell carries its column name for the label.
+    Array.prototype.forEach.call($("t").querySelectorAll("tbody tr"), function (tr) {
+      Array.prototype.forEach.call(tr.children, function (c, i) { if (T.head[i] && !c.classList.contains("empty")) c.setAttribute("data-l", T.head[i]); });
+    });
   }
   function tabs() {
     $("tabs").innerHTML = '<button type="button" role="tab" data-k="today" aria-selected="' + (tab === "today") + '">Today</button>' + Object.keys(TABS).map(function (k) { return '<button type="button" role="tab" data-k="' + k + '" aria-selected="' + (k === tab) + '">' + TABS[k].label + "<b>" + (data[k] || []).length + "</b></button>"; }).join("");

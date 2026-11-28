@@ -86,3 +86,38 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
   .today .sec:nth-of-type(2){grid-row:2}.shows{grid-row:3}
   .needs,.shows{align-self:start}
 }
+td.who a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line)}
+td.who a:hover{color:var(--fg);border-color:var(--fg)}
+/* Phone: each row is a card. Name on top, then label and value pairs. Empty cells drop out. */
+@media (max-width:699px){
+  .scroll{overflow:visible;border:0}
+  table,tbody,tr,td{display:block;min-width:0;width:auto}
+  table{min-width:0}
+  thead{display:none}
+  tr{border:1px solid var(--line);padding:12px 14px;margin-bottom:10px;background:#0b0b0b}
+  td{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border:0;text-align:right}
+  td::before{content:attr(data-l);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-align:left;flex:none;padding-top:3px}
+  td:empty{display:none}
+  td.who{display:block;text-align:left;padding:0 0 8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+  td.who::before{display:none}
+  td.who b{font-size:16px}
+  td.who span{display:block;margin-top:2px;font-size:14px}
+  td.who a{display:inline-flex;align-items:center;min-height:40px;padding:10px 0}
+  td.empty{display:block;text-align:left}
+  td.empty::before{display:none}
+}
+@media (max-width:699px){
+  .tools{grid-template-columns:1fr auto}
+  .tools select{grid-column:1 / -1;grid-row:2}
+  .tools button{font-size:16px;padding:11px 14px 9px}
+}
+/* Bolder lists: poster names, tight labels. */
+.what{font-size:14px;color:#cfc9c5;margin:18px 0 14px;max-width:640px}
+.count{color:var(--hot)}
+@media (max-width:699px){
+  tr{background:#151515;border:0;border-left:3px solid var(--line);padding:14px 14px 10px}
+  tr:hover{border-left-color:var(--hot)}
+  td.who b{font-family:var(--disp);font-weight:400;font-size:26px;letter-spacing:.01em;text-transform:uppercase;line-height:1}
+  td.who span{margin-top:6px}
+  td{font-size:15px}
+}
