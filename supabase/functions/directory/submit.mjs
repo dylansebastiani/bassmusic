@@ -120,12 +120,14 @@ export function canonicalEmail(raw) {
 }
 // An ilike pattern that finds every stored spelling of that person, to be narrowed with canonicalEmail.
 export function emailPattern(raw) {
+  const esc = (v) => v.replace(/[\\%_]/g, "\\$&");
   const c = canonicalEmail(raw), at = c.lastIndexOf("@");
-  if (at < 1) return c.replace(/[\\%_]/g, "\\$&");
-  const local = c.slice(0, at).replace(/[\\%_]/g, "\\$&"), host = c.slice(at + 1);
+  if (at < 1) return esc(c);
+  const local = c.slice(0, at), host = c.slice(at + 1);
   const gmail = host === "gmail.com";
-  const body = gmail ? [...local].join("%") : local;
-  return body + "%@" + (gmail ? "%mail.com" : host.replace(/[\\%_]/g, "\\$&"));
+  // Escape each character on its own, so a Gmail pattern never splits an escape from the character it escapes.
+  const body = gmail ? [...local].map(esc).join("%") : esc(local);
+  return body + "%@" + (gmail ? "%mail.com" : esc(host));
 }
 // Neutral reply for a ticket link that is already listed, so the form can't be used to look shows up.
 export const NEUTRAL_SUBMIT = { ok: true, neutral: true, message: "We'll email you if anything's needed." };

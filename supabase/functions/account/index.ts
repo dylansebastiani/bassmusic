@@ -98,9 +98,10 @@ async function countToday(subscriberId: string, type: string): Promise<number> {
     .eq("subscriber_id", subscriberId).eq("type", type).gte("created_at", new Date(Date.now() - 86400000).toISOString());
   return error ? Number.MAX_SAFE_INTEGER : (count ?? 0);
 }
-// One requester can't use up someone else's 10 code emails a day: each connection gets its own daily allowance of code requests.
-// Counted from the per-minute rate_limits rows (hashed connection only), so no new table is needed.
-const MAX_CODE_REQUESTS_PER_IP_PER_DAY = 12;
+// One requester can't use up someone else's 10 code emails a day: each connection gets 5 a day per address (half the cap).
+// Keyed on the hashed connection plus the address, so people sharing a phone network don't block each other.
+// Counted from the per-minute rate_limits rows (pruned after a day), so no new table is needed. A failed count means send nothing.
+const MAX_CODE_REQUESTS_PER_IP_PER_DAY = 5;
 async function ipDayLimited(req: Request, tag: string) {
   const h = await ipHash(req, tag);
   await db.rpc("bump_rate_limit", { p_ip_hash: h });
@@ -476,7 +477,7 @@ Deno.serve(async (req) => {
         const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim();
         if (!(await botCheck(b.turnstile, ip))) return no("Bot check failed. Refresh and try again.", 403);
         // Over this connection's daily allowance: same answer, nothing sent, nobody's cap used.
-        if (await ipDayLimited(req, "account-code-day")) return json({ sent: true });
+        if (await ipDayLimited(req, "account-code-day|" + email)) return json({ sent: true });
         await sendSignin(email);
         return json({ sent: true });   // same answer either way, so this can't be used to find out who's here
       }

@@ -317,9 +317,23 @@ assert.equal(NEUTRAL_SUBMIT.session, undefined);
   assert.doesNotMatch(fn, /That show is already in/);
   assert.match(fn, /if \(dup\) return json\(NEUTRAL_SUBMIT\)/);
 }
-// Code-email abuse: one connection gets a daily allowance of code requests.
-assert.match(read("../supabase/functions/account/index.ts"), /ipDayLimited\(req, "account-code-day"\)/);
-assert.match(read("../supabase/functions/promoter/index.ts"), /promoter-code-day/);
-// /shows-send/ redirects to /shows-send, and the build waits for a late functions deploy.
+// Code emails are limited per connection AND address, so shared phone networks don't block each other.
+assert.match(read("../supabase/functions/account/index.ts"), /ipDayLimited\(req, "account-code-day\|" \+ email\)/);
+assert.match(read("../supabase/functions/account/index.ts"), /MAX_CODE_REQUESTS_PER_IP_PER_DAY = 5;/);
+assert.match(read("../supabase/functions/promoter/index.ts"), /codeDayLimited\(req, "promoter-code-day\|" \+ email\)/);
+assert.match(read("../supabase/functions/promoter/index.ts"), /CODE_EMAILS_PER_CONNECTION_PER_DAY = 5;/);
+// A Gmail pattern escapes each character on its own (an underscore must stay a literal underscore).
+assert.equal(emailPattern("a_b@gmail.com"), "a%\\_%b%@%mail.com");
+assert.equal(emailPattern("a_b+x@example.com"), "a\\_b%@example.com");
+// A full page of look-alike rows fails closed: no mail to a maybe-artist, and a maybe-capped sender counts as capped.
+{
+  const fn = read("../supabase/functions/directory/index.ts");
+  assert.match(fn, /length >= 50 \? null : false/);
+  assert.match(fn, /return \(rows \|\| \[\]\)\.length >= 200;/);
+}
+// /shows-send/ redirects to /shows-send: GitHub Pages ignores _redirects, so the build writes a folder stub too.
 assert.match(build, /\/shows-send\/ \/shows-send 301/);
+assert.match(build, /\["shows-send", "\/shows-send\.html"\]/);
+assert.match(readFileSync(new URL("../dist/shows-send/index.html", import.meta.url), "utf8"), /location\.replace\("\/shows-send\.html"/);
+// The build waits for a late functions deploy before giving up on the /go/ list.
 assert.match(build, /BUILD_REFS_TRIES/);

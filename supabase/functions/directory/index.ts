@@ -76,7 +76,9 @@ async function artistContact(raw: string): Promise<boolean | null> {
     db.from("artist_members").select("email").ilike("email", pat).limit(50),
   ]);
   if (a.error || m.error) return null;
-  return (a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email));
+  if ((a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email))) return true;
+  // A full page may have cut off the matching row. Treat that like a failed lookup and send nothing.
+  return (a.data || []).length >= 50 || (m.data || []).length >= 50 ? null : false;
 }
 
 // At most 6 link emails an hour per person (any dotted or plus spelling), across all their shows. A failed lookup counts as capped.
@@ -85,7 +87,7 @@ async function linkCapHit(email: string): Promise<boolean> {
   if (e1) return true;
   const want = canonicalEmail(email);
   const ids = (rows || []).filter((r) => canonicalEmail(r.submitter_email) === want);
-  if (!ids.length) return false;
+  if (!ids.length) return (rows || []).length >= 200;   // a full page may have cut off this person's rows: count it as capped
   const since = new Date(Date.now() - 3600000).toISOString();
   const { count, error } = await db.from("directory_links").select("id", { count: "exact", head: true }).eq("kind", "link").in("listing_id", ids.map((r) => r.id)).gte("created_at", since);
   return error ? true : linkCapReached(count);

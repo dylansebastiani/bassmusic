@@ -126,7 +126,7 @@ try {
 writeFileSync(join(out, "404.html"), readFileSync(join(out, "show.html"), "utf8").replace("<head>", '<head>\n<base href="/">'));
 // GitHub Pages ignores _redirects, so these folder addresses get a tiny stub that hands off to the real page,
 // keeping any ?query and #hash. A show named after one of these folders is skipped by the slug-clash check in showPages().
-const stubs = [["artists", "/artists.html"], ["promoter", "/promoter.html"], ["account", "/me.html"], ["login", "/me.html"], ["signin", "/me.html"]];
+const stubs = [["artists", "/artists.html"], ["promoter", "/promoter.html"], ["account", "/me.html"], ["login", "/me.html"], ["signin", "/me.html"], ["shows-send", "/shows-send.html"]];
 for (const [dir, to] of stubs) {
   mkdirSync(join(out, dir), { recursive: true });
   writeFileSync(join(out, dir, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
