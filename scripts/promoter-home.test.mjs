@@ -36,5 +36,5 @@ assert.ok(/class="card sumcard"/.test(js) && /id=copylink/.test(js) && /No sales
 assert.ok(/Tickets sold/.test(js) && /Gross face value/.test(js), "summary shows tickets sold and gross face value");
 for (const t of ["Your show", "Sales", "Get paid", "Share and promote", "Page look"]) assert.ok(js.includes('sec("' + t + '"'), "home section " + t);
 assert.ok(/id=paycard/.test(js) && /We'll email you when it opens/.test(js), "payouts card with the not-open note");
-assert.ok(/\$1\.50 flat buyer fee, you keep your full ticket price/.test(js) && /No passwords/.test(js), "sign-in lines");
+assert.ok(/\$1\.50 flat buyer fee/.test(js) && /You keep your full ticket price/.test(js) && /No passwords/.test(js), "sign-in lines");
 console.log("promoter-home ok");
