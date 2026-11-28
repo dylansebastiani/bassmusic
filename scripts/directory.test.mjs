@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import {
   alertRecipients, canReplyTo, chicagoYmd, cityPath, dateOk, externalCard, honeypotFilled,
-  isFresh, leadMail, matches, normTicketUrl, publicCard, splitPlace, subductionCard, ticketLink,
+  isFresh, leadMail, matches, normTicketUrl, publicCard, splitPlace, subductionCard, ticketLink, TOFTU_SHARE_IMAGE,
 } from "../supabase/functions/directory/listing.mjs";
 
 const today = "2026-11-26";
@@ -26,7 +26,7 @@ assert.equal(card.city, "Peoria");
 assert.equal(card.state, "IL");
 assert.deepEqual(card.dates, ["2027-01-08", "2027-01-09"]);
 assert.equal(card.when, "Jan 8-9");
-assert.equal(card.flyer, "");
+assert.equal(card.flyer, TOFTU_SHARE_IMAGE);
 assert.equal(JSON.stringify(card).includes("Hidden"), false);
 
 assert.equal(subductionCard({ ...underground, review_status: "submitted" }, nights, today), null);
@@ -190,9 +190,11 @@ console.log("directory checks passed");
   assert.equal(c.name, "T.O.F.T.U.");
   assert.equal(subductionCard(underground, nights, today).when, "Jan 8-9");
   assert.equal(c.city + ", " + c.state, "Peoria, IL");
-  assert.equal(c.flyer, "https://cdn.example.com/new-flyer.webp");
+  assert.equal(c.flyer, "https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg", "underground card uses the two-night share.jpg, not a night flyer");
+  assert.equal(publicCard(c).flyer, c.flyer);
+  assert.match(showsJs, /flyer wide|" wide"/);
   assert.equal(c.url, "/underground/");
-  assert.equal(subductionCard(underground, nights, today).flyer, "");
+  assert.equal(subductionCard(underground, nights, today).flyer, c.flyer);
   // The page script gives T.O.F.T.U. no tags but Secret location and no calendar or share buttons.
   assert.match(showsJs, /isToftu\(s\)/);
   assert.equal((showsJs.match(/!isToftu\(s\)/g) || []).length >= 3, true);

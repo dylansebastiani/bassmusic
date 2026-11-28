@@ -92,8 +92,9 @@
     return 'href="' + esc(s.url) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "");
   }
   function flyer(s, eager) {
-    var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="Flyer for ' + esc(s.name) + '" width="800" height="1000"' + (eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"') + ">" : "";
-    return '<a class="flyer' + (img ? "" : " blank") + '" ' + link(s) + ' tabindex="-1" aria-hidden="true">' + img + "</a>";
+    var wide = isToftu(s);
+    var img = s.flyer ? '<img class="art" src="' + esc(s.flyer) + '" alt="Flyer for ' + esc(s.name) + '" width="' + (wide ? 1200 : 800) + '" height="' + (wide ? 630 : 1000) + '"' + (eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"') + ">" : "";
+    return '<a class="flyer' + (wide ? " wide" : "") + (img ? "" : " blank") + '" ' + link(s) + ' tabindex="-1" aria-hidden="true">' + img + "</a>";
   }
   function fee(s) { return s.source === "subduction" && !isToftu(s) && feeNote() ? '<small class="fee">' + feeNote() + "</small>" : ""; }
   function card(s, i) {

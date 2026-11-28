@@ -111,6 +111,8 @@ export function rangeLabel(dates) {
   return mon + " " + d1 + "-" + Number(last.slice(8, 10));
 }
 
+export const TOFTU_SHARE_IMAGE = "https://hxfuelulxsituzcgsvhg.supabase.co/storage/v1/object/public/media/underground/share.jpg";
+
 // An approved show that is actually on sale, or already has a public page.
 // Past nights drop off. The public card never carries a venue, address, lineup or crew.
 export function subductionCard(ev, nights, today) {
@@ -124,11 +126,8 @@ export function subductionCard(ev, nights, today) {
   const place = splitPlace(ev.city);
   const secret = !!ev.location_secret || ev.slug === "underground";
   let flyer = "";
-  if (ev.slug === "underground") {
-    // The same uploaded flyer the /underground/ page uses now.
-    const n = (nights || []).find((x) => x && typeof x.flyer_url === "string" && /^https:\/\//.test(x.flyer_url));
-    flyer = n ? n.flyer_url : "";
-  }
+  // T.O.F.T.U. is a two-night show, so its card always uses the two-night share image (1200x630).
+  if (ev.slug === "underground") flyer = TOFTU_SHARE_IMAGE;
   else if (typeof ev.share_url === "string" && /^https:\/\//.test(ev.share_url)) flyer = ev.share_url;
   else if (typeof ev.poster_url === "string" && /^https:\/\//.test(ev.poster_url)) flyer = ev.poster_url;
   return {
