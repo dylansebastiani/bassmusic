@@ -24,7 +24,7 @@ export function creditLine(showLimit, shareBps, usualFeeCents) {
   }
   return "Share this. When a promoter who joins from it runs " + shows + ", you earn " + share +
     " of Subduction's buyer fee on each paid ticket from " + those + "." + money +
-    " It comes out of Subduction's share. Dylan pays it. Nothing is sent on its own. Refunded tickets and guest-list tickets are left out.";
+    " It comes out of Subduction's share. Subduction pays it. Nothing is sent on its own. Refunded tickets and guest-list tickets are left out.";
 }
 
 export function qualifyingTicket(t) {
