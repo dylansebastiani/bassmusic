@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   LINK_DAYS, SESSION_HOURS, chicagoLocalToIso, cleanHandle, expiry, flyerHints, hashToken, isToken, linkMail, linkState, newLinkMail,
   newToken, ownerView, parseAge, parseEvent, parseSounds, readShow, redeemLink, reviewExtras, sessionFor, ticketSite, UNSUB_HEADER,
-  linkCapReached, mayMailLink, publicFlyerPath,
+  linkCapReached, mayMailLink, publicFlyerPath, impersonates, canonicalEmail, emailPattern, NEUTRAL_SUBMIT,
 } from "../supabase/functions/directory/submit.mjs";
 import { cityPath, externalCard, publicCard, secretNow } from "../supabase/functions/directory/listing.mjs";
 
@@ -262,7 +262,7 @@ assert.match(build, /\/shows-send \/shows-send\.html 200/);
   assert.ok(readShow(base, today).data);
   for (const n of ["T.O.F.T.U. Afterparty", "tOfTu night", "Underground Rave", "The UNDERGROUND", "T O F T U", "t-o-f-t-u", "Under ground", "ＴＯＦＴＵ"]) assert.ok(readShow({ ...base, name: n }, today).error, n);
   assert.ok(readShow({ ...base, ticket_url: "https://subduction.art./x" }, today).error, "trailing-dot host");
-  assert.match(fn, /split\("\+"\)\[0\]/, "plus tag is stripped before the artist lookup");
+  assert.match(fn, /canonicalEmail\(raw\)/, "plus tags and Gmail dots are folded before the artist lookup");
   for (const u of ["https://subduction.art/tickets/x", "https://www.subduction.art/e/y", "https://tickets.subduction.art/z"]) assert.ok(readShow({ ...base, ticket_url: u }, today).error, u);
   assert.ok(readShow({ ...base, ticket_url: "https://notsubduction.art/x" }, today).data, "look-alike host is a normal link");
 
@@ -291,3 +291,49 @@ for (const f of ["../site/tickets.html", "../site/ticket.html", "../site/assets/
   assert.doesNotMatch(read(f), /shows-send|directory_links/);
 }
 console.log("submit checks passed");
+
+// ---------- hardening cleanup (#92) ----------
+// Impersonation: boundaries are letter/digit lookarounds, look-alikes and digit swaps are folded first.
+for (const bad of ["TOFTU2027", "T.O.F.T.U", "toftu", "T.0.F.T.U", "T0FTU", "T\u043eFTU", "\u0422\u043e\u0444TU".replace("\u0444", "F"), "ＴＯＦＴＵ", "The Underground", "Under ground"]) {
+  assert.equal(impersonates(bad), true, bad);
+}
+for (const ok of ["Stoftu", "Soft tune", "Total fun", "Bass Night", "Toftus"]) assert.equal(impersonates(ok), false, ok);
+// Same person, different spelling.
+assert.equal(canonicalEmail("A.B+x@Gmail.com"), "ab@gmail.com");
+assert.equal(canonicalEmail("a.b@googlemail.com"), "ab@gmail.com");
+assert.equal(canonicalEmail("art+tag@example.com"), "art@example.com");
+assert.equal(canonicalEmail("a.rt@example.com"), "a.rt@example.com");
+{
+  const like = (pat, v) => new RegExp("^" + pat.replace(/\\(.)/g, "$1").replace(/[.*+?^${}()|[\]]/g, "\\$&").replace(/%/g, ".*") + "$", "i").test(v);
+  const p = emailPattern("ab@gmail.com");
+  for (const stored of ["ab@gmail.com", "a.b@gmail.com", "a.b+tag@googlemail.com"]) assert.ok(like(p, stored), stored);
+  assert.ok(like(emailPattern("art+x@example.com"), "art+y@example.com"));
+}
+// Already-listed ticket links get the same neutral reply as a clean submit, with no session.
+assert.equal(NEUTRAL_SUBMIT.ok, true);
+assert.equal(NEUTRAL_SUBMIT.session, undefined);
+{
+  const fn = read("../supabase/functions/directory/index.ts");
+  assert.doesNotMatch(fn, /That show is already in/);
+  assert.match(fn, /if \(dup\) return json\(NEUTRAL_SUBMIT\)/);
+}
+// Code emails are limited per connection AND address, so shared phone networks don't block each other.
+assert.match(read("../supabase/functions/account/index.ts"), /ipDayLimited\(req, "account-code-day\|" \+ email\)/);
+assert.match(read("../supabase/functions/account/index.ts"), /MAX_CODE_REQUESTS_PER_IP_PER_DAY = 5;/);
+assert.match(read("../supabase/functions/promoter/index.ts"), /codeDayLimited\(req, "promoter-code-day\|" \+ email\)/);
+assert.match(read("../supabase/functions/promoter/index.ts"), /CODE_EMAILS_PER_CONNECTION_PER_DAY = 5;/);
+// A Gmail pattern escapes each character on its own (an underscore must stay a literal underscore).
+assert.equal(emailPattern("a_b@gmail.com"), "a%\\_%b%@%mail.com");
+assert.equal(emailPattern("a_b+x@example.com"), "a\\_b%@example.com");
+// A full page of look-alike rows fails closed: no mail to a maybe-artist, and a maybe-capped sender counts as capped.
+{
+  const fn = read("../supabase/functions/directory/index.ts");
+  assert.match(fn, /length >= 50 \? null : false/);
+  assert.match(fn, /return \(rows \|\| \[\]\)\.length >= 200;/);
+}
+// /shows-send/ redirects to /shows-send: GitHub Pages ignores _redirects, so the build writes a folder stub too.
+assert.match(build, /\/shows-send\/ \/shows-send 301/);
+assert.match(build, /\["shows-send", "\/shows-send\.html"\]/);
+assert.match(readFileSync(new URL("../dist/shows-send/index.html", import.meta.url), "utf8"), /location\.replace\("\/shows-send\.html"/);
+// The build waits for a late functions deploy before giving up on the /go/ list.
+assert.match(build, /BUILD_REFS_TRIES/);

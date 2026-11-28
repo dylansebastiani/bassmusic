@@ -104,6 +104,17 @@ async function countToday(subscriberId: string, type: string): Promise<number> {
     .eq("subscriber_id", subscriberId).eq("type", type).gte("created_at", new Date(Date.now() - 86400000).toISOString());
   return error ? Number.MAX_SAFE_INTEGER : (count ?? 0);
 }
+// One requester can't use up someone else's 10 code emails a day: each connection gets 5 a day per address (half the cap).
+// Keyed on the hashed connection plus the address, so people sharing a phone network don't block each other.
+// Counted from the per-minute rate_limits rows (pruned after a day), so no new table is needed. A failed count means send nothing.
+const MAX_CODE_REQUESTS_PER_IP_PER_DAY = 5;
+async function ipDayLimited(req: Request, tag: string) {
+  const h = await ipHash(req, tag);
+  await db.rpc("bump_rate_limit", { p_ip_hash: h });
+  const { data, error } = await db.from("rate_limits").select("count").eq("ip_hash", h).gte("window_start", new Date(Date.now() - 86400000).toISOString()).limit(2000);
+  if (error) return true;
+  return (data || []).reduce((t: number, r: { count: number }) => t + (r.count || 0), 0) > MAX_CODE_REQUESTS_PER_IP_PER_DAY;
+}
 const note = (subscriberId: string, type: string) => db.from("engagement_events").insert({ subscriber_id: subscriberId, type });
 async function sendSignin(email: string) {
   let { data: m } = await db.from("subscribers").select("id,status").eq("email", email).maybeSingle();
@@ -471,6 +482,8 @@ Deno.serve(async (req) => {
         if ((n2 ?? 0) > 3) return no("Too many tries. Wait a minute and try again.", 429);
         const ip = (req.headers.get("cf-connecting-ip") || "").split(",")[0].trim();
         if (!(await botCheck(b.turnstile, ip))) return no("Bot check failed. Refresh and try again.", 403);
+        // Over this connection's daily allowance: same answer, nothing sent, nobody's cap used.
+        if (await ipDayLimited(req, "account-code-day|" + email)) return json({ sent: true });
         await sendSignin(email);
         return json({ sent: true });   // same answer either way, so this can't be used to find out who's here
       }

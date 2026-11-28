@@ -272,6 +272,17 @@ async function provision(subscriberId: string, email: string, referral?: unknown
   return true;
 }
 
+// Daily code-email allowance per hashed connection and address (see the login branch). Counted from the per-minute
+// rate_limits rows, which are pruned after a day, so no new table is needed. A failed count means send nothing.
+const CODE_EMAILS_PER_CONNECTION_PER_DAY = 5;
+async function codeDayLimited(req: Request, tag: string): Promise<boolean> {
+  const key = await ipHash(req, (await setting("ip_salt", "unset")) + "|" + tag);
+  await db.rpc("bump_rate_limit", { p_ip_hash: key });
+  const { data, error } = await db.from("rate_limits").select("count").eq("ip_hash", key).gte("window_start", new Date(Date.now() - 86400000).toISOString()).limit(2000);
+  if (error) return true;
+  return (data || []).reduce((t: number, r: { count: number }) => t + (r.count || 0), 0) > CODE_EMAILS_PER_CONNECTION_PER_DAY;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") { const r = preflight(req)!; return new Response(null, { status: 204, headers: { ...Object.fromEntries(r.headers), ...CORS_P } }); }
   const ok = (body: unknown) => json(body, 200, { "Cache-Control": "no-store", ...CORS_P });
@@ -294,7 +305,12 @@ Deno.serve(async (req) => {
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
     if (a === "login" && await artistContact(email) !== false) return ok({ code_sent: true });
-    if (a === "login") { await mailCode(m as SigninMember); return ok({ code_sent: true }); }
+    if (a === "login") {
+      // One connection gets 5 code emails a day per address (half the cap), so nobody can use up someone else's 10 a day alone.
+      // Keyed on the hashed connection plus the address, so people sharing a phone network don't block each other.
+      if (await codeDayLimited(req, "promoter-code-day|" + email)) return ok({ code_sent: true });
+      await mailCode(m as SigninMember); return ok({ code_sent: true });
+    }
     // Wrong guesses are counted per person across all their codes, so a new code never resets the count.
     if (await guessesLocked(m!.id)) return no("Too many wrong codes today. Try again tomorrow.", 429);
     const code = (clean(b.code, 12) || "").replace(/\D/g, "");
