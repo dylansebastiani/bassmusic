@@ -217,8 +217,8 @@
   function lineupHtml() {
     var L = luState(), live = L.some(function (n) { return n.public; });
     return '<h3>Lineup and set times</h3><p class="lnote">' + (live
-        ? "The lineup is public. Changes you save here are a draft: they go live when Dylan publishes again."
-        : "Private draft. Nobody sees this until Dylan publishes the lineup.") + "</p>" +
+        ? "The lineup is public. Changes you save here are a draft: they go live when Subduction publishes again."
+        : "Private draft. Nobody sees this until Subduction publishes the lineup.") + "</p>" +
       L.map(function (n, ni) {
         return '<div class="lnight"><h4 class="gh">' + esc(n.label) + "</h4>" +
           (n.acts.length ? "" : '<p class="mempty">No sets yet.</p>') +
@@ -257,7 +257,7 @@
       return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-token": tok }, body: JSON.stringify(body) })
         .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't save. Try again."); }); })
         .then(function () { return api("?a=crew&e=" + encodeURIComponent(hub)); })
-        .then(function (r) { hubData = r; lu = null; luDirty = false; luRedraw(); $("lmsg").textContent = "Draft saved. It stays private until Dylan publishes."; })
+        .then(function (r) { hubData = r; lu = null; luDirty = false; luRedraw(); $("lmsg").textContent = "Draft saved. It stays private until Subduction publishes."; })
         .catch(function (err) { t.disabled = false; $("lmsg").textContent = err.message; });
     }
     var n = +t.getAttribute("data-ln"), i = +t.getAttribute("data-la"), acts = L[n].acts;
