@@ -217,7 +217,7 @@ console.log("directory checks passed");
 assert.match(showsJs, /Just added/);
 assert.match(showsJs, /Tickets on Subduction/);
 assert.match(showsJs, /Nothing <em>up yet\.<\/em>/);
-assert.match(showsJs, /Send in a show/);
+assert.match(showsJs, /List a show free/);
 assert.match(showsJs, /Sell tickets on Subduction/);
 assert.match(showsJs, /loading="lazy"/);
 assert.doesNotMatch(showsJs, /\b(few left|selling fast|almost gone|sold out soon)\b/i);

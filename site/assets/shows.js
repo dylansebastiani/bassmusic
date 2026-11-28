@@ -167,7 +167,7 @@
       return '<a class="chip" href="/shows/' + esc(c.path) + '">' + esc(c.name) + " <b>" + c.n + "</b></a>";
     }).join("") + "</nav>" : "";
     return quiet("Nothing <em>up yet.</em>", "No shows listed here right now.",
-      '<div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>' + links);
+      '<div class="actions"><a class="btn" href="/shows-send">List a show free</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>' + links);
   }
   function chosen() {
     return { q: $("q").value.trim().toLowerCase(), when: $("when").value, on: $("on").value };
