@@ -4,6 +4,7 @@
 //   POST {a:"start", name, crew, email, phone}   save the lead + email the test ticket
 //   GET  ?t=token                                the test ticket (for the link in the email)
 //   GET  ?a=qr&t=token                           its QR code
+//   GET or POST ?a=unsub&t=token                 unsubscribe link and one-click List-Unsubscribe: blocks the email in Brevo
 //   POST {a:"scan", t}                           mark it scanned, like the door app would
 //   POST {a:"claim", t, k?}                      open their promoter account: makes the crew and links their email as its owner.
 //                                                With the key from the email link (proof the inbox is theirs) they're signed
@@ -109,8 +110,19 @@ async function sendSigninLink(email: string): Promise<boolean> {
 }
 const pub = (l: Record<string, any>) => ({ token: l.token, code: l.code, name: l.full_name, crew: l.crew, email: l.email, phone: l.phone, scanned_at: l.scanned_at });
 
-// Built to match the real ticket email that lands in the main inbox: same kind of sender name and subject,
-// no bulk-mail headers. A one-off the person asked for, like a ticket. Dylan approved this on Nov 23, 2026.
+// Built to match the real ticket email: same kind of sender name and subject. It carries a visible unsubscribe
+// link, List-Unsubscribe headers and the mailing address like every other email (Dylan approved Nov 28, 2026).
+const unsubUrl = (token: string) => `${FN}?a=unsub&t=${token}`;
+// Blocks the address in Brevo so no campaign or outreach reaches it again. Creates the contact if it isn't there yet.
+async function blockEmail(email: string) {
+  const key = Deno.env.get("BREVO_API_KEY");
+  if (!key) { console.error("demo: BREVO_API_KEY not set"); return false; }
+  const r = await fetch("https://api.brevo.com/v3/contacts", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, emailBlacklisted: true, updateEnabled: true }) }).catch(() => null);
+  if (!r || !r.ok) { console.error("demo: unsubscribe failed", r ? r.status : "network"); return false; }
+  return true;
+}
+
 async function sendTicket(l: Record<string, any>) {
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key) { console.error("demo: BREVO_API_KEY not set"); return false; }
@@ -120,6 +132,7 @@ async function sendTicket(l: Record<string, any>) {
   await db.from("demo_leads").update({ claim_hash: await sha256(k) }).eq("id", l.id);
   const F = "font-family:Arial,Helvetica,sans-serif", url = ticketUrl(l.token) + "&k=" + k;
   const subject = "Test ticket: Fault Line";
+  const unsub = unsubUrl(l.token), addr = await mailingAddress();
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${subject}</title></head>
 <body style="margin:0;background:#0a0a0a"><div style="display:none;max-height:0;overflow:hidden;opacity:0">This is what your buyers get the second they pay.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
@@ -133,14 +146,15 @@ async function sendTicket(l: Record<string, any>) {
 <td style="padding:12px 12px 12px 0;${F};color:#f4f1ee"><div style="font-size:17px;font-weight:bold">General Admission</div><div style="font-size:13px;line-height:1.5;color:#9a958f">${esc(l.full_name || "")}</div>
 <div style="font-family:Courier,monospace;font-size:18px;letter-spacing:2px;padding-top:6px">${esc(l.code)}</div></td></tr></table></td></tr>
 <tr><td style="padding:22px 24px 0"><a href="${url}" style="display:block;background:#b6ff00;color:#000;${F};font-size:15px;font-weight:bold;text-align:center;text-decoration:none;padding:15px 12px;text-transform:uppercase;letter-spacing:1px">Open the ticket and scan it</a></td></tr>
-<tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">You asked for this test ticket at subduction.art/demo. Don't want to hear from us again? Just reply and say so.<br>Subduction · ${esc(await mailingAddress())}</td></tr>
+<tr><td style="padding:22px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">You asked for this test ticket at subduction.art/demo. <a href="${unsub}" style="color:#9a958f;text-decoration:underline">Unsubscribe</a> and we won't email you again.<br>Subduction · ${esc(addr)}</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [`Test ticket (not a real show): Fault Line, ${by}`, "", `Hi ${first}, you're in. This is the email your buyers get the second they pay, with your crew's name on it.`, "",
     `General Admission · ${l.full_name || ""}`, `Code ${l.code}`, "", "Open the ticket and scan it:", url, "",
-    `You asked for this test ticket at subduction.art/demo. Don't want to hear from us again? Just reply and say so.`, "Subduction"].join("\n");
+    "You asked for this test ticket at subduction.art/demo.", `Unsubscribe: ${unsub}`, `Subduction · ${addr}`].join("\n");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ sender: { name: `${by} Tickets`.slice(0, 70), email: Deno.env.get("FROM_EMAIL") || CONTACT },
-      to: [{ email: l.email, name: l.full_name || undefined }], subject, htmlContent: html, textContent: text, tags: ["tickets"] }) });
+      to: [{ email: l.email, name: l.full_name || undefined }], subject, htmlContent: html, textContent: text, tags: ["tickets"],
+      headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } }) });
   if (!r.ok) { console.error("demo: email failed", r.status, (await r.text().catch(() => "")).slice(0, 200)); return false; }
   await db.from("demo_leads").update({ emailed_at: new Date().toISOString() }).eq("id", l.id);
   return true;
@@ -154,6 +168,14 @@ Deno.serve(async (req) => {
     if (!TOKEN.test(t)) return no("Not found", 404);
     const png = await QRCode.toBuffer(ticketUrl(t), { type: "png", width: 440, margin: 2, errorCorrectionLevel: "M" });
     return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable", ...CORS } });
+  }
+  if (a === "unsub" && (req.method === "GET" || req.method === "POST")) {
+    const page = (h: string, p: string) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h}</title><body style="margin:0;background:#000;color:#F4F1EE;font-family:Arial,Helvetica,sans-serif;padding:48px 18px"><h1 style="font-size:28px;margin:0 0 10px">${h}</h1><p style="color:#9A9490;margin:0">${p}</p><p><a href="https://subduction.art/" style="color:#B6FF00">subduction.art</a></p>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+    if (!TOKEN.test(t)) return page("Link not recognised", "That link didn't match anyone.");
+    const { data: l } = await db.from("demo_leads").select("email").eq("token", t).maybeSingle();
+    if (!l) return page("Link not recognised", "That link didn't match anyone.");
+    if (!(await blockEmail(l.email))) return page("Something went wrong", "Try the link again in a minute.");
+    return page("You're unsubscribed", "We won't email you again.");
   }
   if (req.method === "GET") {
     if (!TOKEN.test(t)) return no("Not found", 404);
