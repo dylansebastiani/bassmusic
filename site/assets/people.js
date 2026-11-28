@@ -104,7 +104,7 @@
       '<b class="big">' + money(mo.fees) + "</b>" +
       '<div class="strip">' +
         '<div><b>' + money(w.fees) + "</b><span>" + w.days + "-day fees</span></div>" +
-        '<div><b>' + money(mo.gross) + "</b><span>" + mo.days + "-day sales</span></div>" +
+        '<div><b>' + money(mo.gross) + "</b><span>" + mo.days + "-day charged</span></div>" +
         '<div><b>' + mo.tickets.toLocaleString() + "</b><span>" + mo.days + "-day tickets</span></div>" +
       "</div></section>";
     var list = todo();

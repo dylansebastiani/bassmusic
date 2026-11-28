@@ -23,8 +23,11 @@ async function sha256(s: string) {
 async function requireAdmin(req: Request) {
   const token = (req.headers.get("x-admin-token") || "").trim();
   if (!/^[0-9a-f]{64}$/.test(token)) return null;
-  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at").eq("token_hash", await sha256(token)).maybeSingle();
+  const { data: s } = await db.from("admin_sessions").select("subscriber_id,expires_at,created_at").eq("token_hash", await sha256(token)).maybeSingle();
   if (!s || new Date(s.expires_at).getTime() < Date.now()) return null;
+  // Mirrors _shared/session_trust.mjs: member-key sessions (24h, from fan email links) are never staff.
+  const made = new Date(s.created_at).getTime(), ends = new Date(s.expires_at).getTime();
+  if (!(made > 0) || !(ends > 0) || ends - made <= 2 * 86400000) return null;
   const [{ data: m }, { data: st }] = await Promise.all([
     db.from("subscribers").select("id,email,status").eq("id", s.subscriber_id).maybeSingle(),
     db.from("settings").select("value").eq("key", "admin_emails").maybeSingle(),
