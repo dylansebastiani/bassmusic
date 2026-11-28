@@ -87,19 +87,19 @@ async function staff(req: Request): Promise<{ email: string } | null> {
 
 async function subductionShows(today: string) {
   const { data, error } = await db.from("events")
-    .select("id,slug,name,city,venue,location_secret,review_status,sales_open,page_published_at,starts_at,is_active,is_public,share_url,poster_url")
+    .select("id,slug,name,city,location_secret,review_status,sales_open,page_published_at,starts_at,is_active,is_public,share_url,poster_url")
     .eq("review_status", "approved").eq("is_active", true).eq("is_public", true).limit(200);
   if (error) { console.error("directory: events", error.message); return []; }
   const rows = (data || []).filter((e) => e.sales_open || e.page_published_at);
   if (!rows.length) return [];
   const slugById: Record<string, string> = {};
   for (const e of rows) slugById[e.id] = e.slug;
-  const bySlug: Record<string, { starts_at: string; lineup: unknown; flyer_url: unknown }[]> = {};
-  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,lineup,flyer_url").in("event_id", rows.map((e) => e.id)).order("starts_at");
+  const bySlug: Record<string, { starts_at: string; flyer_url: unknown }[]> = {};
+  const { data: ns, error: nErr } = await db.from("ticket_nights").select("event_id,starts_at,flyer_url").in("event_id", rows.map((e) => e.id)).order("starts_at");
   if (nErr) console.error("directory: nights", nErr.message);
   for (const n of ns || []) {
     const slug = slugById[n.event_id];
-    if (slug && n.starts_at) (bySlug[slug] ||= []).push({ starts_at: n.starts_at, lineup: n.lineup, flyer_url: n.flyer_url });
+    if (slug && n.starts_at) (bySlug[slug] ||= []).push({ starts_at: n.starts_at, flyer_url: n.flyer_url });
   }
   const cards = [];
   for (const ev of rows) {
@@ -111,7 +111,7 @@ async function subductionShows(today: string) {
 
 async function listingShows(today: string) {
   const { data, error } = await db.from("directory_listings")
-    .select("name,show_date,venue,venue_secret,city,state,ticket_url,flyer_path,status,reviewed_at")
+    .select("name,show_date,venue_secret,city,state,ticket_url,flyer_path,status,reviewed_at")
     .eq("status", "approved").gte("show_date", today).order("show_date").limit(200);
   if (error) { console.error("directory: listings", error.message); return []; }
   const cards = [];

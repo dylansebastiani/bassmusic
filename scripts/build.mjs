@@ -5,6 +5,8 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, rmSync, ex
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import vm from "node:vm";
+import { KNOWN_CITIES } from "./cities.mjs";
+import { cityPath } from "../supabase/functions/directory/listing.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const cfg = JSON.parse(readFileSync(join(root, "config/stack.json"), "utf8"));
@@ -149,7 +151,6 @@ writeFileSync(join(out, "_redirects"), [
   "/shows/review /shows-review.html 200",
   "/shows /shows.html 200",
   "/shows/ /shows.html 200",
-  "/shows/:city /shows.html 200",
   "/fees /fees.html 200",
   `/c/:token ${fn}/confirm?t=:token 302`,
   `/u/:token ${fn}/unsubscribe?u=:token 302`,
@@ -295,60 +296,48 @@ async function trackPages() {
   }
   console.log("built", n, "track preview pages");
 }
-// One page per city that already has an upcoming show, so a link like /shows/peoria-il
-// has its own title. If the directory function is not up yet, the main /shows page still works.
+// One page per known city plus every city that has a show, so /shows/peoria-il and /shows/chicago-il
+// each return 200 with their own title and description. A city with no shows gets the empty state
+// in the page itself (the browser fills in the live list). Any other slug falls through to the 404 page.
 const DIR_STATE = { IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", MI: "Michigan", MN: "Minnesota", MO: "Missouri", NE: "Nebraska", ND: "North Dakota", OH: "Ohio", SD: "South Dakota", WI: "Wisconsin" };
-// Same all-in fee note shows.js prints, taken from the shared fee code so the two never drift.
-function feeNote() {
-  const ctx = {};
-  vm.createContext(ctx);
-  vm.runInContext(readFileSync(join(root, "site/assets/fees.js"), "utf8"), ctx);
-  return "$" + (ctx.SubductionFees.feeCents(2500) / 100).toFixed(2) + " in fees on a $25 ticket";
-}
 async function directoryPages() {
-  if (!pub.supabaseUrl || /example\.supabase\.co/.test(pub.supabaseUrl)) return;
-  let shows = [];
-  try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
-  catch (e) { console.warn("build: could not fetch the show directory, city pages wait for the next build:", e.message); return; }
-  const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
-  const feeNoteText = feeNote();
-  const by = {};
-  for (const s of shows) {
-    if (!/^[a-z0-9-]{1,48}$/.test(s.path || "") || s.path === "review") continue;
-    (by[s.path] ||= []).push(s);
+  let shows = null;
+  if (pub.supabaseUrl && !/example\.supabase\.co/.test(pub.supabaseUrl)) {
+    try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
+    catch (e) { console.warn("build: could not fetch the show directory, city pages ship without the empty state:", e.message); }
   }
+  const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
+  const cities = new Map();
+  for (const [city, state] of KNOWN_CITIES) cities.set(cityPath(city, state), { city, state, n: 0 });
+  for (const s of shows || []) {
+    if (!/^[a-z0-9-]{1,48}$/.test(s.path || "") || s.path === "review") continue;
+    const c = cities.get(s.path) || { city: s.city, state: s.state, n: 0 };
+    c.n++;
+    cities.set(s.path, c);
+  }
+  const withShows = [...cities.entries()].filter(([, c]) => c.n > 0).sort((a, b) => b[1].n - a[1].n);
   let n = 0;
-  for (const path of Object.keys(by)) {
-    const list = by[path];
-    const sample = list[0];
-    const where = [sample.city, DIR_STATE[sample.state] || sample.state].filter(Boolean).join(", ");
-    const title = where ? `Bass shows in ${where}` : "Midwest bass shows";
-    const desc = where ? `Upcoming bass shows in ${where}.` : "Upcoming bass shows across the Midwest, by city and date.";
-    const ogTitle = sample.city ? `${sample.city}${sample.state ? ", " + sample.state : ""} bass shows` : "Midwest bass shows";
+  for (const [path, c] of cities) {
+    const where = [c.city, DIR_STATE[c.state] || c.state].filter(Boolean).join(", ");
+    const title = `Bass shows in ${where}`;
+    const desc = `Upcoming bass shows in ${where}. Flyers, dates and tickets in one list.`;
+    const ogTitle = `${c.city}${c.state ? ", " + c.state : ""} bass shows`;
     const pageUrl = `${pub.siteUrl}/shows/${path}`;
-    const cards = list.map((s) => {
-      const href = esc(s.url);
-      const own = s.source === "subduction";
-      const ext = /^https:\/\//.test(s.url || "");
-      const img = s.flyer ? `<img class="art" src="${esc(s.flyer)}" alt="">` : "";
-      const tag = `<span class="tickets">${own && s.slug !== "underground" ? "Tickets here<small>" + feeNoteText + "</small>" : "Tickets"}</span>`;
-      const frame = img ? `<span class="frame">${img}${tag}</span>` : `<span class="frame blank">${tag}</span>`;
-      // A secret location never prints the venue name, here or anywhere else on the page.
-      const venue = s.secret ? "Secret location" : (s.venue || "");
-      const city = [s.city, s.state].filter(Boolean).join(", ");
-      const names = (s.lineup || []).length ? `<span class="lineup">${esc(s.lineup.join(", "))}</span>` : "";
-      return `<article class="cell"><a class="poster${img ? "" : " noart"}" href="${href}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}>${frame}<span class="meta"><span class="when">${esc(s.when || "")}${s.fresh ? ' <span class="new">Just added</span>' : ""}</span><h3>${esc(s.name)}</h3>${venue ? `<span class="venue">${esc(venue)}</span>` : ""}<span class="city">${esc(city)}</span>${names}</span></a></article>`;
-    }).join("");
+    let list = '<p class="loading">Loading.</p>';
+    if (shows && c.n === 0) {
+      const links = withShows.map(([p, o]) => `<a class="chip" href="/shows/${p}">${esc(o.city)}, ${esc(o.state)} <b>${o.n}</b></a>`).join("");
+      list = `<div class="quiet"><span class="laser" aria-hidden="true"></span><p class="disp">Nothing <em>up yet.</em></p><p>No shows listed in ${esc(c.city)} right now.</p><div class="actions"><a class="btn" href="#add" data-send>Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>${links ? `<p class="fine">Cities with shows</p><nav class="chips" aria-label="Cities with shows">${links}</nav>` : ""}</div>`;
+    }
     let html = baseHtml
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
       .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${esc(ogTitle)}">`)
       .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${esc(ogTitle)}">`)
-      .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where || "Midwest")}</p>`)
-      .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(sample.city || "Bass")} <em>shows.</em></h1>`)
-      .replaceAll("Upcoming bass shows across the Midwest, by city and date.", desc)
+      .replace('<p class="kick" id="kick">Midwest</p>', `<p class="kick" id="kick">${esc(where)}</p>`)
+      .replace('<h1 class="disp" id="title">Bass <em>shows.</em></h1>', `<h1 class="disp" id="title">${esc(c.city)} <em>shows.</em></h1>`)
+      .replaceAll("Upcoming bass shows across the Midwest, by city and date.", esc(desc))
       .replaceAll("https://subduction.art/shows", pageUrl)
-      .replace(/<div id="list" class="wall">[\s\S]*?<\/div>/, () => `<div id="list" class="wall">${cards}</div>`)
-      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};</script>\n$1`);
+      .replace(/<div id="list" class="wall">[\s\S]*?<!--LIST--><\/div>/, () => `<div id="list" class="wall">${list}</div>`)
+      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${JSON.stringify(path)};window.__SHOWS_CITY_NAME=${JSON.stringify(`${c.city}, ${c.state}`)};</script>\n$1`);
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
     if (html.includes("${")) throw new Error(`build: city page ${path} contains a literal "\${"`);
     mkdirSync(join(out, "shows", path), { recursive: true });
