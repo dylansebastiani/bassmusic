@@ -616,6 +616,8 @@ Deno.serve(async (req) => {
   if (!show) return no("Pick a show.");
 
   if (a === "crowd-count" || a === "crowd-send") {
+    // Owner only, same as the brand kit. Other staff can see buyers but must not email them.
+    if (!canManage(st, show.company_id)) return no("Only the company's owner can message the crowd.", 403);
     if (handsOff(show as any, co)) return no("This show can't be messaged from here.", 409);
     let n: Awaited<ReturnType<typeof audience>>;
     try { n = await audience(show as any); } catch (e) { console.error("promoter: crowd", (e as Error).message); return no("Couldn't count your crowd. Try again.", 500); }
