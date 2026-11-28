@@ -8,12 +8,17 @@ import { isLimitedSession } from "../_shared/session_trust.mjs";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
-import { SITE_URL } from "../_shared/config.ts";
+import { CONFIG, SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
 import { audience, cleanCrowd, postalAddress, sendCrowd, MAX_RECIPIENTS } from "../_shared/crowd.ts";
 import { paidSales } from "../_shared/paid_sales.ts";
 import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
+}
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
@@ -98,7 +103,7 @@ async function tellDylan(email: string, info: { source: string; utm_medium: stri
     if (info.referrer) lines.push("Referrer: " + info.referrer);
     if (info.referral) lines.push("Referral code: " + info.referral);
     lines.push("", "They typed it at " + SITE_URL + "/promoter");
-    const addr = String(await setting("mailing_address", ""));
+    const addr = await mailingAddress();
     if (addr && !/TBD/i.test(addr)) lines.push("", "Subduction", addr);
     const text = lines.join("\n"), html = "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>";
     for (const one of to) {

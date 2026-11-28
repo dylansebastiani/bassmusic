@@ -50,6 +50,7 @@ execSync("node scripts/crowd-access.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/sales-access.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/event-schema.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/promoter-home.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/address.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/site-nav.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/homepage-clean.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/artists-copy.test.mjs", { cwd: root, stdio: "inherit" });

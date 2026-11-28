@@ -13,6 +13,7 @@
 // The existing `shows` function is the build list of published pages. This function does not replace it.
 import { ipFromHeaders } from "../_shared/client_ip.mjs";
 import { clientIp, verifyTurnstile } from "../_shared/util.ts";
+import { CONFIG } from "../_shared/config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   MIDWEST, alertRecipients, canReplyTo, chicagoYmd, cleanText, dateOk, externalCard, formatDay,
@@ -49,6 +50,11 @@ function hex(n: number) {
 async function setting<T>(key: string, fallback: T): Promise<T> {
   const { data } = await db.from("settings").select("value").eq("key", key).maybeSingle();
   return (data?.value as T) ?? fallback;
+}
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
 }
 async function ipHash(req: Request) {
   const ip = ipFromHeaders((h: string) => req.headers.get(h));
@@ -172,7 +178,7 @@ type Mail = { subject: string; text: string; fromName: string; tag: string };
 async function sendMail(mail: Mail, to: string[], replyTo: string, unsub = false) {
   const key = Deno.env.get("BREVO_API_KEY");
   if (!key || !to.length) { console.error("directory: mail skipped", !key ? "BREVO_API_KEY not set" : "no recipient"); return; }
-  const addr = String(await setting("mailing_address", ""));
+  const addr = await mailingAddress();
   const text = mail.text + (addr && !/TBD/i.test(addr) && !mail.text.includes(addr) ? "\n\nSubduction\n" + addr : "");
   try {
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {
