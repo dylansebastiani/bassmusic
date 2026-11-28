@@ -27,6 +27,7 @@
   function tag(t, hot) { return t ? '<span class="tag' + (hot ? " hot" : "") + '">' + esc(t) + "</span>" : ""; }
   function td(v, cls) { return "<td" + (cls ? ' class="' + cls + '"' : "") + ">" + esc(v == null ? "" : v) + "</td>"; }
 
+  var KEYNAME = function (k) { return String(k || "").replace(/[_:-]+/g, " ").replace(/^\w/, function (c) { return c.toUpperCase(); }); };
   // Each tab: its label, a one-line "what this is", table columns, and the same columns for the export file.
   var TABS = {
     shows: { label: "Shows", what: "Every show on Subduction. Tap one for sales by day, ticket types and where the sales came from.",
@@ -60,13 +61,40 @@
     leads: { label: "Demo leads", what: "Promoters who took the test ticket demo. Call or email the ones who finished it first.",
       head: ["Crew", "Full name", "How far they got", "Signed up"],
       row: function (r) { return who(r) + td(r.full_name) + "<td>" + tag(r.status, r.status === "Finished the demo") + "</td>" + td(day(r.when), "dim num"); },
-      csv: ["name", "full_name", "email", "phone", "status", "from", "when"] }
+      csv: ["name", "full_name", "email", "phone", "status", "from", "when"] },
+    emails: { label: "Emails", what: "Emails from the last two weeks that failed, or have waited over an hour to send. Tap one to see who it was for.",
+      head: ["Who", "Email", "Status", "Why", "When"],
+      row: function (r) { return who(r) + td(KEYNAME(r.key)) + "<td>" + tag(r.status, false) + "</td>" + td(r.error || "No reason given", "dim") + td(day(r.when), "dim num"); },
+      csv: ["name", "email", "key", "status", "error", "attempts", "when"] }
   };
 
+  // Quick filters: one row of chips per list, built from the data.
+  var GROUP = {
+    fans: function (r) { return String(r.from || "Homepage").split(" · ")[0]; },
+    buyers: function (r) { return r.kind; },
+    promoters: function (r) { return r.stripe === "on" ? "Stripe connected" : r.stripe === "legacy" ? "Original Stripe" : "No Stripe"; },
+    artists: function (r) { return r.status; },
+    leads: function (r) { return r.status; },
+    referrals: function (r) { return r.status; },
+    emails: function (r) { return KEYNAME(r.key); },
+    shows: function (r) { return r.starts_at && new Date(r.ends_at || r.starts_at) > new Date() ? "Upcoming" : "Past"; }
+  };
+  var chip = "";
+  function drawChips() {
+    var g = GROUP[tab], box = $("chips");
+    if (!g || !Array.isArray(data[tab])) { box.innerHTML = ""; return; }
+    var n = {}; data[tab].forEach(function (r) { var k = g(r); if (k) n[k] = (n[k] || 0) + 1; });
+    var keys = Object.keys(n).sort(function (a, b) { return n[b] - n[a]; });
+    box.innerHTML = keys.length > 1 ? ['<button type="button" data-chip="" aria-pressed="' + !chip + '">All</button>'].concat(keys.map(function (k) {
+      return '<button type="button" data-chip="' + esc(k) + '" aria-pressed="' + (chip === k) + '">' + esc(k) + " <i>" + n[k] + "</i></button>";
+    })).join("") : "";
+  }
+  $("chips").addEventListener("click", function (e) { var b = e.target.closest("[data-chip]"); if (!b) return; chip = b.getAttribute("data-chip"); drawChips(); draw(); });
   function rows() {
     var q = $("q").value.trim().toLowerCase(), own = $("own").value;
     return (data[tab] || []).filter(function (r) {
       if (own && r.belongs_to !== own) return false;
+      if (chip && GROUP[tab] && GROUP[tab](r) !== chip) return false;
       if (!q) return true;
       return Object.keys(r).some(function (k) { return r[k] != null && String(r[k]).toLowerCase().indexOf(q) >= 0; });
     });
@@ -91,8 +119,9 @@
       [n("referrals_owed"), "referral credit still owed", "referral credits still owed", "referrals"],
       [n("listings_waiting"), "show listing is waiting for review", "show listings are waiting for review", "@shows-review.html"],
       [n("waitlist_new"), "artist joined the waitlist this week", "artists joined the waitlist this week", "waitlist"],
-      [n("emails_failed"), "email failed to send this week", "emails failed to send this week", null],
-      [n("emails_stuck"), "email is stuck in the queue over an hour", "emails are stuck in the queue over an hour", null]
+      [checkBack().length, "person to check back on. You marked them contacted 5+ days ago.", "people to check back on. You marked them contacted 5+ days ago.", "@checkback"],
+      [n("emails_failed"), "email failed to send this week", "emails failed to send this week", "emails"],
+      [n("emails_stuck"), "email is stuck in the queue over an hour", "emails are stuck in the queue over an hour", "emails"]
     ].filter(function (x) { return x[0] > 0; }).map(function (x) { return [x[0], x[0] === 1 ? x[1] : x[2], x[3]]; });
   }
   function drawToday() {
@@ -109,7 +138,8 @@
       "</div></section>";
     var list = todo();
     var needs = list.length ? list.map(function (x, i) {
-      var go = x[2], href = go && go.charAt(0) === "@" ? go.slice(1) : null;
+      var go = x[2], href = go && go.charAt(0) === "@" && go !== "@checkback" ? go.slice(1) : null;
+      if (go === "@checkback") return '<button type="button" class="need' + (i === 0 ? " top" : "") + '" data-checkback><b class="nb">' + x[0] + "</b><span>" + esc(x[1]) + '</span><i aria-hidden="true">→</i></button>';
       var inner = '<b class="nb">' + x[0].toLocaleString() + "</b><span>" + esc(x[1]) + "</span>" + (go ? '<i aria-hidden="true">→</i>' : "");
       var cls = "need" + (i === 0 ? " top" : "") + (go ? "" : " warn");
       return href ? '<a class="' + cls + '" href="' + esc(href) + '">' + inner + "</a>"
@@ -131,12 +161,13 @@
       '<h2 class="sec">On <em>sale.</em></h2><div class="shows">' + up + "</div>" +
       '<p class="fine">Fees are the buyer fee on paid orders. Ticket money goes straight to each promoter\'s own Stripe.</p>';
   }
-  $("today").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (b) { tab = b.getAttribute("data-go"); $("q").value = ""; tabs(); owners(); draw(); scrollTo(0, 0); } });
+  $("today").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (b) { tab = b.getAttribute("data-go"); chip = ""; $("q").value = ""; tabs(); owners(); draw(); scrollTo(0, 0); } });
 
   function draw() {
     var isToday = tab === "today";
     $("today").hidden = !isToday; $("list").hidden = isToday;
     if (isToday) return drawToday();
+    drawChips();
     var T = TABS[tab], list = rows(), all = (data[tab] || []).length;
     $("what").textContent = T.what;
     var noun = tab === "referrals" ? (all === 1 ? " credit" : " credits") : (all === 1 ? " person" : " people");
@@ -150,7 +181,7 @@
   }
   function tabs() {
     $("tabs").innerHTML = '<button type="button" role="tab" data-k="today" aria-selected="' + (tab === "today") + '">Today</button>' + Object.keys(TABS).map(function (k) { return '<button type="button" role="tab" data-k="' + k + '" aria-selected="' + (k === tab) + '">' + TABS[k].label + "<b>" + (data[k] || []).length + "</b></button>"; }).join("");
-    Array.prototype.forEach.call($("tabs").children, function (b) { b.onclick = function () { tab = b.getAttribute("data-k"); $("q").value = ""; tabs(); owners(); draw(); }; });
+    Array.prototype.forEach.call($("tabs").children, function (b) { b.onclick = function () { tab = b.getAttribute("data-k"); chip = ""; $("q").value = ""; tabs(); owners(); draw(); }; });
   }
   $("q").addEventListener("input", function () { draw(); });
   $("own").addEventListener("change", function () { draw(); });
@@ -340,6 +371,57 @@
   }
   function flash(t) { var f = document.createElement("p"); f.className = "flash"; f.textContent = t; $("shBody").prepend(f); setTimeout(function () { f.remove(); }, 4000); }
   $("today").addEventListener("click", function (e) { var a = e.target.closest("a.show[data-slug]"); if (a) { e.preventDefault(); openShow(a.getAttribute("data-slug")); } });
+
+  // Check back: leads and promoters whose last staff action was an email or "contacted", 5+ days ago.
+  function checkBack() {
+    if (!data || !data.activity) return [];
+    var cut = Date.now() - 5 * 864e5, out = [];
+    [["leads", data.leads], ["promoters", data.promoters]].forEach(function (p) {
+      (p[1] || []).forEach(function (r) {
+        var a = acts(r.email)[0];
+        if (a && (a.type === "contacted" || a.type === "email") && new Date(a.when).getTime() < cut && !acts(r.email).some(function (x) { return x.type === "stop"; })) out.push({ kind: p[0], r: r, last: a });
+      });
+    });
+    return out.sort(function (a, b) { return new Date(a.last.when) - new Date(b.last.when); });
+  }
+  function openCheckBack() {
+    ensureSheet(); cur = { kind: "checkback", r: {} };
+    var list = checkBack();
+    $("shBody").innerHTML = head("Needs you", "Check back", "Your last move was 5 or more days ago and nothing has happened since. Oldest first.") +
+      (list.length ? '<div class="mini">' + list.map(function (x, i) {
+        return '<button type="button" data-cb="' + i + '"><b>' + esc(x.r.name || x.r.full_name || x.r.email) + "</b><span>" + esc((x.kind === "leads" ? "Lead" : "Promoter") + " · " + (ACT_LABEL[x.last.type] || x.last.type) + " " + day(x.last.when)) + "</span><i>→</i></button>";
+      }).join("") + "</div>" : '<p class="sh-dim">Nobody right now.</p>');
+    sheet.hidden = false; document.body.classList.add("locked");
+    $("shBody").querySelectorAll("[data-cb]").forEach(function (b) { b.addEventListener("click", function () { var x = list[+b.getAttribute("data-cb")]; open(x.kind, x.r); }); });
+  }
+  $("today").addEventListener("click", function (e) { if (e.target.closest("[data-checkback]")) openCheckBack(); });
+  VIEW.emails = function (r) {
+    return person(r.status + " email · " + day(r.when), r, '<div class="sh-stats">' + stat(esc(KEYNAME(r.key)), "Email") + stat(r.attempts, "Tries") + "</div>" +
+      '<p class="errbox">' + esc(r.error || "No reason given.") + "</p>");
+  };
+
+  // Find: one box over every list. Matches name, full name, email, phone, show or city.
+  var FIND = [["shows", "Show"], ["promoters", "Promoter"], ["leads", "Demo lead"], ["artists", "Artist"], ["waitlist", "Waitlist"], ["fans", "Fan"], ["buyers", "Tickets"]];
+  var hits = [];
+  function find() {
+    var q = $("find").value.trim().toLowerCase(), box = $("found");
+    if (q.length < 2 || !data) { box.hidden = true; box.innerHTML = ""; return; }
+    hits = [];
+    FIND.forEach(function (f) {
+      (data[f[0]] || []).forEach(function (r) {
+        if (hits.length >= 40) return;
+        var hay = [r.name, r.full_name, r.email, r.phone, r.show, r.city].join(" ").toLowerCase();
+        if (hay.indexOf(q) >= 0) hits.push({ kind: f[0], label: f[1], r: r });
+      });
+    });
+    box.hidden = false;
+    box.innerHTML = hits.length ? hits.slice(0, 12).map(function (h, i) {
+      return '<button type="button" data-hit="' + i + '"><em>' + esc(h.label) + "</em><b>" + esc(h.r.name || h.r.full_name || h.r.email || "") + "</b><span>" + esc(h.r.email || h.r.city || h.r.show || "") + "</span></button>";
+    }).join("") + (hits.length > 12 ? '<p class="more">' + (hits.length >= 40 ? "40+" : hits.length) + " matches. Keep typing to narrow it.</p>" : "") : '<p class="more">No match.</p>';
+  }
+  $("find").addEventListener("input", find);
+  $("find").addEventListener("keydown", function (e) { if (e.key === "Enter" && hits[0]) { e.preventDefault(); open(hits[0].kind, hits[0].r); } if (e.key === "Escape") { $("find").value = ""; find(); } });
+  $("found").addEventListener("click", function (e) { var b = e.target.closest("[data-hit]"); if (b) { var h = hits[+b.getAttribute("data-hit")]; open(h.kind, h.r); } });
 
   function signIn() { $("msg").innerHTML = 'Sign in on the <a href="admin.html">Staff page</a> first, then come back here.'; }
   if (!tok) return signIn();

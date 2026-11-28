@@ -259,6 +259,19 @@ Deno.serve(async (req) => {
     soft(db.from("email_queue").select("id", { count: "exact", head: true }).eq("status", "failed").gte("created_at", new Date(since(7)).toISOString())),
     soft(db.from("email_queue").select("id", { count: "exact", head: true }).eq("status", "pending").lt("send_after", new Date(Date.now() - 3600e3).toISOString())),
   ]);
+  // Emails that failed or got stuck, newest first, with who and why. Read-only.
+  let emails: { key: string; status: string; error: string | null; email: string | null; name: string | null; attempts: number; when: string }[] = [];
+  try {
+    const { data: rows } = await db.from("email_queue").select("subscriber_id,template_key,status,last_error,attempts,send_after,created_at")
+      .or(`and(status.eq.failed,created_at.gte.${new Date(since(14)).toISOString()}),and(status.eq.pending,send_after.lt.${new Date(Date.now() - 3600e3).toISOString()})`)
+      .order("created_at", { ascending: false }).limit(300);
+    emails = (rows ?? []).map((r) => {
+      const m = sub.get(r.subscriber_id);
+      return { key: r.template_key, status: r.status === "failed" ? "Failed" : "Stuck", error: r.last_error ? String(r.last_error).slice(0, 200) : null,
+        email: m?.email ?? null, name: m?.first_name ?? null, attempts: r.attempts ?? 0, when: r.created_at };
+    });
+  } catch (e) { console.error("owner emails", (e as Error).message); }
+
   const today = {
     money: [7, 30].map((days) => ({ days, gross: sum(paid, days, "total_cents"), fees: sum(paid, days, "platform_fee_cents"), tickets: tixIn(paid, days) })),
     upcoming,
@@ -287,5 +300,5 @@ Deno.serve(async (req) => {
   }
 
   await db.from("engagement_events").insert({ subscriber_id: admin.id, type: "admin:people_view", meta: {} });
-  return json({ today, activity, shows: showList, fans, buyers, promoters, artists, waitlist, leads, referrals });
+  return json({ today, activity, emails, shows: showList, fans, buyers, promoters, artists, waitlist, leads, referrals });
 });
