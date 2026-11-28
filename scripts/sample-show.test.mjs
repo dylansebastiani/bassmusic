@@ -11,7 +11,7 @@ const fail = (m) => { console.error("sample show test failed: " + m); process.ex
 
 const demo = read("dist/demo.html");
 for (const t of ["Demo Night", "Your venue", "Your city"]) if (demo.includes(t)) fail("/demo.html still has the placeholder " + JSON.stringify(t));
-for (const [n, s] of [["demo.html", demo], ["demo.js", read("dist/assets/demo.js")], ["demo.css", read("site/assets/demo.css")]]) {
+for (const [n, s] of [["demo.html", demo], ["demo.js", read("dist/assets/demo.js")], ["demo.css", read("site/assets/demo.css")], ["demo/index.ts", read("supabase/functions/demo/index.ts")]]) {
   if (/toftu|t\.o\.f\.t\.u|hangovers|\/underground\b|63b511f3/i.test(s)) fail(n + " references T.O.F.T.U.");
 }
 if (!/class="stag">Sample show</.test(demo)) fail("/demo.html sample show must be labeled as a sample");
