@@ -10,7 +10,7 @@
 
   function api(url, body) {
     return fetch(url, { method: body ? "POST" : "GET", headers: Object.assign({ "x-admin-token": tok }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined })
-      .then(function (r) { return r.json().then(function (j) { if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (r.status === 403 && j.no_crew) { try { localStorage.setItem("me_tab", "crew"); } catch (e) {} location.replace("me.html"); return new Promise(function () {}); } if (r.status === 401 && tok) { signOut(); throw new Error("Please sign in again."); } if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); });
   }
   var call = function (a, body) { return api(FN, Object.assign({ a: a }, body || {})); };
   function signOut() { tok = ""; try { localStorage.removeItem(KEY); } catch (e) {} location.hash = ""; route(); }
@@ -30,6 +30,14 @@
   function firstShow() { var co = company(); return co ? me.shows.filter(function (s) { return s.company_id === co.id; })[0] : null; }
   function wireTop() { var o = document.getElementById("out"); if (o) o.onclick = signOut; }
   function money(cents) { return "$" + ((Number(cents) || 0) / 100).toFixed(2); }
+  function downloadBuyers(id, slug) {
+    fetch(FN + "?a=buyers&show=" + encodeURIComponent(id), { headers: { "x-admin-token": tok } })
+      .then(function (r) { if (!r.ok) throw new Error("Couldn't download buyers."); return r.blob(); })
+      .then(function (blob) {
+        var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = (slug || "buyers") + "-buyers.csv"; a.click();
+        say("Downloaded.");
+      }).catch(function (e) { say(e.message, true); });
+  }
   function referralHtml(co) {
     var r = co && co.referral;
     if (!r || !r.code) return "";
@@ -60,37 +68,52 @@
     });
   }
 
+  // ---------- bot check (same Cloudflare pass the signup form uses) ----------
+  var tsLoaded = false, tsToken = null, tsId = null, tsWaiters = [], tsErr = null;
+  function tsGot(t) { tsToken = t; var w = tsWaiters; tsWaiters = []; w.forEach(function (f) { f(); }); }
+  function loadTurnstile() {
+    if (tsLoaded || !C.turnstileSiteKey) return; tsLoaded = true;
+    var el = document.createElement("div"); document.body.appendChild(el);
+    window.__tsOnload = function () {
+      tsId = turnstile.render(el, { sitekey: C.turnstileSiteKey, action: "signup", appearance: "interaction-only", "refresh-expired": "auto",
+        callback: tsGot, "expired-callback": function () { tsToken = null; }, "error-callback": function (c) { tsToken = null; tsErr = String(c || "error").slice(0, 20); } });
+    };
+    var sc = document.createElement("script"); sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__tsOnload&render=explicit"; sc.async = true; document.head.appendChild(sc);
+  }
+  function tsPass(ms) {
+    if (!C.turnstileSiteKey || tsToken) return Promise.resolve();
+    loadTurnstile();
+    return new Promise(function (res) { tsWaiters.push(res); setTimeout(res, ms); });
+  }
+
   // ---------- sign in ----------
   function signin() {
-    var DEMO = FN.replace(/\/promoter$/, "/demo");
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. If you already throw shows with us, we send a button that signs you straight in. If you're new, we save your email and write you back. No codes and no passwords.</p>" +
+    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. We send a button that signs you in and opens your show. No passwords.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
       '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
       '<button class=btn type=submit>Send my email</button></form>' +
       '<div id=sent hidden><div class=card><b id=senttitle>Got it</b><small id=sentmsg></small></div><button class=linkbtn type=button id=again>Send it again</button></div>' +
       '<p class=msg role=status></p><p class=note id=newhere>First time here. <a href=demo.html>Try a test ticket first</a>. It takes a minute and opens your account at the end.</p>';
-    var em = document.getElementById("em");
+    var em = document.getElementById("em"); em.addEventListener("focus", loadTurnstile, { once: true });
     function showSent(v, fromDemo) {
       document.getElementById("f1").hidden = true; document.getElementById("newhere").hidden = true; document.getElementById("sent").hidden = false;
       document.getElementById("senttitle").textContent = fromDemo ? "Check your email" : "Got it";
-      document.getElementById("sentmsg").textContent = fromDemo
-        ? "We sent a sign-in button to " + v + ". Open it on this phone and tap the button."
-        : "If you already have a promoter account, a sign-in button is on its way to " + v + ". If you're new, we saved that email and we'll write you back.";
+      document.getElementById("sentmsg").textContent = "If that email can sign in, a sign-in button is on its way to " + v + ". Open it on this phone and tap it.";
       say("");
     }
     function sendLink() {
       var v = em.value.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v)) return say("Check your email address.", true);
       var trap = document.getElementById("hp_field");
       if (trap && trap.value) return showSent(v, false);
-      say("Sending…");
+      say("Opening…");
       var A = (window.Stack && Stack.attr) || {};
-      var pref = String(A.pref || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
-      var lead = { a: "lead", email: v, hp_field: trap ? trap.value : "", source: window.Stack && Stack.source ? Stack.source() : "direct",
-        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null,
-        referral_code: /^[a-z0-9]{8}$/.test(pref) ? pref : null };
-      fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lead) })
-        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); }); })
-        .then(function () { return fetch(DEMO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "signin", email: v }) }).catch(function () {}); })
+      var open = { a: "open", email: v, hp_field: trap ? trap.value : "", source: window.Stack && Stack.source ? Stack.source() : "direct",
+        utm_source: A.utm_source || null, utm_medium: A.utm_medium || null, utm_campaign: A.utm_campaign || null, referrer: A.referrer || null };
+      tsPass(12000).then(function () {
+        open.turnstile = tsToken; open.ts_err = tsToken ? null : (tsErr || (tsLoaded ? "no-pass" : "not-loaded"));
+        return fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(open) });
+      })
+        .then(function (r) { tsToken = null; if (tsId !== null && window.turnstile) turnstile.reset(tsId); return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Try again."); return j; }); })
         .then(function () { showSent(v, false); })
         .catch(function (x) { say(x.message, true); });
     }
@@ -129,7 +152,9 @@
       '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
       (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
       (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
-      '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and your page starts in our neon look.</small></div>' +
+      (s ? '<button class=ghost type=button id=buyers>Download buyers</button>' : "") +
+      (s ? '<h2>Ad pixel</h2><p class=note>Off until you paste a Meta pixel id. Only that pixel hears about visits and purchases on this show.</p><label for=px>Pixel id</label><input id=px inputmode=numeric autocomplete=off value="' + esc((s.kit && s.kit.pixel) || "") + '"><button class=ghost type=button id=pxsave>Save pixel</button>' : "") +
+      '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and the page starts in acid green.</small></div>' +
       referralHtml(co) +
       (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "") +
       (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
@@ -140,6 +165,15 @@
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     if (flash) { say(flash); flash = ""; }
     wireReferral(co);
+    var buyers = document.getElementById("buyers");
+    if (buyers && s) buyers.onclick = function () { downloadBuyers(s.id, s.slug); };
+    var px = document.getElementById("pxsave");
+    if (px && s) px.onclick = function () {
+      say("Saving…");
+      call("pixel-save", { show: s.id, pixel: document.getElementById("px").value }).then(function (r) {
+        s.kit = s.kit || {}; if (r.pixel) s.kit.pixel = r.pixel; else delete s.kit.pixel; say("Saved.");
+      }).catch(function (x) { say(x.message, true); });
+    };
     var inv = document.getElementById("inv");
     if (inv) inv.onclick = function () {
       var em = document.getElementById("ie").value.trim(); say("Sending…");
@@ -445,7 +479,7 @@
         step(3, "You look it over", "We email you a preview. Tell us what to change.") + step(4, "It goes live", "Tickets go on sale at your link.") + "</ol>" +
       "<h2>What you sent</h2><div class=\"card summary\"><b>" + esc(s.name) + "</b>" +
         (when ? "<div><span class=lbl>When</span>" + when + "</div>" : "") + (where ? "<div><span class=lbl>Where</span>" + where + (s.age ? " · " + esc(s.age) : "") + "</div>" : "") +
-        (tix ? "<div><span class=lbl>Tickets</span>" + tix + "</div>" : "") + "<div><span class=lbl>Flyer</span>" + (hasFlyer ? "Added" : "None yet. We'll start your page in our neon look.") + "</div>" +
+        (tix ? "<div><span class=lbl>Tickets</span>" + tix + "</div>" : "") + "<div><span class=lbl>Flyer</span>" + (hasFlyer ? "Added" : "None yet. We'll start your page in acid green.") + "</div>" +
         '<a class=linkbtn href="#show/' + s.id + '/1">Change something</a></div>' +
       "<h2>Make it yours <span class=dim>(optional)</span></h2>" +
         extra(co.paid_ready, "Get paid", co.paid_ready ? "Your bank is connected. Ticket money goes straight to you." : "Connect your bank. You need this before tickets go on sale.", "#paid", "Connect my bank") +
@@ -463,7 +497,7 @@
       ? doneScreen(s, co)
       : "<div class=qnum>Last thing</div><h1>Ready to send?</h1><p class=lead>We build your page and email you when it's ready to look over.</p><ol class=steps>" +
         line(!!s.checklist.details, "Your show", esc(s.name), "#show/" + s.id + "/1") +
-        line(hasFlyer, "Your flyer", hasFlyer ? "Added" : "None yet. Your page starts in our neon look.", "#art/" + s.id) +
+        line(hasFlyer, "Your flyer", hasFlyer ? "Added" : "None yet. Your page starts in acid green.", "#art/" + s.id) +
         line(co.paid_ready, "Get paid", co.paid_ready ? "Bank connected" : "Not connected yet. You need this before tickets go on sale.", "#paid") + "</ol>" +
         '<button class=btn type=button id=go' + (s.checklist.details ? "" : " disabled") + ">Send my show</button>") + "<p class=msg role=status></p>";
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
@@ -484,9 +518,10 @@
       }
       var rows = (d.rows || []).map(function (r) {
         var owed = r.owed_cents == null ? "No payout set" : "You owe " + money(r.owed_cents);
+        var seller = "link.html?e=" + encodeURIComponent(s.slug) + "&c=" + encodeURIComponent(r.code);
         return '<div class=card><b>' + esc(r.label) + (r.saved ? "" : " (not saved yet)") + '</b><span class=streetcode>' + esc(r.link) + "</span><small>" +
           r.tickets + " paid " + (r.tickets === 1 ? "ticket" : "tickets") + " · " + money(r.revenue_cents) + " in tickets · " + owed +
-          '</small><button type=button class=ghost data-copy="' + esc(r.link) + '">Copy link</button></div>';
+          '</small><button type=button class=ghost data-copy="' + esc(r.link) + '">Copy ticket link</button> <a class=linkbtn href="' + seller + '">Seller page</a></div>';
       }).join("");
       app.innerHTML = top(homeHref()) + "<h1>Street team</h1><p class=lead>" + esc(s.name) + "</p><p class=note>" + esc(d.line || "") + "</p>" + rows +
         "<h2>Add a link</h2>" +
@@ -540,7 +575,7 @@
   if (invite) {
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
     app.innerHTML = "<p class=lead>Signing you in…</p>";
-    call("redeem", { invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; route(); })
+    call("redeem", { invite: invite, referral_code: (function () { var p = String(((window.Stack && Stack.attr) || {}).pref || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8); return /^[a-z0-9]{8}$/.test(p) ? p : null; })() }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} me = null; route(); })
       .catch(function (x) { tok = ""; signin(); say(x.message, true); });
     return;
   }
