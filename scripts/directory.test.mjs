@@ -146,7 +146,8 @@ assert.match(showsJs, /F\.feeCents\(2500\)/);
 assert.equal(showsJs.includes("1.50"), false);
 assert.doesNotMatch(showsJs + readFileSync(new URL("../scripts/build.mjs", import.meta.url), "utf8"), /Powered by Subduction/);
 assert.match(readFileSync(new URL("../scripts/build.mjs", import.meta.url), "utf8"), /city page \$\{path\} contains a literal/);
-const home = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
+// The homepage header and footer come from scripts/chrome.mjs at build time (#71), so read the built page.
+const home = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
 assert.ok((home.match(/href="\/shows"/g) || []).length >= 2);
 
 const src = readFileSync(new URL("../supabase/functions/directory/index.ts", import.meta.url), "utf8");
@@ -179,7 +180,7 @@ assert.doesNotMatch(page, /Selling tickets|—|–|;|\?/);
   const m = js.match(/function sell\(s\) \{ return ([^\n]+) \}/);
   assert.ok(m, "sell() exists in shows.js");
   const run = (s) => new Function("s", "isToftu", "return " + m[1])(s, (x) => x.slug === "underground");
-  assert.match(run({ source: "listing", slug: "" }), /Selling tickets for this\? <a href="\/demo">Run it on Subduction<\/a>/);
+  assert.match(run({ source: "listing", slug: "" }), /Selling tickets for this\? <a href="\/promoter\.html">Run it on Subduction<\/a>/);
   assert.equal(run({ source: "subduction", slug: "foo" }), "");
   assert.equal(run({ source: "subduction", slug: "underground" }), "");
   assert.equal(run({ source: "listing", slug: "underground" }), "");

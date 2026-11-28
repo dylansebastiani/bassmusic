@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { refsProblem } from "./refs-check.mjs";
 import vm from "node:vm";
 import { KNOWN_CITIES, jsonInline } from "./cities.mjs";
+import { withChrome } from "./chrome.mjs";
 import { cityPath, publicCard } from "../supabase/functions/directory/listing.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -95,7 +96,8 @@ for (const f of readdirSync(out)) {
     : PLAYER;
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
   // (otherwise a phone can pair a fresh page with a cached old script and the form breaks).
-  const html = readFileSync(p, "utf8").replace("<!--CONFIG-->", () => inject + bar + trackingSnippet(TAG_PAGES[f]))
+  // Shared public header and footer (issue #71): only pages that carry the markers get them.
+  const html = withChrome(readFileSync(p, "utf8"), cfg).replace("<!--CONFIG-->", () => inject + bar + trackingSnippet(TAG_PAGES[f]))
     .replace(/(src|href)="(\/?assets\/[^"?#]+\.(?:js|css))"/g, (m, attr, path) => {
       try { return `${attr}="${path}?v=${createHash("sha256").update(readFileSync(join(out, path.replace(/^\//, "")))).digest("hex").slice(0, 10)}"`; }
       catch { return m; }

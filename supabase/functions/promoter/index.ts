@@ -8,12 +8,17 @@ import { isLimitedSession } from "../_shared/session_trust.mjs";
 import { cleanBrand, cleanKit, buildDraft } from "../_shared/kits.ts";
 import { sendNow } from "../_shared/sendnow.ts";
 import { brevo } from "../_shared/email/brevo.ts";
-import { SITE_URL } from "../_shared/config.ts";
+import { CONFIG, SITE_URL } from "../_shared/config.ts";
 import { referralCards, settleReferralCredit } from "../_shared/referrals.ts";
 import { handsOff, saveStreetLink, streetView } from "../_shared/street.ts";
 import { audience, cleanCrowd, postalAddress, sendCrowd, MAX_RECIPIENTS } from "../_shared/crowd.ts";
 import { paidSales } from "../_shared/paid_sales.ts";
 import { canSeeSalesInPromoter } from "../_shared/sales_access.mjs";
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
+}
 
 // Everything a promoter does, kept to: sign in, upload brand kit, answer the show questions, upload the
 // event kit, submit. Dylan (platform staff) can do all of it for any company, plus add companies.
@@ -98,7 +103,7 @@ async function tellDylan(email: string, info: { source: string; utm_medium: stri
     if (info.referrer) lines.push("Referrer: " + info.referrer);
     if (info.referral) lines.push("Referral code: " + info.referral);
     lines.push("", "They typed it at " + SITE_URL + "/promoter");
-    const addr = String(await setting("mailing_address", ""));
+    const addr = await mailingAddress();
     if (addr && !/TBD/i.test(addr)) lines.push("", "Subduction", addr);
     const text = lines.join("\n"), html = "<pre style=\"font:15px/1.6 Arial,sans-serif\">" + esc(text) + "</pre>";
     for (const one of to) {
@@ -193,14 +198,18 @@ async function tellShowSent(show: { slug: string; name: string; starts_at?: stri
     tag: "lead",
   });
   if (!EMAIL_RE.test(who)) return;
-  const confirmText = [`${name} is in. Dylan is finishing it.`, "", `Date: ${when}`].join("\n");
+  const ticketLink = `${SITE_URL}/${encodeURIComponent(show.slug)}`;
+  const next = "We build your page, usually within a day, and email you a preview.";
+  const confirmText = [`${name} is in. Subduction is finishing it.`, "", `Date: ${when}`, `Your ticket link: ${ticketLink}`, "", `What happens next: ${next}`].join("\n");
   const F = "font-family:Arial,Helvetica,sans-serif";
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>${escMail(name)} is in</title></head>
 <body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
 <tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">${escMail(name)} is in</td></tr>
-<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Dylan is finishing it.</td></tr>
-<tr><td style="padding:12px 24px 26px;${F};font-size:14px;line-height:1.6;color:#9a958f">Date: ${escMail(when)}</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">Subduction is finishing it.</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:14px;line-height:1.6;color:#9a958f">Date: ${escMail(when)}</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:14px;line-height:1.6;color:#9a958f">Your ticket link: <a href="${escMail(ticketLink)}" style="color:#f4f1ee">${escMail(ticketLink)}</a></td></tr>
+<tr><td style="padding:16px 24px 26px;${F};font-size:15px;line-height:1.6;color:#d9d5cf">What happens next: ${escMail(next)}</td></tr>
 </table></td></tr></table></body></html>`;
   await sendOnce({ to: [who], subject: `${name} is in`, text: confirmText, html, fromName: "Subduction", tag: "show-sent" });
 }

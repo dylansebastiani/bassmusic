@@ -18,12 +18,13 @@
 <meta name="twitter:image" content="https://subduction.art/assets/og-collection.jpg">
 <link rel="stylesheet" href="assets/fonts.css">
 <link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/chrome.css">
 <!--CONFIG-->
 <title>My collection</title>
 </head>
 <body>
 <main class="wrap">
-  <div class="top"><img src="assets/logo.png" alt=""><button type="button" id="signout" hidden>Sign out</button></div>
+  <div class="top"><a href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a><button type="button" id="signout" hidden>Sign out</button></div>
 
   <section id="signin" hidden>
     <h1 class="disp">Your <em>collection</em></h1>
@@ -39,8 +40,9 @@
       <h2 class="disp">Shop</h2>
       <div class="soon"><span class="chip alt">Coming soon</span><p>Merch and drops, with checkout for anyone. You won't need an account to buy.</p></div>
     </div>
-    <footer><a href="privacy.html">Privacy</a></footer>
   </section>
+  <nav class="sx-home" aria-label="Site"><a href="/">Home</a><a href="/shows">Shows</a><a href="/me.html">My account</a><a href="privacy.html">Privacy</a></nav>
+  <p class="sx-hooks"><a href="/promoter.html">Run your show on Subduction</a>. Artists can <a href="/artists.html">join the waitlist</a>.</p>
 </main>
 <nav class="tabs" id="tabs" role="tablist" aria-label="Sections" hidden>
   <button type="button" role="tab" id="tab-collection" data-tab="collection" aria-selected="true">Collection <span class="n" id="n-collection"></span></button>

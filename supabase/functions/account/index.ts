@@ -17,6 +17,7 @@
 //   GET  ?a=qr&e=<slug>             a QR code of the show's public link (public: it's the same link anyone can see)
 //   POST {a:"profile", ...}         save your one artist profile; copied onto every show you're booked on (preview only for now)
 import { ipFromHeaders } from "../_shared/client_ip.mjs";
+import { CONFIG } from "../_shared/config.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import QRCode from "npm:qrcode@1.5.4";
 
@@ -37,6 +38,11 @@ async function sha256(s: string) {
 async function setting<T>(key: string, fallback: T): Promise<T> {
   const { data } = await db.from("settings").select("value").eq("key", key).maybeSingle();
   return (data?.value as T) ?? fallback;
+}
+// Footer address: the settings row when it holds a real address, otherwise the config value. Never a placeholder.
+async function mailingAddress(): Promise<string> {
+  const v = String((await setting("mailing_address", "")) || "").trim();
+  return v && !/TBD/i.test(v) ? v : String(CONFIG.mailingAddress || "");
 }
 async function ipHash(req: Request, tag: string) {
   const ip = ipFromHeaders((h: string) => req.headers.get(h));
@@ -137,7 +143,7 @@ async function sendSignin(email: string) {
   ]);
   if (!row) return;
   const url = `${SITE}/me.html#invite=${row.id}.${secret}`, F = "font-family:Arial,Helvetica,sans-serif";
-  const addr = String(await setting("mailing_address", "") || "");
+  const addr = await mailingAddress();
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Sign in</title></head>
 <body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">

@@ -20,7 +20,8 @@
   function showById(id) { return me.shows.find(function (s) { return s.id === id; }); }
   function homeHref() { return me && me.owner ? "#co/" + coId : "#"; }
   function top(back) {
-    var home = '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>';
+    // Signed out, the shared site header already carries the logo (promoter.html), so the screen skips its own.
+    var home = tok ? '<a class="brand" href="/" aria-label="Subduction home"><img src="assets/logo.png" alt=""></a>' : "";
     return '<div class="top">' + (back ? '<a class="linkbtn" href="' + back + '">&larr; Back</a>' : home) + (tok ? "<button type=button id=out>Sign out</button>" : "") + "</div>";
   }
   // Setup is one straight line: 1 Your show, 2 Your flyer, 3 Get paid, then send. Every screen says where you are.
@@ -88,7 +89,13 @@
 
   // ---------- sign in ----------
   function signin() {
-    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1><p class=lead>Type your email. We send a button that signs you in and opens your show. No passwords.</p>" +
+    app.innerHTML = top() + "<h1>Sell tickets with Subduction</h1>" +
+      "<p class=pitch>Send us your show. We build your ticket page, fans buy on their phone, and you scan them in at the door.</p>" +
+      "<p class=feeline id=feeline><b>$1.50 flat buyer fee</b><span>You keep your full ticket price.</span></p>" +
+      '<figure class=preview id=preview><img src="assets/promoter-preview.webp" width="960" height="560" alt="Sample of a show page, a phone ticket with a QR code, and the door check-in screen" decoding="async">' +
+      "<figcaption>Sample show. Your page, their ticket, your door.</figcaption></figure>" +
+      "<ul class=pts><li>Your own ticket page, built for you.</li><li>Your brand on the page, not ours.</li><li>No passwords.</li></ul>" +
+      "<p class=lead>Type your email. We send a button that signs you in and opens your show.</p>" +
       '<form id=f1 novalidate><label for=em>Email</label><input type=email id=em autocomplete=email inputmode=email autocapitalize=off>' +
       '<input class=hp type=text id=hp_field name=hp_field tabindex=-1 autocomplete=off aria-hidden=true>' +
       '<button class=btn type=submit>Send my email</button></form>' +
@@ -146,21 +153,38 @@
         '<a class=btn href="#show/new/1">Start with my show</a><p class=note>You can stop any time. It saves as you go.</p>' + referralHtml(co) + '<p class=msg role=status></p>';
       wireTop(); wireReferral(co); return;
     }
+    var sec = function (title, inner, fold) { return fold ? "<details class=sec><summary>" + title + "</summary>" + inner + "</details>" : "<h2>" + title + "</h2>" + inner; };
+    var summary = "";
+    if (s) {
+      var sl = s.sales || { count: 0, face_cents: 0 }, status = s.live ? "Live" : s.review_status === "draft" ? "Draft" : "With Subduction";
+      summary = '<div class="card sumcard"><b>' + esc(s.name) + '</b><span class=pill>' + status + "</span>" +
+        '<div class=lbl>Ticket link</div><div class=linkrow><span class=streetcode>subduction.art/' + esc(s.slug) + '</span><button type=button class=ghostbtn id=copylink>Copy</button></div>' +
+        (!s.sales ? "<div class=lbl>Sales</div><small>Sales show for the crew's owner.</small>" : sl.count ? '<div class=stats><div><span class=lbl>Tickets sold</span><b>' + sl.count + '</b></div><div><span class=lbl>Gross face value</span><b>' + money(sl.face_cents) + "</b></div></div>" +
+            ((sl.by_price || []).length ? "<small>" + sl.by_price.map(function (r) { return r[1] + " at " + money(r[0]); }).join(", ") + "</small>" : "")
+          : '<div class=lbl>Sales</div><small>No sales yet</small>') + "</div>";
+    }
+    var payCard = co.paid_ready
+      ? '<div class=card id=paycard><b>&#10003; Bank connected</b><small>' + StackSavings.stripeNote() + "</small></div>"
+      : '<div class=card id=paycard><b>Bank not connected</b><small>Ticket money goes straight to your own Stripe account. Subduction never holds it.</small>' +
+        (co.can_manage ? '<button class=btn type=button id=hconnect>Connect my bank</button>' : "<small>Only the crew's owner can do this step.</small>") + "</div>";
+    var kept = shows.some(function (x) { return x.sales && x.sales.count; }) ? shows.filter(function (x) { return x.sales; }).map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "";
+    var share = (shows.length ? '<h3>Street team</h3>' + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
+      (shows.length ? "<h3>Message my crowd</h3>" + shows.filter(function (x) { return x.review_status !== "draft"; }).map(function (x) { return '<div class=card data-href="#crowd/' + x.id + '"><b>' + esc(x.name) + "</b><small>Email the people who bought tickets.</small></div>"; }).join("") : "") +
+      (s ? '<h3>Ad pixel</h3><p class=note>Off until you paste a Meta pixel id. Only that pixel hears about visits and purchases on this show.</p><label for=px>Pixel id</label><input id=px inputmode=numeric autocomplete=off value="' + esc((s.kit && s.kit.pixel) || "") + '"><button class=ghost type=button id=pxsave>Save pixel</button>' : "") +
+      referralHtml(co).replace("<h2>Referral link</h2>", "<h3>Referral link</h3>");
+    var look = '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and the page starts in acid green.</small></div>' +
+      (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "");
     app.innerHTML = top(me.owner ? "#" : "") + (me.owner ? '<div class=qnum>Setting up for</div>' : "") +
-      "<h1>" + esc(co.name) + '</h1><div class=progress>' + doneN + " of " + steps.length + " done</div>" +
+      "<h1>" + esc(co.name) + "</h1>" + summary +
       (nextI >= 0 && !me.owner ? '<a class=btn href="' + steps[nextI].href + '">Keep going: ' + steps[nextI].t + "</a>" : "") +
-      '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
-      (co.paid_ready ? '<div class=card><b>Your money</b><small>' + StackSavings.stripeNote() + "</small></div>" : "") +
-      (shows.some(function (x) { return x.sales && x.sales.count; }) ? "<h2>What you kept</h2>" + shows.filter(function (x) { return x.sales; }).map(function (x) { return "<div class=card><b>" + esc(x.name) + "</b>" + StackSavings.line(x.sales) + "</div>"; }).join("") : "") +
-      (shows.length > 1 ? "<h2>Your shows</h2>" + shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
-      (shows.length ? "<h2>Street team</h2>" + shows.map(function (x) { return '<div class=card data-href="#links/' + x.id + '"><b>' + esc(x.name) + "</b><small>Named links, tickets, and what you owe.</small></div>"; }).join("") : "") +
-      (shows.length ? "<h2>Message my crowd</h2>" + shows.filter(function (x) { return x.review_status !== "draft"; }).map(function (x) { return '<div class=card data-href="#crowd/' + x.id + '"><b>' + esc(x.name) + "</b><small>Email the people who bought tickets.</small></div>"; }).join("") : "") +
-      (s ? '<button class=ghost type=button id=buyers>Download buyers</button>' : "") +
-      (s ? '<h2>Ad pixel</h2><p class=note>Off until you paste a Meta pixel id. Only that pixel hears about visits and purchases on this show.</p><label for=px>Pixel id</label><input id=px inputmode=numeric autocomplete=off value="' + esc((s.kit && s.kit.pixel) || "") + '"><button class=ghost type=button id=pxsave>Save pixel</button>' : "") +
-      '<div class=card data-href="#brand"><b>Your brand' + (brandDone ? " &#10003;" : "") + '</b><small>Optional. Your logo and colors on every show. Skip it and the page starts in acid green.</small></div>' +
-      referralHtml(co) +
-      (s ? '<div class=card data-href="#music/' + s.id + '"><b>Show music</b><small>Optional. Pick what plays on your page: your own tracks, or Subduction tracks.</small></div>' : "") +
-      (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "") +
+      sec("Your show", '<div class=progress>' + doneN + " of " + steps.length + " done</div>" +
+        '<ol class=steps>' + steps.map(function (x, i) { return '<li class="' + (x.done ? "done" : "") + (i === nextI ? " next" : "") + '" data-href="' + x.href + '"><span class=n>' + (x.done ? "&#10003;" : i + 1) + "</span><span><b>" + x.t + "</b><small>" + x.d + "</small></span></li>"; }).join("") + "</ol>" +
+        (shows.length > 1 ? shows.map(function (x) { return '<div class=card data-href="#show/' + x.id + '/1"><b>' + esc(x.name) + "</b><small>" + (x.live ? "Live" : x.review_status === "draft" ? "Not sent yet" : "With Subduction") + "</small></div>"; }).join("") : "") +
+        (s ? '<a class=ghost href="#show/new/1">+ Another show</a>' : "")) +
+      (s ? sec("Sales", kept + (s ? '<button class=ghost type=button id=buyers>Download buyers</button>' : ""), false) : "") +
+      sec("Get paid", payCard, false) +
+      (s ? sec("Share and promote", share, true) : sec("Share and promote", referralHtml(co).replace("<h2>Referral link</h2>", "<h3>Referral link</h3>"), true)) +
+      sec("Page look", look, true) +
       (me.owner ? '<h2>Invite them</h2><p class=note>' + (co.contact_email ? "We email " + esc(co.contact_email) + " a button that signs them straight in here." : "Add their email and we send them a button that signs them straight in here.") + '</p>' +
         '<label for=ie>Their email</label><input type=email id=ie autocapitalize=off inputmode=email value="' + esc(co.contact_email || "") + '"><button class=btn type=button id=inv>' + (co.contact_email ? "Send invite again" : "Send invite") + "</button>" : "") +
       "<p class=msg role=status></p>";
@@ -168,6 +192,19 @@
     app.querySelectorAll("[data-href]").forEach(function (el) { el.onclick = function () { go(el.getAttribute("data-href")); }; });
     if (flash) { say(flash); flash = ""; }
     wireReferral(co);
+    var cl = document.getElementById("copylink");
+    if (cl && s) cl.onclick = function () { var t = "https://subduction.art/" + s.slug; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { cl.textContent = "Copied"; }, function () { cl.textContent = "Copy"; say(t); }); };
+    var hc = document.getElementById("hconnect");
+    if (hc) hc.onclick = function () {
+      say("Opening Stripe…");
+      api(CONNECT, { a: "start", company: co.id }).then(function (r) { location.href = r.url; }).catch(function (x) {
+        // Bank setup not open on our side: say so plainly and keep sending the show possible.
+        if (!/platform profile|dashboard\.stripe|Connect|isn't open/i.test(x.message)) return say(x.message, true);
+        var pc = document.getElementById("paycard");
+        if (pc) pc.innerHTML = "<b>Bank setup isn't open yet</b><small>We'll email you when it opens. You can still send your show now.</small>" + (s ? '<a class=btn href="#send/' + s.id + '">Send my show</a>' : "");
+        say("");
+      });
+    };
     var buyers = document.getElementById("buyers");
     if (buyers && s) buyers.onclick = function () { downloadBuyers(s.id, s.slug); };
     var px = document.getElementById("pxsave");
@@ -184,7 +221,7 @@
     };
   }
 
-  // ---------- Dylan's front page: every promoter, and adding a new one ----------
+  // ---------- Subduction staff front page: every promoter, and adding a new one ----------
   function promoters() {
     var list = me.companies;
     app.innerHTML = top() + "<h1>Your promoters</h1><p class=lead>Add a promoter, then fill in their brand and show yourself, or send them this page to do it.</p>" +
@@ -459,7 +496,7 @@
     var b = document.getElementById("st");
     if (b) b.onclick = function () { say("Opening Stripe…"); api(CONNECT, { a: "start", company: co.id }).then(function (r) { location.href = r.url; })
       // A promoter never sees a raw message from the payment company. If bank setup isn't open on our side yet, say so plainly.
-      .catch(function (x) { say(/platform profile|dashboard\.stripe|Connect|isn't open/i.test(x.message) ? "Bank setup isn't open just yet. That's on our side, not yours. We'll email you the moment it is. You can still send your show now." : x.message, true); }); };
+      .catch(function (x) { say(/platform profile|dashboard\.stripe|Connect|isn't open/i.test(x.message) ? "Bank setup isn't open just yet. We'll email you when it opens. You can still send your show now." : x.message, true); }); };
   }
 
   // ---------- send to Subduction ----------
@@ -611,6 +648,8 @@
   function load() { return api(FN + "?a=me").then(function (r) { me = r; if (!coId || !me.companies.some(function (c) { return c.id === coId; })) coId = (me.companies[0] || {}).id || ""; }); }
   function route() {
     app.onclick = null; warns = {};
+    // The shared public header and footer show on the signed-out start screen only.
+    document.body.classList.toggle("in", !!tok);
     if (!tok) return signin();
     if (!me) return load().then(route).catch(function (e) { if (tok) app.innerHTML = '<p class="msg bad">' + esc(e.message) + "</p>"; });
     var h = location.hash.replace(/^#/, "").split("/");
