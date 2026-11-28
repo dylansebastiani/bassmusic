@@ -62,9 +62,10 @@
 
   function render() {
     var ev = data.event;
-    document.title = ev.name + " · Tickets";
+    // The /underground/ page keeps its search title and headline from the HTML (T.O.F.T.U. wording for Google).
+    if (slug !== "underground") document.title = ev.name + " · Tickets";
     if (ev.poster_url) { $("poster").src = ev.poster_url; $("poster").hidden = false; }
-    $("name").textContent = ev.name;
+    if (slug !== "underground") $("name").textContent = ev.name;
     var map = ev.address ? "https://maps.google.com/?q=" + encodeURIComponent(ev.address) : null;
     // Centered, flyer-style: the dates in the night colors, then one small info line.
     var dates = data.nights.map(function (n, i) { return '<span class="d' + (i % 2 ? 2 : 1) + '">' + esc(n.label) + "</span>"; }).join(' <span class="plus">+</span> ');

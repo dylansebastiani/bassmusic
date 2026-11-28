@@ -21,6 +21,7 @@
       });
     });
   }
+  function saveMember(r) { if (r && /^[0-9a-f-]{36}$/i.test(r.member || "")) { try { localStorage.setItem("stack_member", r.member); } catch (e) {} } }
   function signOut() { tok = ""; try { localStorage.removeItem(KEY); } catch (e) {} show("signin"); }
   function show(which) {
     $("signin").hidden = which !== "signin"; $("home").hidden = which !== "home"; $("signout").hidden = which !== "home";
@@ -65,10 +66,10 @@
     if (code.length !== 6) { $("smsg").textContent = "The code is 6 digits."; return; }
     $("cgo").disabled = true; $("smsg").textContent = "Checking...";
     api("", { a: "code", email: sentTo || $("semail").value.trim(), code: code }).then(function (r) {
-      tok = r.token; try { localStorage.setItem(KEY, tok); } catch (err) {} $("cf").hidden = true; $("smsg").textContent = ""; load();
+      tok = r.token; try { localStorage.setItem(KEY, tok); } catch (err) {} saveMember(r); $("cf").hidden = true; $("smsg").textContent = ""; load();
     }).catch(function (err) { $("smsg").textContent = err.message; }).then(function () { $("cgo").disabled = false; });
   });
-  $("signout").addEventListener("click", signOut);
+  $("signout").addEventListener("click", function () { try { localStorage.removeItem("stack_member"); } catch (e) {} signOut(); });
 
   // ---- home ----
   function load() {
@@ -124,7 +125,10 @@
       if (d.artist.length) {
         h += '<div class="roleh">Your shows</div>' + d.artist.map(function (a) {
           return '<div class="mcard"><h3>' + esc(a.show) + '</h3><div class="sub">As ' + esc(a.name) + " · " + esc(a.nights.join(" + ")) + "</div>" +
-            (a.sell_link ? '<div class="mrow"><span><b>' + a.sold + (a.sold === 1 ? " ticket" : " tickets") + ' sold</b><br><span class="mono">' + esc(a.sell_link.replace(/^https?:\/\//, "")) + '</span></span><button type="button" class="mbtn ghost" data-copy="' + esc(a.sell_link) + '">Copy link</button></div>' : "") +
+            (a.sell_link || a.code || a.sold ? '<div class="mrow"><span><b>' + a.sold + (a.sold === 1 ? " ticket" : " tickets") + ' sold</b>' +
+              (a.sell_link ? '<br><span class="mono">' + esc(a.sell_link.replace(/^https?:\/\//, "")) + "</span>" : "") +
+              (a.code ? '<br><span class="mono">Code ' + esc(a.code) + "</span>" : "") + "</span>" +
+              (a.sell_link ? '<button type="button" class="mbtn ghost" data-copy="' + esc(a.sell_link) + '">Copy link</button>' : "") + "</div>" : "") +
             '<a class="mbtn" href="' + esc(a.url) + '">' + (a.claimed ? "Artist dashboard" : "Get my artist pass") + "</a></div>";
         }).join("");
       }
@@ -152,6 +156,7 @@
           (p ? (p.stripe_ready ? ", selling with your Stripe" : "") : "") + "</div></div>" +
           (p ? '<a class="addshow" href="promoter.html#show/new/1">Add a show</a>' : "") + "</div>";
         if (p && !p.stripe_ready && p.role === "owner") h += '<div class="mcard warn"><b>Connect Stripe</b> before your next show goes on sale, so ticket money goes straight to your bank. <a class="mlink" href="promoter.html">Connect it</a></div>';
+        if (p && p.stripe_ready) h += '<div class="mcard"><div class="sub">' + StackSavings.stripeNote() + "</div></div>";
         h += g.shows.length ? '<div class="posters">' + g.shows.map(function (sh) {
           return '<button type="button" class="poster" data-hub="' + esc(sh.slug) + '" style="--m:' + esc(sh.colors.main) + ';--a:' + esc(sh.colors.accent) + ';--d:' + esc(sh.colors.deep) + '">' +
             '<span class="poart"' + (sh.image ? ' style="background-image:url(\'' + esc(sh.image) + '\')"' : "") + "></span>" +
@@ -159,6 +164,7 @@
             '<span class="state' + (sh.on_sale ? " live" : "") + '">' + (sh.on_sale ? "On sale" : "Not on sale yet") + "</span>" +
             (sh.on_sale || sh.sold ? '<span class="psold"><b>' + (sh.sold || 0) + "</b> sold" + (sh.cap ? ", " + sh.cap + " spots a night" : "") + "</span>" : "") + "</span></button>";
         }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (p ? " Tap Add a show to start one." : "") + "</p>";
+        g.shows.forEach(function (sh) { if (sh.sales) h += '<div class="mcard"><h3>' + esc(sh.name) + "</h3>" + StackSavings.line(sh.sales) + "</div>"; });
       });
       if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
     }
@@ -585,7 +591,15 @@
   if (invite) {
     history.replaceState(null, "", location.pathname);
     $("msg").textContent = "Signing you in...";
-    api("", { a: "redeem", invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} load(); })
+    api("", { a: "redeem", invite: invite }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} saveMember(r); load(); })
       .catch(function (err) { show("signin"); $("smsg").textContent = err.message; });
-  } else if (tok) load(); else show("signin");
+  } else if (tok) load();
+  else {
+    var mk = ""; try { mk = localStorage.getItem("stack_member") || ""; } catch (e) {}
+    if (/^[0-9a-f-]{36}$/i.test(mk)) {
+      $("msg").textContent = "Signing you in...";
+      api("", { a: "member", key: mk }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} load(); })
+        .catch(function () { $("msg").textContent = ""; show("signin"); });
+    } else show("signin");
+  }
 })();
