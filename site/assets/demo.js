@@ -79,7 +79,7 @@
   });
 
   // The last button: open their promoter account. From the email link they're signed straight in;
-  // otherwise the promoter page sends the usual 6-digit code to the email they gave.
+  // otherwise the demo emails a one-tap sign-in button to the email they gave.
   $("claim").addEventListener("click", function () {
     if (!lead) { location.href = "promoter.html"; return; }
     $("claim").disabled = true; $("cmsg").textContent = "Opening your account...";

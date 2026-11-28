@@ -169,7 +169,8 @@
       return '<a class="chip" href="/shows/' + esc(c.path) + '">' + esc(c.name) + " <b>" + c.n + "</b></a>";
     }).join("") + "</nav>" : "";
     return quiet("Nothing <em>up yet.</em>", "No shows listed here right now.",
-      links + '<div class="actions"><a class="btn" href="/shows-send">Send in a show</a><a class="btn ghost" href="/promoter">Sell tickets on Subduction</a></div>');
+      (locked ? '<div class="actions"><a class="btn" href="/shows">See every show</a></div>' : "") + links +
+      '<p class="soft hooks">Promoters: <a href="/shows-send">List a show free</a> or <a href="/promoter">Sell tickets on Subduction</a>.</p>');
   }
   function chosen() {
     return { q: $("q").value.trim().toLowerCase(), when: $("when").value, on: $("on").value };

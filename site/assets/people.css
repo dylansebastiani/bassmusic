@@ -196,3 +196,25 @@ body.locked{overflow:hidden}
 .flash{background:var(--hot);color:#000;font-weight:600;padding:10px 12px;margin:0 0 10px;clear:both}
 @media (min-width:900px){.sh-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.sh-stats div:nth-child(n){padding-left:12px;border-left:1px solid var(--line)}.sh-stats div:first-child{padding-left:0;border-left:0}.sh-in{padding:24px 32px 60px}}
 .noteform[hidden]{display:none}
+/* Find anyone: one box over every list, results drop under it. */
+.finder{position:relative;margin:14px 0 0}
+.finder input{width:100%;background:#000;border:1px solid #6C6567;color:var(--fg);border-radius:0;font-family:var(--disp);font-size:22px;letter-spacing:.04em;text-transform:uppercase;padding:13px 14px 11px;outline:none}
+.finder input::placeholder{color:#6C6567}
+.finder input:focus{border-color:var(--hot)}
+.found{position:absolute;left:0;right:0;top:100%;z-index:20;background:#151515;border:1px solid var(--line);border-top:0;max-height:60vh;overflow-y:auto}
+.found[hidden]{display:none}
+.found button{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;width:100%;padding:12px 14px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.found button:hover,.found button:focus-visible{background:#1C1C1C;outline:none}
+.found em{grid-row:span 2;align-self:center;font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--hot);min-width:76px}
+.found b{font-family:var(--disp);font-weight:400;font-size:20px;text-transform:uppercase;line-height:1.05}
+.found span{font-size:13px;color:var(--mute);overflow-wrap:anywhere}
+.found .more{padding:12px 14px;font-size:13px;color:var(--mute)}
+/* Quick filter chips */
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:12px 0 0;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chips:empty{display:none}
+.chips button{flex:none;background:none;border:1px solid var(--line);color:#cfc9c5;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:9px 11px;min-height:40px;cursor:pointer;white-space:nowrap}
+.chips button i{font-style:normal;color:var(--mute);margin-left:4px}
+.chips button[aria-pressed=true]{background:var(--fg);border-color:var(--fg);color:#000}
+.chips button[aria-pressed=true] i{color:#000}
+.errbox{margin-top:14px;border-left:3px solid var(--fg);background:#151515;padding:12px 14px;font-family:var(--mono);font-size:12px;color:#cfc9c5;overflow-wrap:anywhere}

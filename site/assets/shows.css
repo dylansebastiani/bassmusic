@@ -150,7 +150,4 @@ form[hidden]{display:none}
 .quiet .fine{margin-top:12px}
 .send .btn{width:auto}
 #form .btn{width:100%}
-
-/* Empty city page: its own buttons already cover sending a show, so the second pitch goes. */
-.wrap:has(.quiet .actions) .send{display:none}
-.quiet .chips{margin-bottom:6px}
+.quiet .soft{margin:10px 0 0}

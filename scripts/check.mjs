@@ -42,8 +42,10 @@ execSync("node scripts/artist-waitlist.test.mjs", { cwd: root, stdio: "inherit" 
 execSync("node scripts/directory.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/submit.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/shows-fast.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/fan-cards.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/referrals.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/session-trust.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/promoter-signin.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/street-links.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/security-hardening.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/toftu-adjacent.test.mjs", { cwd: root, stdio: "inherit" });

@@ -4,6 +4,9 @@
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/account";
   if (window.Stack) Stack.pageview("/me");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
+  // From "Sign in to open your ticket": a sticker or member-key session can't open tickets, so start a real email sign-in.
+  var FRESH = /[?&]signin=1\b/.test(location.search);
+  if (FRESH) { tok = ""; try { localStorage.removeItem(KEY); history.replaceState(null, "", location.pathname); } catch (e) {} }
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var usd = function (c) { return "$" + ((c || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }); };
@@ -80,11 +83,17 @@
       $("who").textContent = d.email;
       // Everyone gets the same three tabs. Empty ones invite them in instead of hiding.
       var tabs = [["fan", "Fan"], ["artist", "Artist"], ["crew", "Promoter"]];
+      if (openHub) tab = "crew";
       if (!tab) { try { tab = localStorage.getItem("me_tab") || ""; } catch (e) {} }
       if (!/^(fan|artist|crew)$/.test(tab)) tab = d.crews.length || d.staff ? "crew" : d.artist.length || d.profile ? "artist" : "fan";
       $("tabs").hidden = false;
       $("tabs").innerHTML = tabs.map(function (t) { return '<button type="button" role="tab" data-tab="' + t[0] + '" aria-selected="' + (t[0] === tab) + '">' + esc(t[1]) + "</button>"; }).join("");
       draw();
+      // From the promoter app's "Door and guest list" button: open that show's hub straight away.
+      if (openHub && tab === "crew") {
+        hub = openHub; openHub = ""; hubData = null; drawHub(); window.scrollTo(0, 0);
+        api("?a=crew&e=" + encodeURIComponent(hub)).then(function (r) { hubData = r; if (hub && tab === "crew") drawHub(); }).catch(function (err) { $("msg").textContent = err.message; });
+      }
     }).catch(function (err) { if (tok) $("msg").textContent = err.message; });
   }
   $("tabs").addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (!b) return; tab = b.getAttribute("data-tab"); hub = ""; try { localStorage.setItem("me_tab", tab); } catch (err) {} load(); });
@@ -106,10 +115,10 @@
   function draw() {
     var d = me, h = "";
     if (tab === "fan") {
-      h += d.tickets.length ? d.tickets.map(function (s) {
-        return '<div class="mcard"><h3>' + esc(s.show) + '</h3><div class="sub">' + esc([s.nights.join(" + "), s.city].filter(Boolean).join(" · ")) + "</div>" +
-          s.tickets.map(function (t) { return '<div class="mrow"><span>' + esc(t.type) + ' <span class="mono">' + esc(t.code) + '</span></span><a href="' + esc(t.url) + '">Open</a></div>'; }).join("") + "</div>";
-      }).join("") : '<div class="mcard"><h3>No tickets yet</h3><div class="sub">Tickets you buy with this email show up here automatically.</div></div>';
+      // Next show up top (flyer, countdown, tickets), then other upcoming shows, then stubs from past shows (assets/fan.js).
+      var soon = d.tickets.filter(function (s) { return !s.past; }).length;
+      if (!soon) h += '<div class="mcard fx-none"><h3>No upcoming shows</h3><div class="sub">Tickets you buy with this email land here with a countdown.</div><a class="mbtn" href="/shows">Find a show</a></div>';
+      h += d.tickets.length && window.Fan ? '<div id="fanShows"></div>' : "";
       h += '<div class="mcard"><h3>Your music</h3><div class="sub">Every track you\'ve unlocked, to play or download.</div><a class="mbtn" href="' + esc(d.music) + '">Open my collection</a></div>';
     }
     if (tab === "artist") {
@@ -167,9 +176,10 @@
         }).join("") + "</div>" : '<p class="mempty">No shows yet.' + (p ? " Tap Add a show to start one." : "") + "</p>";
         g.shows.forEach(function (sh) { if (sh.sales) h += '<div class="mcard"><h3>' + esc(sh.name) + "</h3>" + StackSavings.line(sh.sales) + "</div>"; });
       });
-      if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe, a $1.50 fee your buyers pay, and a custom page for every show. Try it with a test ticket first, it takes a minute.</div><a class="mbtn" href="' + esc(d.demo) + '">Start throwing events</a></div>';
+      if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe and a custom page for every show. Your buyers pay the fee, so you keep your full ticket price.</div><a class="mbtn" href="promoter.html">Open a promoter account</a> <a class="mbtn ghost" href="' + esc(d.demo) + '">Try a test ticket first</a></div>';
     }
     $("panes").innerHTML = h;
+    if (tab === "fan" && $("fanShows")) window.Fan.draw($("fanShows"), d.tickets, { signin: "/me.html?signin=1" });
   }
 
   // Profile: edit, cancel, save. Copy buttons for sell links.
@@ -200,6 +210,8 @@
 
   // ---- the show hub: one show, in its own colors ----
   var hub = "", hubData = null;
+  var openHub = ((location.hash.match(/^#show=([a-z0-9-]{1,80})$/) || [])[1]) || "";
+  if (openHub) { try { history.replaceState(null, "", location.pathname); } catch (e) {} }
   function initials(n) { return String(n || "?").replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase() || "?"; }
   function phoneFmt(v) { var m = String(v || "").match(/^\+1(\d{3})(\d{3})(\d{4})$/); return m ? "(" + m[1] + ") " + m[2] + "-" + m[3] : v; }
   function personRow(p, tag) {
@@ -597,7 +609,7 @@
   } else if (tok) load();
   else {
     var mk = ""; try { mk = localStorage.getItem("stack_member") || ""; } catch (e) {}
-    if (/^[0-9a-f-]{36}$/i.test(mk)) {
+    if (/^[0-9a-f-]{36}$/i.test(mk) && !FRESH) {
       $("msg").textContent = "Signing you in...";
       api("", { a: "member", key: mk }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} load(); })
         .catch(function () { $("msg").textContent = ""; show("signin"); });

@@ -176,10 +176,10 @@ ${codeRow}
     const link = String(extra?.link || `${SITE_URL}/promoter`), crew = String(extra?.company || "your crew");
     const html = `${eyebrow("Subduction")}${big("Let's get your show up")}
 <p>You're set up on Subduction as <b>${crew}</b>. Tap below to start. No password, no app.</p>
-<p style="color:#bdbdbd">It takes about 10 minutes: your logo and colors, five quick questions about your show, your flyers, and connecting where your ticket money goes. We build the page.</p>
+<p style="color:#bdbdbd">Four steps, about 5 minutes: your show, your flyer, where your ticket money goes, then send it. We build the page.</p>
 ${btn(link, "Start now")}<p style="margin:0;color:#888;font-size:14px">The button works for 7 days. After that, sign in at ${SITE_URL.replace(/^https?:\/\//, "")}/promoter with this email.</p>`;
-    const text = `You're set up on Subduction as ${crew}.\n\nStart here (no password): ${link}\n\nIt takes about 10 minutes: logo and colors, five quick questions, your flyers, and where ticket money goes. We build the page.\n\nThe link works for 7 days. After that, sign in at ${SITE_URL}/promoter with this email.`;
-    return { subject: `${crew} is set up on Subduction`, ...wrap(m, html, text, "Tap to start. Takes about 10 minutes.", "You're getting this because you were added as a promoter on Subduction.") };
+    const text = `You're set up on Subduction as ${crew}.\n\nStart here (no password): ${link}\n\nFour steps, about 5 minutes: your show, your flyer, where your ticket money goes, then send it. We build the page.\n\nThe link works for 7 days. After that, sign in at ${SITE_URL}/promoter with this email.`;
+    return { subject: `${crew} is set up on Subduction`, ...wrap(m, html, text, "Tap to start. Takes about 5 minutes.", "You're getting this because you were added as a promoter on Subduction.") };
   },
   // Referral rewards
   reward: (m, extra) => {
@@ -199,3 +199,20 @@ export const SEQUENCE: Array<{ key: string; days: number }> = [
 export const render = (key: string, m: Member, extra?: Record<string, unknown>): Rendered | null =>
   TEMPLATES[key] ? TEMPLATES[key](m, extra) : null;
 export { fill };
+
+// Promoter sign-in from the Sell tickets page: one button, straight into the promoter app. No code to type.
+// Same look as the demo's sign-in email. Kept off wrap() and out of TEMPLATES on purpose: it is sent once,
+// right away, never queued, so the email runner can't resend it without its link.
+export function promoterSignin(link: string): Rendered {
+  const F = "font-family:Arial,Helvetica,sans-serif";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Sign in to Subduction</title></head>
+<body style="margin:0;background:#0a0a0a"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111110;border:1px solid #2b2927">
+<tr><td style="padding:28px 24px 0;${F};font-size:26px;line-height:1.15;font-weight:bold;color:#f4f1ee">Tap to open your show</td></tr>
+<tr><td style="padding:12px 24px 0;${F};font-size:15px;line-height:1.6;color:#d9d5cf">This button signs you in to your promoter account on this device. No code, no password.</td></tr>
+<tr><td style="padding:22px 24px 0"><a href="${link}" style="display:block;background:#b6ff00;color:#000;${F};font-size:16px;font-weight:bold;text-align:center;text-decoration:none;padding:16px 12px;text-transform:uppercase;letter-spacing:1px">Open my show</a></td></tr>
+<tr><td style="padding:18px 24px 26px;${F};font-size:12px;line-height:1.6;color:#6f6b66">Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes.</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = ["Tap to open your Subduction promoter account:", link, "", "Works once, for 20 minutes. Didn't ask for this? Ignore it and nothing changes."].join("\n");
+  return { subject: "Your Subduction sign-in button", html, text };
+}
