@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { refsProblem } from "./refs-check.mjs";
 import vm from "node:vm";
 import { KNOWN_CITIES, jsonInline } from "./cities.mjs";
-import { cityPath } from "../supabase/functions/directory/listing.mjs";
+import { cityPath, publicCard } from "../supabase/functions/directory/listing.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const cfg = JSON.parse(readFileSync(join(root, "config/stack.json"), "utf8"));
@@ -313,6 +313,19 @@ async function directoryPages() {
     try { shows = (await (await fetch(`${fn}/directory`, { signal: AbortSignal.timeout(15000) })).json()).shows || []; }
     catch (e) { console.warn("build: could not fetch the show directory, city pages ship without the empty state:", e.message); }
   }
+  // Public directory fields only (publicCard is an allowlist: no lineup, venue or address), written into the
+  // page so the list paints with no wait. The browser still fetches the live list after first paint.
+  const safe = (shows || []).map(publicCard);
+  const dataTag = shows ? `<script>window.__SHOWS_DATA=${jsonInline(safe)};</script>\n` : "";
+  const SHOWS_TAG = /(<script src="\/assets\/shows\.js[^"]*"[^>]*><\/script>)/;
+  const preload = (list) => {
+    const f = list.find((s) => s.source === "subduction" && /^(https:\/\/|\/)[^\s"<>]+$/.test(s.flyer || ""));
+    return f ? `<link rel="preload" as="image" href="${esc(f.flyer)}" fetchpriority="high">\n` : "";
+  };
+  const withData = (html, list) => html
+    .replace('<link rel="stylesheet" href="/assets/fonts.css', () => preload(list) + '<link rel="stylesheet" href="/assets/fonts.css')
+    .replace(SHOWS_TAG, (m) => dataTag + m);
+  writeFileSync(join(out, "shows.html"), withData(readFileSync(join(out, "shows.html"), "utf8"), safe));
   const baseHtml = readFileSync(join(out, "shows.html"), "utf8");
   const cities = new Map();
   for (const [city, state] of KNOWN_CITIES) cities.set(cityPath(city, state), { city, state, n: 0 });
@@ -344,7 +357,8 @@ async function directoryPages() {
       .replaceAll("Upcoming bass shows across the Midwest, by city and date.", esc(desc))
       .replaceAll("https://subduction.art/shows", pageUrl)
       .replace(/<div id="list" class="wall">[\s\S]*?<!--LIST--><\/div>/, () => `<div id="list" class="wall">${list}</div>`)
-      .replace(/(<script src="\/assets\/shows\.js[^"]*"><\/script>)/, `<script>window.__SHOWS_CITY=${jsonInline(path)};window.__SHOWS_CITY_NAME=${jsonInline(`${c.city}, ${c.state}`)};</script>\n$1`);
+      .replace(SHOWS_TAG, `<script>window.__SHOWS_CITY=${jsonInline(path)};window.__SHOWS_CITY_NAME=${jsonInline(`${c.city}, ${c.state}`)};</script>\n$1`);
+    html = html.replace(preload(safe), preload(safe.filter((s) => s.path === path)));
     if (!html.includes("<base ")) html = html.replace("<head>", '<head>\n<base href="/">');
     if (html.includes("${")) throw new Error(`build: city page ${path} contains a literal "\${"`);
     mkdirSync(join(out, "shows", path), { recursive: true });

@@ -259,11 +259,17 @@
 
   if (window.Stack) Stack.pageview(location.pathname || "/shows");
   locked = pathCity();
+  // Paint from the list the build wrote into the page, then check the live list in the background.
+  var seed = window.__SHOWS_DATA;
+  var seeded = Array.isArray(seed);
+  if (seeded) { all = seed; paintCities(); apply(); }
   fetch(FN).then(function (r) { return r.json(); }).then(function (j) {
-    all = (j && j.shows) || [];
+    var live = (j && j.shows) || [];
+    if (seeded && JSON.stringify(live) === JSON.stringify(all)) return;
+    all = live;
     paintCities();
     apply();
   }).catch(function () {
-    if (!$("list").querySelector(".cell") && !$("list").querySelector(".quiet")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
+    if (!seeded && !$("list").querySelector(".cell") && !$("list").querySelector(".quiet")) $("list").innerHTML = quiet("Hold <em>on.</em>", "The list isn't loading. Try again in a minute.");
   });
 })();
