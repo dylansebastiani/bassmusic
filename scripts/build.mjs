@@ -83,6 +83,21 @@ gtag("event","purchase",{value:v,currency:"USD"})};
 const TAG_SCRIPT = "https://connect.facebook.net https://www.googletagmanager.com https://analytics.tiktok.com";
 const TAG_IMG = "https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://analytics.tiktok.com";
 const TAG_CONNECT = "https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com";
+// GitHub Pages can't send security headers (it ignores _headers below), so pages that hold a sign-in or render
+// member-typed content carry the same policy as a <meta> tag instead. Pages with ad tags are left as they are for now,
+// and T.O.F.T.U.'s pages (tickets, ticket, door, pass) already carry their own policy and are never changed here.
+const CSP = `default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com ${TAG_SCRIPT}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co ${TAG_IMG}; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com ${TAG_CONNECT}; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; form-action 'self'; object-src 'none'`;
+const META_CSP_PAGES = /^(admin|bonus|collection|in|link|me|people|promoter|shows|shows-review|shows-send|studio)\.html$/;
+// Staff and account pages refuse to show inside another site's frame (clickjacking). A real header would do this,
+// but GitHub Pages can't send one, and a <meta> policy can't set frame-ancestors.
+const NO_FRAME_PAGES = /^(admin|me|people|promoter|shows-review|studio)\.html$/;
+const NO_FRAME = '<script>if(window.top!==window.self){document.documentElement.style.display="none";try{window.top.location.replace(location.href)}catch(e){}}</script>';
+function securityTags(f, html) {
+  if (!META_CSP_PAGES.test(f) || /http-equiv="Content-Security-Policy"/i.test(html)) return html;
+  const tags = `\n<meta http-equiv="Content-Security-Policy" content="${CSP}; base-uri 'self'">` + (NO_FRAME_PAGES.test(f) ? "\n" + NO_FRAME : "");
+  // Right after the charset tag, so the policy covers every script on the page and the charset stays in the first 1KB.
+  return html.replace(/<meta charset="utf-8">/i, (m) => m + tags);
+}
 const inject = `<script>window.STACK=${jsonInline({ ...cfg, ...pub })};</script>`;
 const PLAYER = '<script src="/assets/player.js" defer></script>';
 const rawT = readFileSync(join(out, "t.html"), "utf8");
@@ -97,7 +112,7 @@ for (const f of readdirSync(out)) {
   // Every script and stylesheet link gets ?v=<content hash>, so a page and its code always update together
   // (otherwise a phone can pair a fresh page with a cached old script and the form breaks).
   // Shared public header and footer (issue #71): only pages that carry the markers get them.
-  const html = withChrome(readFileSync(p, "utf8"), cfg).replace("<!--CONFIG-->", () => inject + bar + trackingSnippet(TAG_PAGES[f]))
+  const html = securityTags(f, withChrome(readFileSync(p, "utf8"), cfg)).replace("<!--CONFIG-->", () => inject + bar + trackingSnippet(TAG_PAGES[f]))
     .replace(/(src|href)="(\/?assets\/[^"?#]+\.(?:js|css))"/g, (m, attr, path) => {
       try { return `${attr}="${path}?v=${createHash("sha256").update(readFileSync(join(out, path.replace(/^\//, "")))).digest("hex").slice(0, 10)}"`; }
       catch { return m; }
@@ -167,7 +182,7 @@ writeFileSync(join(out, "_headers"), [
   "  X-Frame-Options: DENY",
   "  Referrer-Policy: strict-origin-when-cross-origin",
   "  Permissions-Policy: camera=(self), microphone=(), geolocation=()",
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.stripe.com ${TAG_SCRIPT}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co ${TAG_IMG}; media-src 'self' blob: https://*.supabase.co; connect-src 'self' ${pub.supabaseUrl || "https://*.supabase.co"} https://api.stripe.com ${TAG_CONNECT}; frame-src https://challenges.cloudflare.com https://js.stripe.com https://*.stripe.com; base-uri 'none'; form-action 'self'`,
+  `  Content-Security-Policy: ${CSP}; base-uri 'none'`,
   "",
 ].join("\n"));
 // One page per live track at /t/<CODE>/: the same sticker page, with the song, the artist and

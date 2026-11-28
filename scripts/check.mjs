@@ -24,6 +24,9 @@ for (const f of readdirSync(dist).filter((x) => x.endsWith(".html"))) {
     try { new vm.Script(m[1]); } catch (e) { fail(`${f}: script does not parse: ${e.message}`); }
   }
   if (!/<label[\s>]/.test(html) && /<input/.test(html)) fail(`${f}: inputs without <label>`);
+  // Pages with a sign-in or member-typed content carry a Content-Security-Policy (GitHub Pages can't send the header).
+  if (/^(admin|bonus|collection|in|link|me|people|promoter|shows|shows-review|shows-send|studio|tickets|ticket|door|pass|show|artist|demo)\.html$/.test(f) && !/http-equiv="Content-Security-Policy"/.test(html)) fail(`${f}: missing Content-Security-Policy meta`);
+  if (/^(admin|me|people|promoter|shows-review|studio)\.html$/.test(f) && !html.includes("window.top!==window.self")) fail(`${f}: missing the no-frame guard`);
 }
 // The functions must never ship a secret literal either.
 for (const dir of readdirSync(join(root, "supabase/functions"))) {
