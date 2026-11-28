@@ -45,3 +45,8 @@ for (const n of ["stack", "fees", "shows"]) assert.match(html, new RegExp(`<scri
 assert.doesNotMatch(html.split("</head>")[0], /<script[^>]+src=/);
 assert.doesNotMatch(html.split("</head>")[0], /fonts\.googleapis/);
 console.log("shows-fast checks passed");
+
+// The 12-hour stale drop: an old build with a failed live fetch must drop pulled listings but keep Subduction events.
+assert.match(js, /var STALE_MS = 12 \* 3600 \* 1000/);
+assert.match(js, /Date\.now\(\) - built > STALE_MS/);
+assert.match(js, /s\.source !== "listing"/);

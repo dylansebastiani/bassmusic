@@ -98,8 +98,38 @@ export function chicagoLocalToIso(raw) {
 }
 
 // Names and links that pose as T.O.F.T.U., the underground night, or a Subduction ticket page are refused.
-export const IMPERSONATION_RE = /\bt[\W_]*o[\W_]*f[\W_]*t[\W_]*u\b|under[\W_]*ground/i;
-export const impersonates = (name) => IMPERSONATION_RE.test(String(name || "").normalize("NFKC"));
+// The boundaries are letter/digit lookarounds, not \b, so "TOFTU2027" still counts but "stoftu" does not.
+export const IMPERSONATION_RE = /(?<![a-z0-9])t[\W_]*o[\W_]*f[\W_]*t[\W_]*u(?![a-z])|under[\W_]*ground/i;
+// Look-alike Cyrillic and Greek letters fold to Latin, and a zero stands in for the letter o.
+const LOOKALIKE = {
+  "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p", "\u0441": "c", "\u0445": "x", "\u0443": "y", "\u0456": "i",
+  "\u0455": "s", "\u0458": "j", "\u0501": "d", "\u0442": "t", "\u03bf": "o", "\u03c4": "t", "\u03c5": "u", "\u03b1": "a",
+};
+export const foldLookalikes = (s) =>
+  String(s || "").normalize("NFKC").toLowerCase().replace(/[\u0370-\u03ff\u0400-\u052f]/g, (c) => LOOKALIKE[c] || c).replace(/0/g, "o");
+export const impersonates = (name) => IMPERSONATION_RE.test(foldLookalikes(name));
+
+// One person, one address: Gmail ignores dots and +tags (and googlemail.com is gmail.com); other hosts ignore +tags.
+export function canonicalEmail(raw) {
+  const e = String(raw || "").trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  if (at < 1) return e;
+  let local = e.slice(0, at).split("+")[0], host = e.slice(at + 1);
+  if (host === "gmail.com" || host === "googlemail.com") { host = "gmail.com"; local = local.replace(/\./g, ""); }
+  return local + "@" + host;
+}
+// An ilike pattern that finds every stored spelling of that person, to be narrowed with canonicalEmail.
+export function emailPattern(raw) {
+  const c = canonicalEmail(raw), at = c.lastIndexOf("@");
+  if (at < 1) return c.replace(/[\\%_]/g, "\\$&");
+  const local = c.slice(0, at).replace(/[\\%_]/g, "\\$&"), host = c.slice(at + 1);
+  const gmail = host === "gmail.com";
+  const body = gmail ? [...local].join("%") : local;
+  return body + "%@" + (gmail ? "%mail.com" : host.replace(/[\\%_]/g, "\\$&"));
+}
+// Neutral reply for a ticket link that is already listed, so the form can't be used to look shows up.
+export const NEUTRAL_SUBMIT = { ok: true, neutral: true, message: "We'll email you if anything's needed." };
+
 export function subductionLink(url) {
   try {
     const host = new URL(url).hostname.toLowerCase().replace(/\.+$/, "");

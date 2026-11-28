@@ -285,7 +285,15 @@ Deno.serve(async (req) => {
     if (!allowed) return a === "login" ? ok({ code_sent: true }) : no("That code didn't match.");
     // Artist pass mail is sent on its own. This screen never emails an artist contact.
     if (a === "login" && await artistContact(email) !== false) return ok({ code_sent: true });
-    if (a === "login") { await mailCode(m as SigninMember); return ok({ code_sent: true }); }
+    if (a === "login") {
+      // One connection can only ask for so many code emails a day, so it can't use up someone else's 10.
+      const dayKey = await ipHash(req, (await setting("ip_salt", "unset")) + "|promoter-code-day");
+      await db.rpc("bump_rate_limit", { p_ip_hash: dayKey });
+      const { data: dayRows, error: dayErr } = await db.from("rate_limits").select("count").eq("ip_hash", dayKey).gte("window_start", new Date(Date.now() - 86400000).toISOString()).limit(2000);
+      const dayTotal = (dayRows || []).reduce((t: number, r: { count: number }) => t + (r.count || 0), 0);
+      if (dayErr || dayTotal > 12) return ok({ code_sent: true });
+      await mailCode(m as SigninMember); return ok({ code_sent: true });
+    }
     // Wrong guesses are counted per person across all their codes, so a new code never resets the count.
     if (await guessesLocked(m!.id)) return no("Too many wrong codes today. Try again tomorrow.", 429);
     const code = (clean(b.code, 12) || "").replace(/\D/g, "");

@@ -19,7 +19,7 @@ import {
   cityPath, honeypotFilled, leadMail, listingPlace, normTicketUrl, publicCard, subductionCard,
 } from "./listing.mjs";
 import {
-  UNSUB_HEADER, expiry, hashToken, linkCapReached, linkMail, mayMailLink, newLinkMail, newToken, ownerView, parseEvent,
+  UNSUB_HEADER, NEUTRAL_SUBMIT, canonicalEmail, emailPattern, expiry, hashToken, linkCapReached, linkMail, mayMailLink, newLinkMail, newToken, ownerView, parseEvent,
   publicFlyerPath, readShow, redeemLink, reviewExtras, sessionFor, ticketSite,
 } from "./submit.mjs";
 
@@ -67,27 +67,25 @@ function flyerUrl(path: string | null) {
 }
 
 // true = this address is on an artist pass. null = the lookup failed, so send nothing to it.
+// Dots and plus tags on either side count as the same address (see canonicalEmail).
 async function artistContact(raw: string): Promise<boolean | null> {
-  // Plus-addressing (artist+x@host) counts as the base address too.
-  const at = raw.lastIndexOf("@");
-  const base = at > 0 ? raw.slice(0, at).split("+")[0] + raw.slice(at) : raw;
-  for (const email of [...new Set([raw, base])]) {
-    const same = (e: string | null) => String(e || "").trim().toLowerCase() === email;
-    const [a, m] = await Promise.all([
-      db.from("artist_invites").select("email").ilike("email", email).limit(8),
-      db.from("artist_members").select("email").ilike("email", email).limit(8),
-    ]);
-    if (a.error || m.error) return null;
-    if ((a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email))) return true;
-  }
-  return false;
+  const want = canonicalEmail(raw), pat = emailPattern(raw);
+  const same = (e: string | null) => canonicalEmail(e) === want;
+  const [a, m] = await Promise.all([
+    db.from("artist_invites").select("email").ilike("email", pat).limit(50),
+    db.from("artist_members").select("email").ilike("email", pat).limit(50),
+  ]);
+  if (a.error || m.error) return null;
+  return (a.data || []).some((r) => same(r.email)) || (m.data || []).some((r) => same(r.email));
 }
 
-// At most 6 link emails an hour per address, across all its shows. A failed lookup counts as capped.
+// At most 6 link emails an hour per person (any dotted or plus spelling), across all their shows. A failed lookup counts as capped.
 async function linkCapHit(email: string): Promise<boolean> {
-  const { data: ids, error: e1 } = await db.from("directory_listings").select("id").eq("submitter_email", email).limit(200);
+  const { data: rows, error: e1 } = await db.from("directory_listings").select("id,submitter_email").ilike("submitter_email", emailPattern(email)).limit(200);
   if (e1) return true;
-  if (!ids || !ids.length) return false;
+  const want = canonicalEmail(email);
+  const ids = (rows || []).filter((r) => canonicalEmail(r.submitter_email) === want);
+  if (!ids.length) return false;
   const since = new Date(Date.now() - 3600000).toISOString();
   const { count, error } = await db.from("directory_links").select("id", { count: "exact", head: true }).eq("kind", "link").in("listing_id", ids.map((r) => r.id)).gte("created_at", since);
   return error ? true : linkCapReached(count);
@@ -370,7 +368,7 @@ Deno.serve(async (req) => {
     const f1 = checkImage(flyer), f2 = checkImage(pub);
     if (f1?.error || f2?.error) return no(f1?.error || f2?.error || IMG_ERR);
     const { data: dup } = await db.from("directory_listings").select("id").eq("ticket_url", parsed.data.ticket_url).neq("id", row.id).in("status", ["pending", "approved"]).maybeSingle();
-    if (dup) return no("That show is already in.");
+    if (dup) return no("Couldn't save that. Check the ticket link and try again.");
     const patch: Record<string, unknown> = { ...parsed.data, updated_at: new Date().toISOString() };
     const old: string[] = [];
     if (f1?.img) { const p = await saveImage(row.id, f1.img); if (!p) return no("Couldn't save that flyer. Try again.", 500); if (row.flyer_path) old.push(row.flyer_path); patch.flyer_path = p; }
@@ -384,7 +382,7 @@ Deno.serve(async (req) => {
     }
     const { data: saved, error } = await db.from("directory_listings").update(patch).eq("id", row.id).select(OWNER_COLS).maybeSingle();
     if (error || !saved) {
-      if (error && (error.code === "23505" || /duplicate key/i.test(error.message || ""))) return no("That show is already in.");
+      if (error && (error.code === "23505" || /duplicate key/i.test(error.message || ""))) return no("Couldn't save that. Check the ticket link and try again.");
       console.error("directory: edit", error?.message);
       return no("Couldn't save that. Try again.", 500);
     }
@@ -444,7 +442,7 @@ Deno.serve(async (req) => {
   const d = parsed.data;
 
   const { data: dup } = await db.from("directory_listings").select("id").eq("ticket_url", d.ticket_url).in("status", ["pending", "approved"]).maybeSingle();
-  if (dup) return no("That show is already in.");
+  if (dup) return json(NEUTRAL_SUBMIT);
 
   const id = crypto.randomUUID();
   const token = hex(32);
@@ -459,7 +457,7 @@ Deno.serve(async (req) => {
   });
   if (error) {
     if (paths.length) await db.storage.from("directory").remove(paths);
-    if (error.code === "23505" || /duplicate key/i.test(error.message || "")) return no("That show is already in.");
+    if (error.code === "23505" || /duplicate key/i.test(error.message || "")) return json(NEUTRAL_SUBMIT);
     console.error("directory: insert", error.message);
     return no("Couldn't save that. Try again.", 500);
   }

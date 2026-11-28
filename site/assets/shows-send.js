@@ -214,6 +214,8 @@
       tsUse(fd);
       return call(fd);
     }).then(function (j) {
+      // No session means the link is already on the list. The reply is the same neutral line either way.
+      if (j.neutral || !j.session) { say("m4", j.message || "We'll email you if anything's needed."); $("go4").disabled = false; return; }
       S.session = j.session || "";
       try { if (S.session) sessionStorage.setItem("show_edit", S.session); } catch (x) {}
       say("m4", ""); $("go4").disabled = false;
