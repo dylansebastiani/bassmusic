@@ -34,7 +34,7 @@ window.Join = (function () {
     el.innerHTML =
       '<form class="jf" novalidate>' +
         '<label class="sr" for="jemail">Email address</label>' +
-        '<div class="unit"><input type="email" id="jemail" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">' +
+        '<div class="unit"><input type="email" id="jemail" placeholder="you@email.com" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">' +
         '<button type="submit" class="btn">' + S.esc(opts.cta || C.cta || "GET EARLY ACCESS") + "</button></div>" +
         '<div class="msg hintrow" hidden><button type="button" class="hint"></button></div>' +
         '<input type="text" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">' +

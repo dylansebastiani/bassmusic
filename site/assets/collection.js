@@ -26,7 +26,7 @@
   if (!t) {
     $("signin").hidden = false;
     if (S.q.get("pending")) $("signin").querySelector(".lead").textContent = "No signal right now. Your signup is saved on this phone and finishes the next time you open the site with a connection.";
-    window.Join.mount($("join"), { cta: "Open my collection", hint: "New here? Same box, you're in. Already in? We'll email you a code.", onDone: function () { location.reload(); } });
+    window.Join.mount($("join"), { cta: "Open my collection", hint: "New or already in, it's the same box. Members get a code by email.", onDone: function () { location.reload(); } });
     return;
   }
 

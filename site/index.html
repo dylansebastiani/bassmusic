@@ -291,11 +291,11 @@ html:not(.js) .rv{opacity:1;transform:none}
   <p class="kick rv">For fans</p>
   <h2 class="disp rv" id="fanH">Buy a ticket.<br>Get free <em>music.</em></h2>
   <div class="box rv">
-    <p class="join">No ticket yet? Join free.</p>
+    <p class="join">No ticket needed. Join free.</p>
     <form id="f" novalidate method="post" action="collection.html">
     <label for="email" class="sr">Email address</label>
     <div class="unit">
-      <input type="email" id="email" name="email" placeholder="email" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
+      <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" inputmode="email" required autocapitalize="off" spellcheck="false">
       <button type="submit" class="btn" id="btn">Join</button>
     </div>
     <div id="hint" class="msg" hidden><button type="button" class="hint" id="hintBtn"></button></div>
@@ -422,7 +422,7 @@ window.Stack = (function () {
     Object.keys(map).forEach(function (k) { var h = (so[k] || "").replace(/^@/, ""); if (h) out.push('<a href="' + esc(map[k][1] + h) + '" target="_blank" rel="noopener">' + map[k][0] + "</a>"); });
     var row = $("fsocial"); if (row) row.innerHTML = out.join(""); })();
   all(".contact").forEach(function (a) { var s = a.getAttribute("data-subject"); a.href = "mailto:" + (C.contactEmail || "") + (s ? "?subject=" + encodeURIComponent(s) : ""); });
-  $("fine").textContent = "Your first free track unlocks right away. " + (C.microcopy || "") + " Already a member? Same box, we'll email you a code.";
+  $("fine").textContent = "Your first free track unlocks right away. " + (C.microcopy || "") + " Members use the same box and get a code by email.";
 
   // Fans arriving from a show QR (?e=) or a friend link (?r=) skip the promoter pitch and land on the email box.
   var fanVisit = !!(S.q.get("e") || S.q.get("r") || S.q.get("src"));
