@@ -37,15 +37,6 @@
       '<div class="bar" role="slider" aria-label="Position"><i></i></div><span class="time">0:00</span>' +
       '<audio preload="none" src="' + esc(k.audio_url) + '"></audio></div>';
   }
-  function trackCard(k, big) {
-    return '<article class="card track' + (big ? " big new" : "") + '" data-slug="' + esc(k.slug) + '">' +
-      (k.artwork_url ? '<img class="cover" src="' + esc(k.artwork_url) + '" alt="" loading="lazy">' : '<div class="cover blank"></div>') +
-      "<div>" + (big ? '<span class="chip">' + (k.audio_url ? "Unlocked" : "Yours once you fill this in") + '</span> ' : "") + "<h3>" + esc(k.title) + "</h3>" +
-      (k.artist ? '<div class="by">' + esc(k.artist) + "</div>" : "") + "</div>" +
-      (k.audio_url ? player(k) : "") +
-      (k.download_url ? '<a class="btn ghost dl" href="' + esc(k.download_url) + '" rel="noopener">' + esc(k.download_label || "Download WAV") + "</a>" : "") +
-      "</article>";
-  }
   var consentText = S.fill ? S.fill(C.smsConsentText, { LABEL_NAME: C.labelName }) : String(C.smsConsentText || "").replace("{{LABEL_NAME}}", C.labelName || "");
   function fields(d) {
     d = d || {};
@@ -73,26 +64,82 @@
     return '<article class="card friend"><h3>Bring a friend</h3><div class="where">Send them this link. They get the welcome track the moment they\'re in, and you get credit for it.</div>' +
       '<div class="code"><b>' + esc(link.replace(/^https?:\/\//, "")) + '</b><button type="button" data-copy="' + esc(link) + '">Copy</button></div></article>';
   }
+  // ---------- the vault: one big player on top, every track as artwork below ----------
+  var isFree = function (k) { return /^show-/.test(k.slug); };   // an artist's free download from a show page
+  var kind = function (k) { return isFree(k) ? "Free download" : "Unreleased"; };
+  var when = function (iso) { try { return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; } };
+  var vFilter = "all", vNow = null;
+  function nowCard(k, d) {
+    var open = !!k.audio_url;
+    return '<article class="v-now track" data-slug="' + esc(k.slug) + '">' +
+      '<div class="v-cover">' + (k.artwork_url ? '<img src="' + esc(k.artwork_url) + '" alt="' + esc(k.title) + ' cover">' : '<span class="v-blank" aria-hidden="true"></span>') +
+      '<span class="v-tag' + (isFree(k) ? " free" : "") + '">' + kind(k) + "</span>" + (open ? "" : '<span class="v-lock" aria-hidden="true"><svg viewBox="0 0 54 64"><path d="M14 28V18a13 13 0 0 1 26 0v10" fill="none" stroke="#f4f1ee" stroke-width="7"/><rect x="3" y="27" width="48" height="36" fill="#f4f1ee"/><rect x="24" y="38" width="6" height="13" fill="#000"/></svg></span>') + "</div>" +
+      '<div class="v-meta">' + (k.artist ? '<p class="v-artist">' + esc(k.artist) + "</p>" : "") + '<h2 class="v-name">' + esc(k.title) + "</h2>" +
+      (k.unlocked_at ? '<p class="v-when">In your vault since ' + esc(when(k.unlocked_at)) + "</p>" : "") + "</div>" +
+      (open ? player(k) : '<p class="v-locked">' + (d.light ? "Signed in from a sticker. Sign in with your email code to play and download." : "Yours. Fill this in once and every track plays and downloads.") + "</p>") +
+      (k.download_url ? '<a class="btn dl v-dl" href="' + esc(k.download_url) + '" rel="noopener">' + esc(k.download_label || "Download WAV") + "</a>" : "") +
+      "</article>";
+  }
+  function tile(k, i) {
+    return '<button type="button" class="v-tile' + (k === vNow ? " on" : "") + '" data-v="' + i + '" data-kind="' + (isFree(k) ? "free" : "drop") + '">' +
+      '<span class="v-tc">' + (k.artwork_url ? '<img src="' + esc(k.artwork_url) + '" alt="" loading="lazy">' : '<span class="v-blank"></span>') +
+      '<span class="v-tp" aria-hidden="true"></span></span>' +
+      '<b>' + esc(k.title) + "</b>" + (k.artist ? "<small>" + esc(k.artist) + "</small>" : "") +
+      '<i class="v-tk' + (isFree(k) ? " free" : "") + '">' + (k === vNow ? "In the player" : kind(k)) + "</i></button>";
+  }
+  function paintGrid(d) {
+    var g = $("vGrid"); if (!g) return;
+    g.innerHTML = d.tracks.map(function (k, i) { return vFilter === "all" || (vFilter === "free") === isFree(k) ? tile(k, i) : ""; }).join("");
+  }
   function paintTracks(d) {
     var el = $("p-collection"), fresh = S.q.get("new");
-    // The track to show big: the one just scanned, or, while the wall is up, the newest one.
     var focus = fresh ? d.tracks.filter(function (k) { return k.slug === fresh; })[0] : null;
-    if (!focus && !d.profile_done && d.tracks.length) focus = d.tracks[0];
-    var rest = d.tracks.filter(function (k) { return k !== focus; });
+    vNow = focus || d.tracks[0] || null;
+    var nFree = d.tracks.filter(isFree).length, nDrop = d.tracks.length - nFree;
     // Your next show leads, unless a track was just scanned: then the new track leads and the show follows it.
     var html = fresh && focus ? "" : '<div id="fanTop"></div>';
-    if (focus) html += trackCard(focus, true) + (d.profile_done ? "" : wallForm());
-    if (fresh && focus) html += '<div id="fanTop"></div>';
-    html += '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
-    if (!d.tracks.length) html += '<div class="empty">Nothing here yet. Every track has its own code. Scan one at a show and it lands here.</div>';
-    else if (rest.length) html += '<div class="list">' + rest.map(function (k) { return trackCard(k, false); }).join("") + "</div>";
-    else if (focus) html += '<div class="empty">That\'s your first one. Scan another code at a show and it lands here too.</div>';
+    html += '<header class="v-head"><p class="v-kick">' + (d.first_name ? esc(d.first_name) + "'s collection" : "Your collection") + '</p><h1 class="disp v-title">The <em>vault</em></h1>' +
+      (d.tracks.length ? '<p class="v-stats"><span><b>' + d.tracks.length + "</b> " + (d.tracks.length === 1 ? "track" : "tracks") + "</span>" +
+        (nDrop ? "<span><b>" + nDrop + "</b> unreleased</span>" : "") + (nFree ? "<span><b>" + nFree + "</b> free " + (nFree === 1 ? "download" : "downloads") + "</span>" : "") + "</p>" : "") + "</header>";
+    if (!d.tracks.length) {
+      html += '<div class="v-empty"><img src="/assets/art/fans-burst.webp" width="960" height="400" alt="" decoding="async"><p class="disp">Empty <em>for now.</em></p>' +
+        "<p>Every unreleased track has its own code. Scan one at a show, or tap a free download on a show page, and it lands here.</p>" +
+        '<a class="btn" href="/shows">Find a show</a></div>';
+    } else {
+      html += '<div id="vNowWrap">' + nowCard(vNow, d) + "</div>" + (d.profile_done ? "" : wallForm());
+      if (fresh && focus) html += '<div id="fanTop"></div>';
+      if (d.tracks.length > 1) {
+        html += (nFree && nDrop ? '<nav class="v-filter" id="vFilter" aria-label="Filter tracks"><button type="button" data-f="all" aria-pressed="true">All <b>' + d.tracks.length + "</b></button>" +
+          '<button type="button" data-f="drop" aria-pressed="false">Unreleased <b>' + nDrop + '</b></button><button type="button" data-f="free" aria-pressed="false">Downloads <b>' + nFree + "</b></button></nav>" : '<p class="v-h">Everything in your vault</p>') +
+          '<div class="v-grid" id="vGrid"></div>';
+      } else html += '<p class="v-one">That\'s your first one. Scan another code at a show and it lands here too.</p>';
+    }
     html += '<div id="fanPast"></div>';
     if (d.profile_done && !d.light) html += '<div class="list extra">' + friendCard(d) + infoBox(d) + "</div>";
     // Signed in from a sticker scan: tracks and shows only. Details need the emailed code.
     if (d.light) html += '<div class="list extra"><div class="empty">Signed in from a sticker. To change your info or get your friend link, <button type="button" class="hint" id="upgrade">sign in with your email code</button>.</div></div>';
     el.innerHTML = html;
+    paintGrid(d);
     $("n-collection").textContent = d.tracks.length ? "(" + d.tracks.length + ")" : "";
+    var vf = $("vFilter");
+    if (vf) vf.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-f]"); if (!b) return;
+      vFilter = b.getAttribute("data-f");
+      Array.prototype.forEach.call(vf.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      paintGrid(d);
+    });
+    var vg = $("vGrid");
+    // Tap a cover: it moves into the big player and starts playing (when unlocked).
+    if (vg) vg.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-v]"); if (!b) return;
+      var k0 = d.tracks[Number(b.getAttribute("data-v"))]; if (!k0) return;
+      // The latest signed links (they refresh every few minutes), so a track tapped later still plays.
+      var k = ((data && data.tracks) || []).filter(function (x) { return x.slug === k0.slug; })[0] || k0;
+      var old = document.querySelector("#vNowWrap audio"); if (old) old.pause();
+      vNow = k0; $("vNowWrap").innerHTML = nowCard(k, d); paintGrid(d);
+      $("vNowWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+      var a = document.querySelector("#vNowWrap audio"); if (a) a.play().catch(function () {});
+    });
 
     var w = $("wall");
     if (w) w.addEventListener("submit", function (e) {
