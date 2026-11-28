@@ -170,12 +170,14 @@ Deno.serve(async (req) => {
     return new Response(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable", ...CORS } });
   }
   if (a === "unsub" && (req.method === "GET" || req.method === "POST")) {
-    const page = (h: string, p: string) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${h}</title><body style="margin:0;background:#000;color:#F4F1EE;font-family:Arial,Helvetica,sans-serif;padding:48px 18px"><h1 style="font-size:28px;margin:0 0 10px">${h}</h1><p style="color:#9A9490;margin:0">${p}</p><p><a href="https://subduction.art/" style="color:#B6FF00">subduction.art</a></p>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
-    if (!TOKEN.test(t)) return page("Link not recognised", "That link didn't match anyone.");
-    const { data: l } = await db.from("demo_leads").select("email").eq("token", t).maybeSingle();
-    if (!l) return page("Link not recognised", "That link didn't match anyone.");
-    if (!(await blockEmail(l.email))) return page("Something went wrong", "Try the link again in a minute.");
-    return page("You're unsubscribed", "We won't email you again.");
+    // Edge functions can't serve HTML pages, so the link lands on subduction.art/unsubscribed.html. One-click POST gets a plain 200.
+    let ok = false;
+    if (TOKEN.test(t)) {
+      const { data: l } = await db.from("demo_leads").select("email").eq("token", t).maybeSingle();
+      if (l) ok = await blockEmail(l.email);
+    }
+    if (req.method === "POST") return json({ ok }, ok ? 200 : 404);
+    return Response.redirect(`${SITE}/unsubscribed.html${ok ? "" : "?ok=0"}`, 302);
   }
   if (req.method === "GET") {
     if (!TOKEN.test(t)) return no("Not found", 404);
