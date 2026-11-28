@@ -30,11 +30,16 @@ for (const f of ["../site/assets/promoter.js", "../site/promoter.html", "../site
   assert.ok(!/Dylan|Sebastiani/i.test(strip(read(f))), f + " must not name Dylan");
 }
 
-// 3. Home: summary card, grouped sections, payouts card. Sign in: three short lines.
+// 3. Home: show card, one next step while setting up, the everyday buttons once live, everything optional on More.
 const js = strip(read("../site/assets/promoter.js"));
-assert.ok(/class="card sumcard"/.test(js) && /id=copylink/.test(js) && /No sales yet/.test(js), "summary card with copy button and No sales yet");
-assert.ok(/Tickets sold/.test(js) && /Gross face value/.test(js), "summary shows tickets sold and gross face value");
-for (const t of ["Your show", "Sales", "Get paid", "Share and promote", "Page look"]) assert.ok(js.includes('sec("' + t + '"'), "home section " + t);
+assert.ok(/class="card sumcard"/.test(js) && /id=copylink/.test(js) && /No sales yet/.test(js), "show card with copy button and No sales yet");
+assert.ok(/Tickets sold/.test(js) && /Ticket money/.test(js), "show card shows tickets sold and ticket money");
+assert.ok(/View my page/.test(js) && /me\.html#show=/.test(js) && /Door and guest list/.test(js), "live show card links the page and the door");
+assert.ok(/'<a class=btn href="' \+ steps\[nextI\]\.href \+ '">Next: '/.test(js), "one next-step button while setting up");
+assert.ok(/if \(h\[0\] === "more"\) return more\(\)/.test(js), "More screen is routed");
+const moreFn = js.slice(js.indexOf("function more()"), js.indexOf("function promoters()"));
+assert.ok(/id=pxsave/.test(moreFn) && /referralHtml\(co\)/.test(moreFn) && /#brand/.test(moreFn), "ad pixel, referral and brand live on More");
 assert.ok(/id=paycard/.test(js) && /We'll email you when it opens/.test(js), "payouts card with the not-open note");
-assert.ok(/\$1\.50 flat buyer fee/.test(js) && /You keep your full ticket price/.test(js) && /No passwords/.test(js), "sign-in lines");
+assert.ok(/Step ' \+ n \+ " of 4/.test(js) && !/of 3 ·/.test(js) && !/" of 5"/.test(js), "one four-step counter");
+assert.ok(/You keep your full ticket price/.test(js) && /No passwords/.test(js), "sign-in lines");
 console.log("promoter-home ok");
