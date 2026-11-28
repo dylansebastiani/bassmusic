@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
     }
     const [own, listed] = await Promise.all([subductionShows(today), listingShows(today)]);
     const shows = [...own, ...listed].sort((x, y) => (x.dates[0] || "").localeCompare(y.dates[0] || "") || x.name.localeCompare(y.name));
-    return json({ shows }, 200, "public, max-age=60");
+    return json({ shows }, 200, "public, max-age=60, stale-while-revalidate=300");
   }
 
   if (req.method !== "POST") return no("Not allowed", 405);
