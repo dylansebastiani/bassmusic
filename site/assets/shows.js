@@ -98,7 +98,7 @@
   }
   function fee(s) { return s.source === "subduction" && !isToftu(s) && feeNote() ? '<small class="fee">' + feeNote() + "</small>" : ""; }
   // Only outside listings get the pitch. Subduction checkout shows and T.O.F.T.U. never do.
-  function sell(s) { return s.source === "listing" && !isToftu(s) ? '<p class="soft sell">Selling tickets for this? <a href="/demo">Run it on Subduction</a></p>' : ""; }
+  function sell(s) { return s.source === "listing" && !isToftu(s) ? '<p class="soft sell">Selling tickets for this? <a href="/promoter.html">Run it on Subduction</a></p>' : ""; }
   function card(s, i) {
     var tools = isToftu(s) ? "" :
       '<div class="tools"><button type="button" class="tool" data-cal="' + i + '">Add to calendar</button>' +

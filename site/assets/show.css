@@ -10,6 +10,7 @@ body.show .sbx{position:static;left:auto;right:auto;bottom:auto}
 .miss .brand img{width:36px;height:auto}
 .miss h1{font-size:clamp(40px,11vw,68px);max-width:11ch;margin:0;color:var(--fg)}
 .miss .btn{width:auto;min-width:200px;border-top:0}
+.miss .home{color:var(--mute);font-size:14px;text-decoration:underline}
 html:has(.show){background:var(--bg)}
 .show .wrap{max-width:560px}
 .show .btn{background:var(--hot);color:var(--bg);font-family:var(--disp);letter-spacing:.06em}
