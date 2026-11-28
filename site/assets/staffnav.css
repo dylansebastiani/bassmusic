@@ -1,0 +1,19 @@
+/* One menu across the staff pages: Staff, People, Page studio, Listings. Same sign-in on all four. */
+.snav{position:relative;z-index:60;display:flex;align-items:stretch;gap:0;background:#000;border-bottom:1px solid #2A2627;padding:0 max(12px,env(safe-area-inset-left,0px));padding-top:env(safe-area-inset-top,0px);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;flex:none}
+.snav::-webkit-scrollbar{display:none}
+.snav .m{display:flex;align-items:center;padding:0 8px 0 0;flex:none}
+.snav .m img{width:24px;height:24px;display:block}
+.snav a.l{flex:none;display:flex;align-items:center;min-height:48px;padding:2px 10px 0;color:#9A9490;text-decoration:none;font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;font-size:17px;letter-spacing:.06em;text-transform:uppercase;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.snav a.l:hover,.snav a.l:focus-visible{color:#F4F1EE}
+.snav a.l[aria-current=page]{color:#F4F1EE;border-bottom-color:#B6FF00}
+/* The listing page was built for a fixed public header. With the menu on top it needs less room. */
+.snav ~ main.wrap{padding-top:44px}
+/* The Staff page header already sits under the menu's mark. */
+.adminbody .top > img{display:none}
+/* Full width on the Staff page, whose body has side padding. */
+.adminbody{padding-top:0}
+.adminbody > .snav{margin:0 -18px 18px}
+@media (min-width:900px){.adminbody > .snav{margin:0 -32px 18px}}
+/* One mark per screen: the menu carries it. */
+.snav ~ .top .brand img,.studio .sbar .home{display:none}
+@media (max-width:420px){.snav{padding-left:10px;padding-right:6px}.snav a.l{font-size:15px;letter-spacing:.04em}}
