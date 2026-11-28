@@ -4,6 +4,9 @@
   var C = window.STACK || {}, FN = (C.supabaseUrl || "") + "/functions/v1/account";
   if (window.Stack) Stack.pageview("/me");
   var KEY = "stack_admin", tok = ""; try { tok = localStorage.getItem(KEY) || ""; } catch (e) {}
+  // From "Sign in to open your ticket": a sticker or member-key session can't open tickets, so start a real email sign-in.
+  var FRESH = /[?&]signin=1\b/.test(location.search);
+  if (FRESH) { tok = ""; try { localStorage.removeItem(KEY); history.replaceState(null, "", location.pathname); } catch (e) {} }
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var usd = function (c) { return "$" + ((c || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }); };
@@ -112,10 +115,10 @@
   function draw() {
     var d = me, h = "";
     if (tab === "fan") {
-      h += d.tickets.length ? d.tickets.map(function (s) {
-        return '<div class="mcard"><h3>' + esc(s.show) + '</h3><div class="sub">' + esc([s.nights.join(" + "), s.city].filter(Boolean).join(" · ")) + "</div>" +
-          s.tickets.map(function (t) { return '<div class="mrow"><span>' + esc(t.type) + ' <span class="mono">' + esc(t.code) + '</span></span><a href="' + esc(t.url) + '">Open</a></div>'; }).join("") + "</div>";
-      }).join("") : '<div class="mcard"><h3>No tickets yet</h3><div class="sub">Tickets you buy with this email show up here automatically.</div></div>';
+      // Next show up top (flyer, countdown, tickets), then other upcoming shows, then stubs from past shows (assets/fan.js).
+      var soon = d.tickets.filter(function (s) { return !s.past; }).length;
+      if (!soon) h += '<div class="mcard fx-none"><h3>No upcoming shows</h3><div class="sub">Tickets you buy with this email land here with a countdown.</div><a class="mbtn" href="/shows">Find a show</a></div>';
+      h += d.tickets.length && window.Fan ? '<div id="fanShows"></div>' : "";
       h += '<div class="mcard"><h3>Your music</h3><div class="sub">Every track you\'ve unlocked, to play or download.</div><a class="mbtn" href="' + esc(d.music) + '">Open my collection</a></div>';
     }
     if (tab === "artist") {
@@ -176,6 +179,7 @@
       if (!d.crews.length && !d.staff) h += '<div class="mcard"><h3>Throw a show?</h3><div class="sub">Sell tickets with your own Stripe and a custom page for every show. Your buyers pay the fee, so you keep your full ticket price.</div><a class="mbtn" href="promoter.html">Open a promoter account</a> <a class="mbtn ghost" href="' + esc(d.demo) + '">Try a test ticket first</a></div>';
     }
     $("panes").innerHTML = h;
+    if (tab === "fan" && $("fanShows")) window.Fan.draw($("fanShows"), d.tickets, { signin: "/me.html?signin=1" });
   }
 
   // Profile: edit, cancel, save. Copy buttons for sell links.
@@ -605,7 +609,7 @@
   } else if (tok) load();
   else {
     var mk = ""; try { mk = localStorage.getItem("stack_member") || ""; } catch (e) {}
-    if (/^[0-9a-f-]{36}$/i.test(mk)) {
+    if (/^[0-9a-f-]{36}$/i.test(mk) && !FRESH) {
       $("msg").textContent = "Signing you in...";
       api("", { a: "member", key: mk }).then(function (r) { tok = r.token; try { localStorage.setItem(KEY, tok); } catch (e) {} load(); })
         .catch(function () { $("msg").textContent = ""; show("signin"); });

@@ -1,0 +1,40 @@
+/* Fan show cards (assets/fan.js) on My account and My collection. Brand tokens only. */
+.fx-next{border:1px solid var(--line);background:#000;margin:0 0 14px}
+.fx-art{display:block;background:#000;border-bottom:1px solid var(--line)}
+.fx-art img{display:block;width:100%;height:auto;max-height:72vh;object-fit:contain;margin:0 auto}
+.fx-blank{display:block;aspect-ratio:960/400;background:#000 url(/assets/art/fans-burst.webp) center/cover no-repeat}
+.fx-body{padding:18px 16px 16px}
+.fx-kick,.fx-h,.fx-was{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot);margin:0}
+.fx-h{color:var(--mute);margin:26px 0 10px}
+.fx-name{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:clamp(40px,12vw,58px);line-height:.92;letter-spacing:.01em;margin:6px 0 12px;color:var(--fg)}
+.fx-count{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.fx-count b{font-family:var(--disp);font-weight:400;font-size:clamp(72px,24vw,112px);line-height:.85;color:var(--hot);text-transform:uppercase}
+.fx-count span{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.fx-when{color:#cfc9c5;font-size:15px;margin:0 0 4px}
+.fx-tag{color:var(--mute);font-size:14px;margin:0 0 4px}
+.fx-tix{display:flex;flex-direction:column;gap:8px;margin:16px 0 0}
+.fx-open{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--hot);color:#000;text-decoration:none;padding:14px 16px 12px}
+.fx-open span{font-size:15px;font-weight:600}
+.fx-open i{font-style:normal;font-family:var(--mono);font-size:12px;letter-spacing:.12em;font-weight:400}
+.fx-open b{font-family:var(--disp);font-weight:400;font-size:20px;letter-spacing:.08em;text-transform:uppercase}
+.fx-open:hover,.fx-open:focus-visible{background:#fff;outline:none}
+.fx-open.ghost{background:transparent;color:var(--fg);border:1px solid #6c6567;font-family:var(--disp);font-size:18px;letter-spacing:.08em;text-transform:uppercase;justify-content:center}
+.fx-open.ghost:hover{background:#fff;color:#000}
+.fx-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.fx-tools button{background:transparent;color:var(--fg);border:1px solid #6c6567;border-radius:0;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:13px 8px;cursor:pointer}
+.fx-tools button:hover{background:#fff;color:#000}
+.fx-later,.fx-stub{display:grid;grid-template-columns:84px 1fr;gap:14px;align-items:start;border:1px solid var(--line);padding:12px;margin-bottom:10px}
+.fx-later img,.fx-stub img,.fx-later .fx-blank,.fx-stub .fx-blank{width:84px;height:84px;object-fit:cover;aspect-ratio:auto;border:1px solid var(--line)}
+.fx-later h3,.fx-stub h3{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:24px;line-height:1;margin:0 0 4px}
+.fx-later .fx-open{margin-top:10px;padding:11px 12px 9px}.fx-later .fx-open b{font-size:16px}
+.fx-stubs{display:flex;flex-direction:column}
+/* Stub: torn-ticket feel. A dashed perforation with two punched notches between the flyer and the words. */
+.fx-stub{position:relative;background:#151515;border-color:#2a2627;padding:14px 14px 14px 12px}
+.fx-stub::before,.fx-stub::after{content:"";position:absolute;left:102px;width:16px;height:16px;border-radius:50%;background:#000;border:1px solid #2a2627}
+.fx-stub::before{top:-9px}.fx-stub::after{bottom:-9px}
+.fx-stub>div{border-left:1px dashed #6c6567;padding-left:14px;min-height:84px}
+.fx-stub .fx-was{margin:0 0 6px}
+.fx-stub{margin-bottom:16px}
+.fx-later .fx-open.ghost{font-size:15px;padding:11px 10px 9px}
+.fx-more{display:block;margin:-4px 0 14px;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg);text-decoration:none;border:1px solid var(--line);padding:13px 16px}
+.fx-more:hover{border-color:var(--hot);color:var(--hot)}

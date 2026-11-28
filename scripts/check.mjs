@@ -42,6 +42,7 @@ execSync("node scripts/artist-waitlist.test.mjs", { cwd: root, stdio: "inherit" 
 execSync("node scripts/directory.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/submit.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/shows-fast.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/fan-cards.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/referrals.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/session-trust.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/promoter-signin.test.mjs", { cwd: root, stdio: "inherit" });
@@ -59,6 +60,7 @@ execSync("node scripts/address.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/site-nav.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/homepage-clean.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/artists-copy.test.mjs", { cwd: root, stdio: "inherit" });
+execSync("node scripts/people-links.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/promoter-start.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/sample-show.test.mjs", { cwd: root, stdio: "inherit" });
 execSync("node scripts/page-art.test.mjs", { cwd: root, stdio: "inherit" });

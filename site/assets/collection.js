@@ -79,12 +79,15 @@
     var focus = fresh ? d.tracks.filter(function (k) { return k.slug === fresh; })[0] : null;
     if (!focus && !d.profile_done && d.tracks.length) focus = d.tracks[0];
     var rest = d.tracks.filter(function (k) { return k !== focus; });
-    var html = "";
+    // Your next show leads, unless a track was just scanned: then the new track leads and the show follows it.
+    var html = fresh && focus ? "" : '<div id="fanTop"></div>';
     if (focus) html += trackCard(focus, true) + (d.profile_done ? "" : wallForm());
+    if (fresh && focus) html += '<div id="fanTop"></div>';
     html += '<h2 class="disp">' + (d.first_name ? esc(d.first_name) + "'s " : "My ") + "collection</h2>";
     if (!d.tracks.length) html += '<div class="empty">Nothing here yet. Every track has its own code. Scan one at a show and it lands here.</div>';
     else if (rest.length) html += '<div class="list">' + rest.map(function (k) { return trackCard(k, false); }).join("") + "</div>";
     else if (focus) html += '<div class="empty">That\'s your first one. Scan another code at a show and it lands here too.</div>';
+    html += '<div id="fanPast"></div>';
     if (d.profile_done && !d.light) html += '<div class="list extra">' + friendCard(d) + infoBox(d) + "</div>";
     // Signed in from a sticker scan: tracks and shows only. Details need the emailed code.
     if (d.light) html += '<div class="list extra"><div class="empty">Signed in from a sticker. To change your info or get your friend link, <button type="button" class="hint" id="upgrade">sign in with your email code</button>.</div></div>';
@@ -207,7 +210,27 @@
       }
     });
   }
-  load(true).catch(function (err) {
+  // ---------- your shows: tickets up top, stubs under the tracks (same account as My account) ----------
+  // Uses the saved My account session, or trades this phone's member key for one (the account function refuses
+  // crew, staff and artists, who sign in by email instead). Nothing shows if either step fails.
+  function myShows() {
+    if (!window.Fan) return;
+    var A = (C.supabaseUrl || "") + "/functions/v1/account", AK = "stack_admin", tok = "";
+    try { tok = localStorage.getItem(AK) || ""; } catch (e) {}
+    var session = tok ? Promise.resolve(tok) : fetch(A, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: "member", key: t }) })
+      .then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { if (!j || !j.token) return ""; try { localStorage.setItem(AK, j.token); } catch (e) {} return j.token; });
+    session.then(function (k) {
+      if (!k) return null;
+      return fetch(A + "?a=me", { headers: { "x-admin-token": k } }).then(function (r) {
+        if (r.status === 401) { try { localStorage.removeItem(AK); } catch (e) {} return null; }
+        return r.ok ? r.json() : null;
+      });
+    }).then(function (me) {
+      if (!me || !me.tickets || !me.tickets.length || !$("fanTop")) return;
+      window.Fan.draw($("fanTop"), me.tickets, { signin: "/me.html?signin=1", pastRoot: $("fanPast"), compact: true });
+    }).catch(function () {});
+  }
+  load(true).then(function () { try { myShows(); } catch (e) {} }).catch(function (err) {
     if (err.status === 404) { S.forget(); location.replace("collection.html"); return; }
     $("signin").hidden = false;
     $("signin").innerHTML = '<h1 class="disp">No <em>signal</em></h1><p class="lead">Check your connection. <button type="button" class="hint" id="retry">Try again</button></p>';
