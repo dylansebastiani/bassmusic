@@ -181,15 +181,38 @@ async function home(m: { id: string; email: string; first_name: string | null })
   const tickets = Object.keys(ticketsByEvent).map((id) => ({ show: evMap[id].name, city: evMap[id].city, when: firstNight(id), nights: (nights[id] || []).map((n) => n.label), tickets: ticketsByEvent[id] }))
     .sort((a, b) => String(a.when).localeCompare(String(b.when)));
   // Every show they're booked on, each with its own sell link and how many tickets it has moved.
-  const sold: Record<string, number> = {};
-  for (const i of (invites || []).filter((x) => x.sell_ref || x.sell_promo_id)) {
-    const { data: os } = await db.from("ticket_orders").select("id,ref,promo_id").eq("event_id", i.event_id).eq("status", "paid").is("comp_list", null).is("artist_invite_id", null);
-    const mine = (os || []).filter((o) => (i.sell_promo_id && o.promo_id === i.sell_promo_id) || (i.sell_ref && o.ref && o.ref.toLowerCase() === String(i.sell_ref).toLowerCase())).map((o) => o.id);
-    sold[i.id] = mine.length ? ((await db.from("tickets").select("id", { count: "exact", head: true }).in("order_id", mine)).count ?? 0) : 0;
+  // A booked artist with no link yet gets one the same way their pass page does: by asking artist-sales, which
+  // makes the tag and code. Nothing here touches checkout, tickets or the webhook.
+  const needLink = (invites || []).filter((i) => (!i.sell_ref || !i.sell_promo_id) && evMap[i.event_id]);
+  if (needLink.length) {
+    await Promise.all(needLink.map((i) => fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/artist-sales?k=${i.token}`, { signal: AbortSignal.timeout(8000) }).catch(() => null)));
+    const { data: fresh } = await db.from("artist_invites").select("id,sell_ref,sell_promo_id").in("id", needLink.map((i) => i.id));
+    for (const f of fresh || []) { const i = (invites || []).find((x) => x.id === f.id); if (i) { i.sell_ref = f.sell_ref; i.sell_promo_id = f.sell_promo_id; } }
+  }
+  // Same rules as artist-sales tally(): paid only, no comps or artist passes, ref matched without case, and a code
+  // typed at checkout beats the link, so one order is credited to one artist across everyone on the show.
+  const sold: Record<string, number> = {}, codes: Record<string, string> = {};
+  const pids = (invites || []).map((i) => i.sell_promo_id).filter(Boolean) as string[];
+  if (pids.length) ((await db.from("promo_codes").select("id,code").in("id", pids)).data || []).forEach((p) => { codes[p.id] = p.code; });
+  for (const evId of [...new Set((invites || []).filter((x) => x.sell_ref || x.sell_promo_id).map((x) => x.event_id))]) {
+    const [{ data: os }, { data: all }] = await Promise.all([
+      db.from("ticket_orders").select("id,ref,promo_id").eq("event_id", evId).eq("status", "paid").is("comp_list", null).is("artist_invite_id", null),
+      db.from("artist_invites").select("id,sell_ref,sell_promo_id").eq("event_id", evId).is("revoked_at", null),
+    ]);
+    const credit: Record<string, string[]> = {};
+    for (const o of os || []) {
+      const who = (all || []).find((v) => v.sell_promo_id && o.promo_id === v.sell_promo_id) || (all || []).find((v) => v.sell_ref && o.ref && o.ref.toLowerCase() === String(v.sell_ref).toLowerCase());
+      if (who) (credit[who.id] ||= []).push(o.id);
+    }
+    for (const i of (invites || []).filter((x) => x.event_id === evId)) {
+      const ids = credit[i.id] || []; let n = 0;
+      for (let k = 0; k < ids.length; k += 200) n += (await db.from("tickets").select("id", { count: "exact", head: true }).in("order_id", ids.slice(k, k + 200))).count ?? 0;
+      sold[i.id] = n;
+    }
   }
   const artist = (invites || []).filter((i) => evMap[i.event_id]).map((i) => ({ name: i.name, show: evMap[i.event_id].name, when: firstNight(i.event_id),
     nights: (nights[i.event_id] || []).map((n) => n.label), url: `${SITE}/artist.html?k=${i.token}`, claimed: !!i.claimed_at,
-    sell_link: i.sell_ref ? `${SITE}/go/${i.sell_ref}` : null, sold: sold[i.id] || 0 }));
+    sell_link: i.sell_ref ? `${SITE}/go/${i.sell_ref}` : null, code: i.sell_promo_id ? codes[i.sell_promo_id] || "" : "", sold: sold[i.id] || 0 }));
   // One artist profile per person. First time we see them, it's carried over from their artist pass.
   let { data: prof } = await db.from("artist_profiles").select("name,bio,hometown,genre,links,photo_path").eq("subscriber_id", m.id).maybeSingle();
   if (!prof && (invites || []).length) {

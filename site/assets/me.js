@@ -124,7 +124,10 @@
       if (d.artist.length) {
         h += '<div class="roleh">Your shows</div>' + d.artist.map(function (a) {
           return '<div class="mcard"><h3>' + esc(a.show) + '</h3><div class="sub">As ' + esc(a.name) + " · " + esc(a.nights.join(" + ")) + "</div>" +
-            (a.sell_link ? '<div class="mrow"><span><b>' + a.sold + (a.sold === 1 ? " ticket" : " tickets") + ' sold</b><br><span class="mono">' + esc(a.sell_link.replace(/^https?:\/\//, "")) + '</span></span><button type="button" class="mbtn ghost" data-copy="' + esc(a.sell_link) + '">Copy link</button></div>' : "") +
+            (a.sell_link || a.code || a.sold ? '<div class="mrow"><span><b>' + a.sold + (a.sold === 1 ? " ticket" : " tickets") + ' sold</b>' +
+              (a.sell_link ? '<br><span class="mono">' + esc(a.sell_link.replace(/^https?:\/\//, "")) + "</span>" : "") +
+              (a.code ? '<br><span class="mono">Code ' + esc(a.code) + "</span>" : "") + "</span>" +
+              (a.sell_link ? '<button type="button" class="mbtn ghost" data-copy="' + esc(a.sell_link) + '">Copy link</button>' : "") + "</div>" : "") +
             '<a class="mbtn" href="' + esc(a.url) + '">' + (a.claimed ? "Artist dashboard" : "Get my artist pass") + "</a></div>";
         }).join("");
       }
